@@ -57,7 +57,7 @@ func (i InclusionChecker) CheckFact(fact ast.Atom, store factstore.FactStore) er
 	}
 	subst, err := unionfind.UnifyTerms(fact.Args, decl.DeclaredAtom.Args)
 	if err != nil {
-		return fmt.Errorf("could not unify %v and %v", fact, decl.DeclaredAtom)
+		return fmt.Errorf("could not unify %v and %v: %w", fact, decl.DeclaredAtom, err)
 	}
 
 	var reasons []string

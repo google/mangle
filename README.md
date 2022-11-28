@@ -22,16 +22,11 @@ a way that is accessible to developers and lends itself to easy experimentation.
 This repository contains an implementation of Mangle as a go library that can be
 easily embedded into applications.
 
-This is not an officially supported Google product. The Mangle maintainers
-welcome external contributions to spec, documentation and this
-implementation (see [CONTRIBUTING.md](CONTRIBUTING.md)) and also other
-implementations. Pull requests will be handled [like for tensorflow](https://github.com/tensorflow/tensorflow/blob/master/CONTRIBUTING.md),
-to ensure our internal use cases and tests continue to work.
+This is not an officially supported Google product. 
 
 ## Table of Contents
 - [Examples](#examples)
-<!-- - Installation(#installation) -->
-- Building(#building)
+- [Building](#building)
 
 ## Examples
 
@@ -105,42 +100,28 @@ roles to describe how concepts interact, but the relationships are always
 binary. Mangle can represent binary predicates, but also arbitrary n-ary relations.
 
 ```
-one_or_two_leg_flight(Codes, Start, Destination, Price) :-
-  direct_flight(Code, Start, Destination, Price)
-  |> let Codes = fn:list(Code).
+one_or_two_leg_trip(Codes, Start, Destination, Price) :-
+  direct_conn(Code, Start, Destination, Price)
+  |> let Codes = [Code].
 
-one_or_two_leg_flight(Codes, Start, Destination, Price) :-
-  direct_flight(FirstCode, Start, FirstStop, FirstLegPrice).
-  direct_flight(SecondCode, FirstStop, Destination, SecondLegPrice)
-  |> let Codes = [FirstCode, SecondCode],
+one_or_two_leg_trip(Codes, Start, Destination, Price) :-
+  direct_conn(FirstCode, Start, Connecting, FirstLegPrice).
+  direct_conn(SecondCode, Connecting, Destination, SecondLegPrice)
+  |> let Code = [FirstCode, SecondCode],
      let Price = fn:sum(FirstLegPrice, SecondLegPrice).
-```
 
-```mermaid
+```
 graph LR
-    A[Square Rect] -- Link text --> B((Circle))
-    A --> C(Round Rect)
-    B --> D{Rhombus}
-    C --> D
+    /zurich -->|/code/ZL <br /> 60 CHF| /lausanne
+    /zurich -->|/code/ZB <br /> 30 CHF| /bern
+    /bern -->|/code/ZL <br />30 CHF| /lausanne
+```mermaid
 ```
-
-<!--
-## Installation
-
-Mangle has an implementation as a library in Go that can be embedded in
-your application. It also comes with a very simple interpreter shell.
-(editorial note: we'll verify these after source is on github)
-
-```
-go get github.com/google/mangle
-go run mangle/interpreter/main (TODO:check this??)
-```
--->
 
 ## Building
 
-If you want to build from source develop extensions, you need to set up 
-ANTLR first, which requires Java runtime environment.
+If you want to build from source, you need to set up  ANTLR first,
+which requires Java runtime environment.
 
 ```
 wget http://www.antlr.org/download/antlr-4.11.1-complete.jar
@@ -152,12 +133,16 @@ Then you can generate the parser sources
 antlr -Dlanguage=Go -package gen -o ./ parse/gen/Mangle.g4 -visitor
 ```
 
-... and finally build the library:
+... and finally get the dependencies (see [go.mod](go.mod)) and build the library:
 ```
+go get ...
 go build ...
 ```
 
 ## Contributing
 
-This project is used in an internal application. Pull requests will
-be handled by merging into internal repository.
+The Mangle maintainers welcome external contributions to spec, documentation
+and this implementation (see [CONTRIBUTING.md](CONTRIBUTING.md)) and also other
+implementations. Pull requests will be handled
+[like for tensorflow](https://github.com/tensorflow/tensorflow/blob/master/CONTRIBUTING.md),
+to ensure our internal usage and tests will pass. 

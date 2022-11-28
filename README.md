@@ -111,11 +111,12 @@ one_or_two_leg_trip(Codes, Start, Destination, Price) :-
      let Price = fn:sum(FirstLegPrice, SecondLegPrice).
 
 ```
+
+```mermaid
 graph LR
     /zurich -->|/code/ZL <br /> 60 CHF| /lausanne
     /zurich -->|/code/ZB <br /> 30 CHF| /bern
-    /bern -->|/code/ZL <br />30 CHF| /lausanne
-```mermaid
+    /bern -->|/code/ZL <br /> 30 CHF| /lausanne
 ```
 
 ## Building

@@ -30,22 +30,22 @@ func TestTrie(t *testing.T) {
 			want:     -1,
 		},
 		{
-			allparts: [][]string{[]string{"foo"}},
+			allparts: [][]string{{"foo"}},
 			query:    []string{"foo"},
 			want:     -1,
 		},
 		{
-			allparts: [][]string{[]string{"foo"}},
+			allparts: [][]string{{"foo"}},
 			query:    []string{"foo", "bar"},
 			want:     0,
 		},
 		{
-			allparts: [][]string{[]string{"foo", "bar"}},
+			allparts: [][]string{{"foo", "bar"}},
 			query:    []string{"foo", "bar"},
 			want:     -1,
 		},
 		{
-			allparts: [][]string{[]string{"foo", "bar"}},
+			allparts: [][]string{{"foo", "bar"}},
 			query:    []string{"foo", "bar", "baz"},
 			want:     1,
 		},

@@ -33,12 +33,12 @@ func name(n string) ast.Constant {
 
 func TestDesugarNoBound(t *testing.T) {
 	decls := map[ast.PredicateSym]ast.Decl{
-		ast.PredicateSym{"foo", 1}: ast.Decl{
+		ast.PredicateSym{"foo", 1}: {
 			ast.NewAtom("foo", ast.Variable{"X"}),
 			nil,
 			nil, // no bounds
 			nil,
-		},
+				},
 	}
 	desugared, err := CheckAndDesugar(decls)
 	if err != nil {
@@ -58,22 +58,22 @@ func TestDesugarNoBound(t *testing.T) {
 func TestDesugarPropagate(t *testing.T) {
 	fooPrefixType, _ := ast.Name("/foo")
 	decls := map[ast.PredicateSym]ast.Decl{
-		ast.PredicateSym{"foo", 1}: ast.Decl{
+		ast.PredicateSym{"foo", 1}: {
 			ast.NewAtom("foo", ast.Variable{"X"}),
 			nil,
 			[]ast.BoundDecl{
 				ast.NewBoundDecl(ast.StringBound),
 				ast.NewBoundDecl(fooPrefixType),
 			},
-			nil,
-		},
-		ast.PredicateSym{"bar", 1}: ast.Decl{
+					nil,
+				},
+		ast.PredicateSym{"bar", 1}: {
 			ast.NewAtom("bar", ast.Variable{"X"}),
 			nil,
 			[]ast.BoundDecl{ast.NewBoundDecl(ast.String("foo"))},
 			nil,
-		},
-		ast.PredicateSym{"baz", 2}: ast.Decl{
+				},
+		ast.PredicateSym{"baz", 2}: {
 			ast.NewAtom("baz", ast.Variable{"X"}, ast.Variable{"Y"}),
 			nil,
 			[]ast.BoundDecl{ast.NewBoundDecl(ast.String("foo"), ast.String("bar"))},
@@ -81,8 +81,8 @@ func TestDesugarPropagate(t *testing.T) {
 				ast.NewAtom("foo", ast.Variable{"X"}),
 			}, []ast.And{
 				ast.TrueAnd,
-			}},
-		},
+					}},
+				},
 	}
 	wants := map[ast.PredicateSym]struct {
 		bounds []ast.BoundDecl
@@ -107,7 +107,7 @@ func TestDesugarPropagate(t *testing.T) {
 			incl: ast.InclusionConstraint{
 				nil,
 				[]ast.And{
-					ast.And{[]ast.Atom{ast.NewAtom("foo", ast.Variable{"X"})}},
+					{[]ast.Atom{ast.NewAtom("foo", ast.Variable{"X"})}},
 				}},
 		},
 		ast.PredicateSym{"baz", 2}: {
@@ -123,10 +123,10 @@ func TestDesugarPropagate(t *testing.T) {
 			incl: ast.InclusionConstraint{
 				nil,
 				[]ast.And{
-					ast.And{[]ast.Atom{
+					{[]ast.Atom{
 						ast.NewAtom("foo", ast.Variable{"X"}),
 						ast.NewAtom("bar", ast.Variable{"Y"}),
-					}},
+										}},
 				}},
 		},
 	}
@@ -155,24 +155,24 @@ func TestDesugarPropagate(t *testing.T) {
 
 func TestDesugarCyclic(t *testing.T) {
 	decls := map[ast.PredicateSym]ast.Decl{
-		ast.PredicateSym{"foo", 1}: ast.Decl{
+		ast.PredicateSym{"foo", 1}: {
 			ast.NewAtom("foo", ast.Variable{"X"}),
 			nil,
 			[]ast.BoundDecl{ast.NewBoundDecl(ast.String("bar"))},
 			nil,
-		},
-		ast.PredicateSym{"bar", 1}: ast.Decl{
+				},
+		ast.PredicateSym{"bar", 1}: {
 			ast.NewAtom("bar", ast.Variable{"X"}),
 			nil,
 			[]ast.BoundDecl{ast.NewBoundDecl(ast.String("foo"))},
 			nil,
-		},
-		ast.PredicateSym{"baz", 2}: ast.Decl{
+				},
+		ast.PredicateSym{"baz", 2}: {
 			ast.NewAtom("baz", ast.Variable{"X"}, ast.Variable{"Y"}),
 			nil,
 			[]ast.BoundDecl{ast.NewBoundDecl(ast.String("foo"), ast.String("bar"))},
 			nil,
-		},
+				},
 	}
 	got, err := CheckAndDesugar(decls)
 	if err == nil { // if NO error

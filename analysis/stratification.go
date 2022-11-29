@@ -125,6 +125,15 @@ func (dep depGraph) transpose() depGraph {
 }
 
 type nodelist []ast.PredicateSym
+// Fix nodes and merges
+// Your First C++ Program
+
+#include <iostream>
+
+int main() {
+    std::cout << "Hello World!";
+    return 0;
+}
 
 // Nodeset represents a set of nodes in the dependency graph.
 type Nodeset map[ast.PredicateSym]struct{}

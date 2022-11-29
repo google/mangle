@@ -24,11 +24,11 @@ rigorous as to become inaccessible.
 
 ## Language
 
-- [rationale.md] Rationale
+- [Rationale](rationale.md)
 - (specification - TODO)
 
 ## Implementation
 
 ### Understanding
 
-- [using_the_interpreter.md]Using the interactive interpreter
+- [Using the interactive interpreter](using_the_interpreter.md)

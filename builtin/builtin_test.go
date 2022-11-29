@@ -230,9 +230,9 @@ func TestReducerCollect(t *testing.T) {
 	}{
 		{
 			rows: [][]ast.Constant{
-				[]ast.Constant{ast.Number(1)},
-				[]ast.Constant{ast.Number(1)},
-				[]ast.Constant{ast.Number(3)},
+				{ast.Number(1)},
+				{ast.Number(1)},
+				{ast.Number(3)},
 			},
 			want: ast.List([]ast.Constant{
 				ast.Number(1),
@@ -242,9 +242,9 @@ func TestReducerCollect(t *testing.T) {
 		},
 		{
 			rows: [][]ast.Constant{
-				[]ast.Constant{ast.Number(1), ast.Number(2)},
-				[]ast.Constant{ast.Number(1), ast.Number(2)},
-				[]ast.Constant{ast.Number(3), ast.Number(4)},
+				{ast.Number(1), ast.Number(2)},
+				{ast.Number(1), ast.Number(2)},
+				{ast.Number(3), ast.Number(4)},
 			},
 			want: ast.List([]ast.Constant{
 				*pair(ast.Number(1), ast.Number(2)),
@@ -254,8 +254,8 @@ func TestReducerCollect(t *testing.T) {
 		},
 		{
 			rows: [][]ast.Constant{
-				[]ast.Constant{ast.Number(1), ast.Number(2), ast.Number(7)},
-				[]ast.Constant{ast.Number(3), ast.Number(4), ast.Number(7)},
+				{ast.Number(1), ast.Number(2), ast.Number(7)},
+				{ast.Number(3), ast.Number(4), ast.Number(7)},
 			},
 			want: ast.List([]ast.Constant{
 				*pair(ast.Number(1), *pair(ast.Number(2), ast.Number(7))),
@@ -287,9 +287,9 @@ func TestReducerCollectDistinct(t *testing.T) {
 	}{
 		{
 			rows: [][]ast.Constant{
-				[]ast.Constant{ast.Number(1)},
-				[]ast.Constant{ast.Number(1)},
-				[]ast.Constant{ast.Number(3)},
+				{ast.Number(1)},
+				{ast.Number(1)},
+				{ast.Number(3)},
 			},
 			want: ast.List([]ast.Constant{
 				ast.Number(1),
@@ -298,9 +298,9 @@ func TestReducerCollectDistinct(t *testing.T) {
 		},
 		{
 			rows: [][]ast.Constant{
-				[]ast.Constant{ast.Number(1), ast.Number(2)},
-				[]ast.Constant{ast.Number(1), ast.Number(2)},
-				[]ast.Constant{ast.Number(3), ast.Number(4)},
+				{ast.Number(1), ast.Number(2)},
+				{ast.Number(1), ast.Number(2)},
+				{ast.Number(3), ast.Number(4)},
 			},
 			want: ast.List([]ast.Constant{
 				*pair(ast.Number(1), ast.Number(2)),
@@ -309,8 +309,8 @@ func TestReducerCollectDistinct(t *testing.T) {
 		},
 		{
 			rows: [][]ast.Constant{
-				[]ast.Constant{ast.Number(1), ast.Number(2), ast.Number(7)},
-				[]ast.Constant{ast.Number(3), ast.Number(4), ast.Number(7)},
+				{ast.Number(1), ast.Number(2), ast.Number(7)},
+				{ast.Number(3), ast.Number(4), ast.Number(7)},
 			},
 			want: ast.List([]ast.Constant{
 				*pair(ast.Number(1), *pair(ast.Number(2), ast.Number(7))),

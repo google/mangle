@@ -112,14 +112,14 @@ var (
 	EmptyType = ast.ApplyFn{UnionType, nil}
 
 	argumentRange = map[ast.PredicateSym][]ast.BaseTerm{
-		Lt:       []ast.BaseTerm{ast.NumberBound, ast.NumberBound},
-		Le:       []ast.BaseTerm{ast.NumberBound, ast.NumberBound},
-		MatchNil: []ast.BaseTerm{ast.ApplyFn{ListType, []ast.BaseTerm{ast.Number(0)}}},
-		MatchCons: []ast.BaseTerm{
+		Lt:       {ast.NumberBound, ast.NumberBound},
+		Le:       {ast.NumberBound, ast.NumberBound},
+		MatchNil: {ast.ApplyFn{ListType, []ast.BaseTerm{ast.Number(0)}}},
+		MatchCons: {
 			ast.ApplyFn{ListType, []ast.BaseTerm{ast.Number(0)}},
 			ast.Number(0),
 			ast.ApplyFn{ListType, []ast.BaseTerm{ast.Number(0)}}},
-		MatchPair: []ast.BaseTerm{
+		MatchPair: {
 			ast.ApplyFn{PairType, []ast.BaseTerm{ast.Number(0), ast.Number(1)}},
 			ast.Number(0),
 			ast.Number(1)},

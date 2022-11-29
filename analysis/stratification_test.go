@@ -70,8 +70,8 @@ func TestStratificationPositive(t *testing.T) {
 				})
 			},
 			wantStrataOrder: map[int][]ast.PredicateSym{
-				0: []ast.PredicateSym{ast.PredicateSym{"even", 1}, ast.PredicateSym{"odd", 1}},
-				1: []ast.PredicateSym{ast.PredicateSym{"count", 1}},
+				0: {{"even", 1}, {"odd", 1}},
+				1: {{"count", 1}},
 			},
 		},
 		{
@@ -86,9 +86,9 @@ func TestStratificationPositive(t *testing.T) {
 				})
 			},
 			wantStrataOrder: map[int][]ast.PredicateSym{
-				0: []ast.PredicateSym{ast.PredicateSym{"d", 1}},
-				1: []ast.PredicateSym{ast.PredicateSym{"b", 1}, ast.PredicateSym{"c", 1}},
-				2: []ast.PredicateSym{ast.PredicateSym{"a", 1}},
+				0: {{"d", 1}},
+				1: {{"b", 1}, {"c", 1}},
+				2: {{"a", 1}},
 			},
 		},
 	}

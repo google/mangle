@@ -33,7 +33,7 @@ func name(n string) ast.Constant {
 
 func TestDesugarNoBound(t *testing.T) {
 	decls := map[ast.PredicateSym]ast.Decl{
-		ast.PredicateSym{"foo", 1}: {
+		ast.PredicateSym{"foo", 1}: ast.Decl{
 			ast.NewAtom("foo", ast.Variable{"X"}),
 			nil,
 			nil, // no bounds
@@ -58,7 +58,7 @@ func TestDesugarNoBound(t *testing.T) {
 func TestDesugarPropagate(t *testing.T) {
 	fooPrefixType, _ := ast.Name("/foo")
 	decls := map[ast.PredicateSym]ast.Decl{
-		ast.PredicateSym{"foo", 1}: {
+		ast.PredicateSym{"foo", 1}: ast.Decl{
 			ast.NewAtom("foo", ast.Variable{"X"}),
 			nil,
 			[]ast.BoundDecl{
@@ -67,13 +67,13 @@ func TestDesugarPropagate(t *testing.T) {
 			},
 			nil,
 		},
-		ast.PredicateSym{"bar", 1}: {
+		ast.PredicateSym{"bar", 1}: ast.Decl{
 			ast.NewAtom("bar", ast.Variable{"X"}),
 			nil,
 			[]ast.BoundDecl{ast.NewBoundDecl(ast.String("foo"))},
 			nil,
 		},
-		ast.PredicateSym{"baz", 2}: {
+		ast.PredicateSym{"baz", 2}: ast.Decl{
 			ast.NewAtom("baz", ast.Variable{"X"}, ast.Variable{"Y"}),
 			nil,
 			[]ast.BoundDecl{ast.NewBoundDecl(ast.String("foo"), ast.String("bar"))},
@@ -107,7 +107,7 @@ func TestDesugarPropagate(t *testing.T) {
 			incl: ast.InclusionConstraint{
 				nil,
 				[]ast.And{
-					{[]ast.Atom{ast.NewAtom("foo", ast.Variable{"X"})}},
+					ast.And{[]ast.Atom{ast.NewAtom("foo", ast.Variable{"X"})}},
 				}},
 		},
 		ast.PredicateSym{"baz", 2}: {
@@ -123,7 +123,7 @@ func TestDesugarPropagate(t *testing.T) {
 			incl: ast.InclusionConstraint{
 				nil,
 				[]ast.And{
-					{[]ast.Atom{
+					ast.And{[]ast.Atom{
 						ast.NewAtom("foo", ast.Variable{"X"}),
 						ast.NewAtom("bar", ast.Variable{"Y"}),
 					}},
@@ -155,19 +155,19 @@ func TestDesugarPropagate(t *testing.T) {
 
 func TestDesugarCyclic(t *testing.T) {
 	decls := map[ast.PredicateSym]ast.Decl{
-		ast.PredicateSym{"foo", 1}: {
+		ast.PredicateSym{"foo", 1}: ast.Decl{
 			ast.NewAtom("foo", ast.Variable{"X"}),
 			nil,
 			[]ast.BoundDecl{ast.NewBoundDecl(ast.String("bar"))},
 			nil,
 		},
-		ast.PredicateSym{"bar", 1}: {
+		ast.PredicateSym{"bar", 1}: ast.Decl{
 			ast.NewAtom("bar", ast.Variable{"X"}),
 			nil,
 			[]ast.BoundDecl{ast.NewBoundDecl(ast.String("foo"))},
 			nil,
 		},
-		ast.PredicateSym{"baz", 2}: {
+		ast.PredicateSym{"baz", 2}: ast.Decl{
 			ast.NewAtom("baz", ast.Variable{"X"}, ast.Variable{"Y"}),
 			nil,
 			[]ast.BoundDecl{ast.NewBoundDecl(ast.String("foo"), ast.String("bar"))},

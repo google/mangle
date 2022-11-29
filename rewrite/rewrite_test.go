@@ -34,11 +34,11 @@ func clause(str string) ast.Clause {
 func TestRewrite(t *testing.T) {
 	got := Rewrite(analysis.Program{
 		EdbPredicates: map[ast.PredicateSym]struct{}{
-			ast.PredicateSym{"num", 1}:  {},
-			ast.PredicateSym{"succ", 2}: {},
+			ast.PredicateSym{"num", 1}:  struct{}{},
+			ast.PredicateSym{"succ", 2}: struct{}{},
 		},
 		IdbPredicates: map[ast.PredicateSym]struct{}{
-			ast.PredicateSym{"odd", 1}: {},
+			ast.PredicateSym{"odd", 1}: struct{}{},
 		},
 		Rules: []ast.Clause{
 			clause("count(A) :- odd(X), succ(Y, Z) |> do fn:group_by(), let Z = fn:count()."),
@@ -51,11 +51,11 @@ func TestRewrite(t *testing.T) {
 	}{
 		{
 			headSym:     ast.PredicateSym{"count1__tmp", 3},
-			premiseSyms: []ast.PredicateSym{{"odd", 1}, {"succ", 2}},
+			premiseSyms: []ast.PredicateSym{ast.PredicateSym{"odd", 1}, ast.PredicateSym{"succ", 2}},
 		},
 		{
 			headSym:     ast.PredicateSym{"count", 1},
-			premiseSyms: []ast.PredicateSym{{"count1__tmp", 3}},
+			premiseSyms: []ast.PredicateSym{ast.PredicateSym{"count1__tmp", 3}},
 		},
 	}
 

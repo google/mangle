@@ -204,7 +204,7 @@ func TestDecls(t *testing.T) {
 						Decls: []ast.Decl{
 							makeDecl(t, ast.NewAtom("some_decl", ast.Variable{"X"}), nil, nil, nil),
 							makeDecl(t, ast.NewAtom("some_decl_with_bound"), nil,
-								[]ast.BoundDecl{{Bounds: []ast.BaseTerm{ast.String("some_decl")}}}, nil),
+								[]ast.BoundDecl{ast.BoundDecl{Bounds: []ast.BaseTerm{ast.String("some_decl")}}}, nil),
 						},
 					},
 				},
@@ -212,7 +212,7 @@ func TestDecls(t *testing.T) {
 			want: []ast.Decl{
 				makeDecl(t, ast.NewAtom("foo.bar.some_decl", ast.Variable{"X"}), nil, nil, nil),
 				makeDecl(t, ast.NewAtom("foo.bar.some_decl_with_bound"), nil,
-					[]ast.BoundDecl{{Bounds: []ast.BaseTerm{ast.String("foo.bar.some_decl")}}}, nil),
+					[]ast.BoundDecl{ast.BoundDecl{Bounds: []ast.BaseTerm{ast.String("foo.bar.some_decl")}}}, nil),
 			},
 		},
 		{
@@ -275,7 +275,7 @@ func TestDeclsErrors(t *testing.T) {
 				units: []parse.SourceUnit{
 					{
 						Decls: []ast.Decl{
-							makeDecl(t, ast.NewAtom("Use"), []ast.Atom{{ast.PredicateSym{Symbol: "name", Arity: 1}, []ast.BaseTerm{}}}, nil, nil),
+							makeDecl(t, ast.NewAtom("Use"), []ast.Atom{ast.Atom{ast.PredicateSym{Symbol: "name", Arity: 1}, []ast.BaseTerm{}}}, nil, nil),
 						},
 					},
 				},
@@ -289,7 +289,7 @@ func TestDeclsErrors(t *testing.T) {
 					{
 						Decls: []ast.Decl{
 							makeDecl(t, ast.NewAtom("some_decl_with_bound"), nil,
-								[]ast.BoundDecl{{Bounds: []ast.BaseTerm{ast.String("package.id")}}}, nil),
+								[]ast.BoundDecl{ast.BoundDecl{Bounds: []ast.BaseTerm{ast.String("package.id")}}}, nil),
 						},
 					},
 				},
@@ -509,7 +509,7 @@ func TestClausesErrors(t *testing.T) {
 				units: []parse.SourceUnit{
 					{
 						Decls: []ast.Decl{
-							makeDecl(t, ast.NewAtom("Use"), []ast.Atom{{ast.PredicateSym{Symbol: "name", Arity: 1}, []ast.BaseTerm{}}}, nil, nil),
+							makeDecl(t, ast.NewAtom("Use"), []ast.Atom{ast.Atom{ast.PredicateSym{Symbol: "name", Arity: 1}, []ast.BaseTerm{}}}, nil, nil),
 						},
 					},
 				},

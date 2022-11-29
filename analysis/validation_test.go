@@ -164,10 +164,10 @@ func TestAnalyzePositive(t *testing.T) {
 			},
 			want: ProgramInfo{
 				IdbPredicates: map[ast.PredicateSym]struct{}{
-					ast.PredicateSym{"sna", 1}: {},
+					ast.PredicateSym{"sna", 1}: struct{}{},
 				},
 				EdbPredicates: map[ast.PredicateSym]struct{}{
-					ast.PredicateSym{"foo", 1}: {},
+					ast.PredicateSym{"foo", 1}: struct{}{},
 				},
 				InitialFacts: []ast.Atom{atom("foo(/bar)")},
 				Rules:        []ast.Clause{clause("sna(X) :- foo(X).")},
@@ -202,10 +202,10 @@ func TestAnalyzePositive(t *testing.T) {
 			},
 			want: ProgramInfo{
 				IdbPredicates: map[ast.PredicateSym]struct{}{
-					ast.PredicateSym{"foo.bar", 1}: {},
+					ast.PredicateSym{"foo.bar", 1}: struct{}{},
 				},
 				EdbPredicates: map[ast.PredicateSym]struct{}{
-					ast.PredicateSym{"foo.baz", 1}: {},
+					ast.PredicateSym{"foo.baz", 1}: struct{}{},
 				},
 				InitialFacts: []ast.Atom{atom("foo.baz(1)")},
 				Rules:        []ast.Clause{clause("foo.bar(X) :- foo.baz(X).")},
@@ -225,10 +225,10 @@ func TestAnalyzePositive(t *testing.T) {
 			},
 			want: ProgramInfo{
 				IdbPredicates: map[ast.PredicateSym]struct{}{
-					ast.PredicateSym{"bar", 1}: {},
+					ast.PredicateSym{"bar", 1}: struct{}{},
 				},
 				EdbPredicates: map[ast.PredicateSym]struct{}{
-					ast.PredicateSym{"baz", 1}: {},
+					ast.PredicateSym{"baz", 1}: struct{}{},
 				},
 				InitialFacts: []ast.Atom{atom("baz(1)")},
 				Rules:        []ast.Clause{clause("bar(X) :- baz(X).")},
@@ -409,7 +409,7 @@ func newBoundsTestCaseWithNameTrie(clauses []ast.Clause, decls []ast.Decl, nameT
 func makeSimpleDecl(a ast.Atom, bound ...ast.BaseTerm) ast.Decl {
 	return ast.Decl{
 		DeclaredAtom: a,
-		Bounds:       []ast.BoundDecl{{bound}},
+		Bounds:       []ast.BoundDecl{ast.BoundDecl{bound}},
 	}
 }
 

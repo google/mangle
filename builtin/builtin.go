@@ -28,41 +28,41 @@ import (
 var (
 	// Predicates built-in predicates.
 	Predicates = map[ast.PredicateSym]struct{}{
-		symbols.Lt:             {},
-		symbols.Le:             {},
-		symbols.WithinDistance: {},
-		symbols.MatchPair:      {},
-		symbols.MatchCons:      {},
-		symbols.MatchNil:       {},
+		symbols.Lt:             struct{}{},
+		symbols.Le:             struct{}{},
+		symbols.WithinDistance: struct{}{},
+		symbols.MatchPair:      struct{}{},
+		symbols.MatchCons:      struct{}{},
+		symbols.MatchNil:       struct{}{},
 	}
 
 	// Functions has all built-in functions except reducers.
 	Functions = map[ast.FunctionSym]struct{}{
-		symbols.Div:   {},
-		symbols.Mult:  {},
-		symbols.Plus:  {},
-		symbols.Minus: {},
+		symbols.Div:   struct{}{},
+		symbols.Mult:  struct{}{},
+		symbols.Plus:  struct{}{},
+		symbols.Minus: struct{}{},
 
 		// This is only used to start a "do-transform".
-		symbols.GroupBy: {},
+		symbols.GroupBy: struct{}{},
 
-		symbols.ListGet: {},
-		symbols.Append:  {},
-		symbols.Cons:    {},
-		symbols.Len:     {},
-		symbols.List:    {},
-		symbols.Pair:    {},
-		symbols.Tuple:   {},
+		symbols.ListGet: struct{}{},
+		symbols.Append:  struct{}{},
+		symbols.Cons:    struct{}{},
+		symbols.Len:     struct{}{},
+		symbols.List:    struct{}{},
+		symbols.Pair:    struct{}{},
+		symbols.Tuple:   struct{}{},
 	}
 
 	// ReducerFunctions has those built-in functions with are reducers.
 	ReducerFunctions = map[ast.FunctionSym]struct{}{
-		symbols.Collect:         {},
-		symbols.CollectDistinct: {},
-		symbols.PickAny:         {},
-		symbols.Max:             {},
-		symbols.Sum:             {},
-		symbols.Count:           {},
+		symbols.Collect:         struct{}{},
+		symbols.CollectDistinct: struct{}{},
+		symbols.PickAny:         struct{}{},
+		symbols.Max:             struct{}{},
+		symbols.Sum:             struct{}{},
+		symbols.Count:           struct{}{},
 	}
 
 	// ErrDivisionByZero indicates a division by zero runtime error.

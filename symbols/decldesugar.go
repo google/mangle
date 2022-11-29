@@ -88,7 +88,7 @@ func (c circularDepError) Error() string {
 	return fmt.Sprintf("circular dependency: %s", strings.Join(c.names, "->"))
 }
 
-func newCircularDependencyError(pred ast.PredicateSym) circularDepError {
+func newCircularDependencyError(pred ast.PredicateSym, parent *circularDepError) circularDepError {
 	return circularDepError{names: []string{pred.Symbol}}
 }
 
@@ -104,7 +104,7 @@ func (d *desugar) desugarOneDecl(sym ast.PredicateSym) error {
 		return nil
 	}
 	if _, ok := d.seen[sym]; ok {
-		return newCircularDependencyError(sym)
+		return newCircularDependencyError(sym, nil)
 	}
 	decl, ok := d.decls[sym]
 	if !ok {
@@ -130,7 +130,7 @@ func (d *desugar) desugarOneDecl(sym ast.PredicateSym) error {
 			bounds[i] = ast.AnyBound
 		}
 		boundInfos = []*BoundInfo{
-			{bounds, nil},
+			&BoundInfo{bounds, nil},
 		}
 	} else {
 		boundInfos = make([]*BoundInfo, len(decl.Bounds))

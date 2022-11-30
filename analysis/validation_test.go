@@ -325,6 +325,22 @@ func TestAnalyzeNegative(t *testing.T) {
 				clause("sna(X) :- sna(X) |> do fn:foo(X)."),
 			}},
 		{
+			descr:           ":match variables have to be distinct",
+			knownPredicates: nil,
+			decls:           nil,
+			program: []ast.Clause{
+				clause("input([/foo])."),
+				clause("do_the_match(X, Y) :- input(X), :match(X, Y, Y)."),
+			}},
+		{
+			descr:           ":match matched variable has to be distinct",
+			knownPredicates: nil,
+			decls:           nil,
+			program: []ast.Clause{
+				clause("input([/foo])."),
+				clause("do_the_match(X, Y) :- input(X), :match(X, Y, X)."),
+			}},
+		{
 			descr:           "variable Y does not appear anywhere",
 			knownPredicates: nil,
 			decls:           nil,

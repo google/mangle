@@ -148,7 +148,7 @@ func match(atom ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.UnionFin
 	}
 	scrutinee, ok := evaluatedArg.(ast.Constant)
 	if !ok {
-		return false, nil, fmt.Errorf("Not a constant: %v %T", scrutinee, scrutinee)
+		return false, nil, fmt.Errorf("not a constant: %v %T", evaluatedArg, evaluatedArg)
 	}
 	switch atom.Predicate.Symbol {
 	case symbols.MatchPair.Symbol:
@@ -163,7 +163,7 @@ func match(atom ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.UnionFin
 
 		fst, snd, err := scrutinee.PairValue()
 		if err != nil {
-			return false, nil, err
+			return false, nil, nil // failing match is not an error
 		}
 		// First argument is indeed a pair. Bind.
 		nsubst, err := unionfind.UnifyTermsExtend([]ast.BaseTerm{leftVar, rightVar}, []ast.BaseTerm{fst, snd}, *subst)
@@ -188,7 +188,7 @@ func match(atom ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.UnionFin
 		}
 		hd, tail, err := scrutineeList.ConsValue()
 		if err != nil {
-			return false, nil, err
+			return false, nil, nil // failing match is not an error
 		}
 		// First argument is indeed a cons. Bind.
 		nsubst, err := unionfind.UnifyTermsExtend([]ast.BaseTerm{leftVar, rightVar}, []ast.BaseTerm{hd, tail}, *subst)

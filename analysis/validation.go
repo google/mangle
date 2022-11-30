@@ -254,7 +254,7 @@ func (a *Analyzer) Analyze(program []ast.Clause) (*ProgramInfo, error) {
 				switch p := premise.(type) {
 				case ast.Atom:
 					if !p.Predicate.IsBuiltin() {
-					  edbSymbols[p.Predicate] = struct{}{}
+						edbSymbols[p.Predicate] = struct{}{}
 					}
 				case ast.NegAtom:
 					edbSymbols[p.Atom.Predicate] = struct{}{}
@@ -399,9 +399,16 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 					if !fstOk || !sndOk {
 						return fmt.Errorf("expected variables as arguments to %v", p)
 					}
+					if fstVar == sndVar {
+						return fmt.Errorf("expected distinct variables as arguments to %v", p)
+					}
+					if scrutinee, ok := p.Args[0].(ast.Variable); ok && (scrutinee == fstVar || scrutinee == sndVar) {
+						return fmt.Errorf("a variable that is matched cannot be used for binding %v", p)
+					}
 					boundVars[fstVar] = true
 					boundVars[sndVar] = true
 				}
+
 				for v := range builtinVars {
 					if !boundVars[v] {
 						return fmt.Errorf("variable %v in %v will not have a value yet; move the subgoal to the right", v, p)

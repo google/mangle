@@ -197,6 +197,18 @@ func TestMatchCons(t *testing.T) {
 	}
 }
 
+func TestMatchConsNegative(t *testing.T) {
+	var subst unionfind.UnionFind
+	atom := ast.NewAtom(":match_cons", ast.ListNil, ast.Variable{"X"}, ast.Variable{"Y"})
+	got, nsubst, err := Decide(atom, &subst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != false || nsubst != nil {
+		t.Errorf("TestMatchConsNegative: expected false, nil got %v %v", got, nsubst)
+	}
+}
+
 func makeVarList(n int) []ast.Variable {
 	var vars []ast.Variable
 	for i := 0; i < n; i++ {

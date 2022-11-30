@@ -31,4 +31,6 @@ rigorous as to become inaccessible.
 
 ### Understanding
 
+- [Example: Volunteer DB](example_volunteer_db.md)
+- [Understanding Derivation of Facts](explanation_derived_facts.md)
 - [Using the interactive interpreter](using_the_interpreter.md)

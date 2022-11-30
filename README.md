@@ -34,8 +34,8 @@ This is not an officially supported Google product.
 
 Imagine you were asked to spot software affected by the
 [log4j vulnerability discovered in late 2021](https://www.cisa.gov/uscert/apache-log4j-vulnerability-guidance).
-We do this by looking for projects that contain a Java archive (jar file) of
-log4j that is not patched version.
+We want to look for projects that contain a Java archive (jar file) of
+log4j that is not updated to the patched version.
 
 ```prolog
 projects_with_vulnerable_log4j(P) :-

@@ -1,5 +1,7 @@
 # Using the interactive Interpreter
 
+![docu badge impl explanation](docu_impl_explanation.svg)
+
 The interactive interpreter makes it easier to play with Mangle sources.
 
 You can start the interpreter like this: 

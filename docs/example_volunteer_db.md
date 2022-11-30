@@ -1,5 +1,7 @@
 # Mangle as a Database
 
+![docu badge spec explanation](docu_spec_explanation.svg)
+
 Here is an example how datalog relates to relational databases. To do something
 different than the tiring employee, department, salary example, let's look
 at a volunteer database.
@@ -11,7 +13,7 @@ predicate, right in source. These predicates are called *extensional* (the
 set of facts is the *extension* of the predicate). In a real system, these facts
 would reside somewhere else, like a file or an actual relational DB.
 
-We shall use constant symbols like `/v/{number}` as identifers. A volunteer
+We shall use constant symbols like `/v/{number}` as identifiers. A volunteer
 has a *name*, some time-slots where they might be available for volunteering
 work, some *skills* they have and some skills they are *interested* in
 developing.

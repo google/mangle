@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<svg xmlns="http://www.w3.org/2000/svg" style="shape-rendering: geometricPrecision; image-rendering: optimizeQuality; fill-rule: evenodd; clip-rule: evenodd" width="188" height="20" fill="None">
+  <g font-family="Helvetica,Arial,sans-serif" font-size="12" fill="#000000">
+    <defs>
+      <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" style="stop-color: rgb(240, 240, 240); stop-opacity: 0.1"/>
+        <stop offset="100%" style="stop-color: rgb(240, 240, 240); stop-opacity: 0.0"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" height="20" width="143" rx="2.5" ry="2.5" stroke-width="0" fill="#fb8500"/>
+    <rect x="61" y="0" height="20" width="54" stroke-width="0" fill="#219ebc"/>
+    <rect x="115" y="0" height="20" width="63" stroke-width="0" fill="#219ebc"/>
+    <rect x="115" y="0" height="20" width="73" rx="2.5" ry="2.5" stroke-width="0" fill="#023047"/>
+    <rect x="0" y="0" height="20" width="188" rx="2.5" ry="2.5" stroke-width="0" fill="url(#grad1)"/>
+    <text x="75" y="15" fill="#777777">spec</text>
+    <text x="13" y="14" fill="#ffffff">docu</text>
+    <text x="75" y="14" fill="#ffffff">spec</text>
+    <text x="121" y="14" fill="#ffffff">explanation</text>
+  </g>
+</svg>

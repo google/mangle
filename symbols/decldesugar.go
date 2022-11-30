@@ -130,7 +130,7 @@ func (d *desugar) desugarOneDecl(sym ast.PredicateSym) error {
 			bounds[i] = ast.AnyBound
 		}
 		boundInfos = []*BoundInfo{
-			&BoundInfo{bounds, nil},
+			{bounds, nil},
 		}
 	} else {
 		boundInfos = make([]*BoundInfo, len(decl.Bounds))

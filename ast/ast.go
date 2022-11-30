@@ -1020,7 +1020,7 @@ func NewSyntheticDecl(declaredAtom Atom) (Decl, error) {
 			args[i] = FreshVariable(used)
 		}
 	}
-	return NewDecl(Atom{declaredAtom.Predicate, args}, descrAtoms, []BoundDecl{BoundDecl{unknownBounds}}, nil)
+	return NewDecl(Atom{declaredAtom.Predicate, args}, descrAtoms, []BoundDecl{{unknownBounds}}, nil)
 }
 
 // NewSyntheticDeclFromSym returns a new Decl from a predicate symbol.

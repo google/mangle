@@ -238,6 +238,33 @@ func TestAnalyzePositive(t *testing.T) {
 				}),
 			},
 		},
+		{
+			descr: "match",
+			decls: []ast.Decl{makeDecl(t, atom("input(X)"), nil, []ast.BoundDecl{
+				ast.NewBoundDecl(ast.ApplyFn{symbols.ListType, []ast.BaseTerm{ast.NameBound}}),
+			}, nil)},
+			program: []ast.Clause{
+				clause("starts_with_a(X) :- input(X), :match_cons(X, Y, Z), Y = /a ."),
+			},
+			want: ProgramInfo{
+				IdbPredicates: map[ast.PredicateSym]struct{}{
+					ast.PredicateSym{"starts_with_a", 1}: struct{}{},
+				},
+				EdbPredicates: map[ast.PredicateSym]struct{}{
+					ast.PredicateSym{"input", 1}: struct{}{},
+				},
+				InitialFacts: nil,
+				Rules: []ast.Clause{
+					clause("starts_with_a(X) :- input(X), :match_cons(X, Y, Z), Y = /a ."),
+				},
+				Decls: mustDesugar(t, map[ast.PredicateSym]ast.Decl{
+					ast.PredicateSym{"starts_with_a", 1}: makeSyntheticDecl(t, atom("starts_with_a(X)")),
+					ast.PredicateSym{"input", 1}: makeDecl(t, atom("input(X)"), nil, []ast.BoundDecl{
+						ast.NewBoundDecl(ast.ApplyFn{symbols.ListType, []ast.BaseTerm{ast.NameBound}}),
+					}, nil),
+				}),
+			},
+		},
 	}
 	for _, test := range tests {
 		got, err := AnalyzeOneUnit(parse.SourceUnit{Clauses: test.program, Decls: test.decls}, test.knownPredicates)

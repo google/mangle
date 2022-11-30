@@ -253,7 +253,9 @@ func (a *Analyzer) Analyze(program []ast.Clause) (*ProgramInfo, error) {
 			for _, premise := range clause.Premises {
 				switch p := premise.(type) {
 				case ast.Atom:
-					edbSymbols[p.Predicate] = struct{}{}
+					if !p.Predicate.IsBuiltin() {
+					  edbSymbols[p.Predicate] = struct{}{}
+					}
 				case ast.NegAtom:
 					edbSymbols[p.Atom.Predicate] = struct{}{}
 				}

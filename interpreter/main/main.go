@@ -52,10 +52,8 @@ func main() {
 	}
 	i := interpreter.New(writer, *root, strings.Split(*stats, ","))
 	if len(*load) > 0 {
-		for _, src := range strings.Split(*load, ",") {
-			if err := i.Load(src); err != nil {
-				log.Exitf("error loading src %s: %v", src, err)
-			}
+		if err := i.Load(*load); err != nil {
+			log.Exitf("error loading src %s: %v", *load, err)
 		}
 	}
 

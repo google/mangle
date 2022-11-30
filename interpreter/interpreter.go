@@ -47,7 +47,7 @@ type Interpreter struct {
 	store factstore.FactStore
 	// List of source paths that were loaded, in the order they were loaded.
 	src []string
-	// Maps source path to source fragment.
+	// Maps source path sets to source fragment. A path set is comma-separated list of paths.
 	sourceFragments map[string]*sourceFragment
 	// Collects all declarations from source fragments.
 	knownPredicates map[ast.PredicateSym]ast.Decl
@@ -81,10 +81,10 @@ func (i *Interpreter) AddPostProcessor(postProcessor func(store factstore.FactSt
 }
 
 const (
-	normalPrompt    = "mr >"
+	normalPrompt    = "mg >"
 	continuedPrompt = ".. >"
 	interactivePath = "interactive-buffer"
-	preloadPath     = "interactive-preload"
+	preloadPathset  = "interactive-preload"
 )
 
 func nextLine() (string, error) {
@@ -159,26 +159,37 @@ func (i *Interpreter) Show(arg string) error {
 	return fmt.Errorf("predicate %s not found", arg)
 }
 
-// Load loads source file at path.
-func (i *Interpreter) Load(path string) error {
+// Load loads source files in a pathset and analyzes them together.
+func (i *Interpreter) Load(pathset string) error {
 	i.resetInteractiveDefs("")
-	f, err := os.Open(filepath.Join(i.root, path))
-	if err != nil {
-		return err
+	var units []parse.SourceUnit
+	for _, path := range strings.Split(pathset, ",") {
+		if path == "" {
+			continue
+		}
+		f, err := os.Open(filepath.Join(i.root, path))
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		r := bufio.NewReaderSize(f, bufSize)
+		unit, err := parse.Unit(r)
+		if err != nil {
+			return fmt.Errorf("error parsing %s : %w", path, err)
+		}
+		units = append(units, unit)
 	}
-	defer f.Close()
-	r := bufio.NewReaderSize(f, bufSize)
-	unit, err := parse.Unit(r)
-	if err != nil {
-		return err
-	}
-	programInfo, err := analysis.AnalyzeOneUnit(unit, i.knownPredicates)
-	if err != nil {
-		return err
-	}
-	i.pushSourceFragment(path, []parse.SourceUnit{unit}, programInfo)
+	return i.pushLoadedFragment(pathset, units)
+}
 
-	fmt.Fprintf(i.out, "loaded %s.\n", path)
+func (i *Interpreter) pushLoadedFragment(pathset string, units []parse.SourceUnit) error {
+	programInfo, err := analysis.Analyze(units, i.knownPredicates)
+	if err != nil {
+		return err
+	}
+	i.pushSourceFragment(pathset, units, programInfo)
+
+	fmt.Fprintf(i.out, "loaded %s.\n", pathset)
 	return i.evalProgram(programInfo)
 }
 
@@ -362,17 +373,12 @@ func (i *Interpreter) Preload(units []parse.SourceUnit, store factstore.FactStor
 	for sym, decl := range knownPredicates {
 		i.knownPredicates[sym] = decl
 	}
-	programInfo, err := analysis.Analyze(units, i.knownPredicates)
-	if err != nil {
-		return err
-	}
-	i.pushSourceFragment(preloadPath, units, programInfo)
-	return i.evalProgram(programInfo)
+	return i.pushLoadedFragment(preloadPathset, units)
 }
 
-func (i *Interpreter) pushSourceFragment(path string, units []parse.SourceUnit, programInfo *analysis.ProgramInfo) {
-	i.src = append(i.src, path)
-	i.sourceFragments[path] = &sourceFragment{units, programInfo, i.store}
+func (i *Interpreter) pushSourceFragment(pathset string, units []parse.SourceUnit, programInfo *analysis.ProgramInfo) {
+	i.src = append(i.src, pathset)
+	i.sourceFragments[pathset] = &sourceFragment{units, programInfo, i.store}
 	for _, decl := range programInfo.Decls {
 		i.knownPredicates[decl.DeclaredAtom.Predicate] = *decl
 	}

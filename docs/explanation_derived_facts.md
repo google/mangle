@@ -12,7 +12,9 @@ This is repeated over and over, until no more new facts can be derived.
 The application of rules can only add facts, never remove them. 
 
 In these docs, we will call the process of applying the rules "evaluation"
-and we will call the set of facts "knowledge base". 
+and we will call the set of facts "knowledge base". The relations given
+as base facts are *extensional* relations, the relations defined by rules
+are the *intensional* relations.
 
 ![circle (set) of base facts, contained in bigger circle (set) of derived facts](base_derived.svg)
 
@@ -35,6 +37,27 @@ In order to support modifying the set of facts, we can:
 
 Once again this is a very simple way of managing knowledge base updates.
 There is a special case of updating which does not require starting
-from scratch: if we only add *new* base facts, we could just run evaluation
-again, and new derived facts would get added on top of the ones we have.
-This is one way to get "incremental evaluation".
+from scratch: if we only add *new* base facts, and the rules do not
+contain negation, we could just run evaluation again, and new derived facts
+would get added on top of the ones we have. This is one way to
+get "incremental evaluation".
+
+## Stages and sequential composition 
+
+This process of evaluation can be repeated. For example, after the first
+evaluation, we may read some of the derived facts and query some external
+system for more data. Or, we want to use *negation* in rule bodies to
+check that some fact is *not* present.
+
+Every stage considers the results of the previous stage as extensional
+relations and applies the same evaluation process to derive the intensional
+relations.
+
+In the textbooks this is called stratified datalog. A datalog program where
+negation is only applied to extensional relations is called semipositive.
+Thus, a stratified datalog program is the sequential composition of semipositive
+datalog programs. For this to work, there is a minor restriction that negation
+cannot be part of predicate definitions that recursively depend on each
+other.
+
+![concentric ellipses, stage 0 innermost, stage n outermost representing stages of derived facts](derived_stages.svg)

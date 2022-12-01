@@ -24,6 +24,7 @@ import (
 	"github.com/google/mangle/builtin"
 	"github.com/google/mangle/factstore"
 	"github.com/google/mangle/parse"
+	"github.com/google/mangle/unionfind"
 )
 
 func atom(s string) ast.Atom {
@@ -75,6 +76,9 @@ func analyzeAndEvalProgram(t *testing.T, clauses []ast.Clause, store factstore.S
 	programInfo, err := analysis.AnalyzeOneUnit(parse.SourceUnit{Clauses: clauses}, asMap(store.ListPredicates()))
 	if err != nil {
 		return fmt.Errorf("analysis: %w", err)
+	}
+	for _, f := range programInfo.InitialFacts {
+		store.Add(f)
 	}
 	return EvalProgram(programInfo, store, options...)
 }
@@ -449,6 +453,34 @@ func TestTransformFib(t *testing.T) {
 		if !store.Contains(fact) {
 			t.Errorf("expected fact %v in store %v", fact, store)
 		}
+	}
+}
+
+func TestEmptyArrayProgram(t *testing.T) {
+	store := factstore.NewSimpleInMemoryStore()
+	program := []ast.Clause{
+		clause(`a_list([]).`),
+	}
+	if err := analyzeAndEvalProgram(t, program, store); err != nil {
+		t.Errorf("Program evaluation failed %v program %v", err, program)
+		return
+	}
+
+	goal := atom("a_list(A)")
+	facts := make(map[uint64]ast.Atom)
+	if err := store.GetFacts(goal, func(storefact ast.Atom) error {
+		subst, err := unionfind.UnifyTerms(goal.Args, storefact.Args)
+		if err != nil {
+			return nil
+		}
+		fact := goal.ApplySubst(subst).(ast.Atom)
+		facts[fact.Hash()] = fact
+		return nil
+	}); err != nil {
+		t.Errorf("GetFacts(%v): %v", goal, err)
+	}
+	if got, want := len(facts), 1; got != want {
+		t.Errorf("GetFacts: %d!=%d got: %v", got, want, facts)
 	}
 }
 

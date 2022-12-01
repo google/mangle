@@ -265,6 +265,22 @@ func TestAnalyzePositive(t *testing.T) {
 				}),
 			},
 		},
+		{
+			descr: "empty array is evaluated",
+			program: []ast.Clause{
+				clause("a_list([])."),
+			},
+			want: ProgramInfo{
+				IdbPredicates: map[ast.PredicateSym]struct{}{},
+				EdbPredicates: map[ast.PredicateSym]struct{}{
+					ast.PredicateSym{"a_list", 1}: struct{}{},
+				},
+				Decls: mustDesugar(t, map[ast.PredicateSym]ast.Decl{
+					ast.PredicateSym{"a_list", 1}: makeSyntheticDecl(t, atom("a_list(X0)")),
+				}),
+				InitialFacts: []ast.Atom{{Predicate: ast.PredicateSym{"a_list", 1}, Args: []ast.BaseTerm{ast.ListNil}}},
+			},
+		},
 	}
 	for _, test := range tests {
 		got, err := AnalyzeOneUnit(parse.SourceUnit{Clauses: test.program, Decls: test.decls}, test.knownPredicates)

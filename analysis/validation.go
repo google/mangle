@@ -244,7 +244,11 @@ func (a *Analyzer) Analyze(program []ast.Clause) (*ProgramInfo, error) {
 		}
 		// Is it an extensional or intensional predicate?
 		if clause.Premises == nil {
-			initialFacts = append(initialFacts, clause.Head)
+			head, err := builtin.EvalAtom(clause.Head, ast.ConstSubstList{})
+			if err != nil {
+				return nil, err
+			}
+			initialFacts = append(initialFacts, head)
 			edbSymbols[clause.Head.Predicate] = struct{}{}
 		} else {
 			rules = append(rules, clause)

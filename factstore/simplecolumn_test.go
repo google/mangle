@@ -17,6 +17,10 @@ func TestRoundTrip(t *testing.T) {
 		atom("bar(/bar,1,/baz)"),
 		atom("bar(/bar,0,/def)"),
 		atom("bar(/abc,1,/def)"),
+		evalAtom("bar([/abc],1,/def)"),
+		evalAtom("bar([/abc, /def], 1, /def)"),
+		evalAtom("baz([/abc : 1,  /def : 2], 1, /def)"),
+		evalAtom("baz({/abc : 1,  /def : 2}, 1, /def)"),
 	}
 	for _, f := range facts {
 		m.Add(f)

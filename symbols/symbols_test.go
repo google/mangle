@@ -101,6 +101,7 @@ func TestCheckTypeExpression(t *testing.T) {
 				ast.List([]ast.Constant{ast.String("foo")}),
 			},
 		},
+		// Structured values that need evaluation for readability are tested in builtin_test.go
 	}
 	for _, test := range tests {
 		h, err := NewTypeHandle(test.tpe)
@@ -120,6 +121,20 @@ func TestCheckTypeExpression(t *testing.T) {
 	}
 }
 
+func TestCheckTypeExpressionNegative(t *testing.T) {
+	tests := []ast.BaseTerm{
+		ast.ApplyFn{MapType, []ast.BaseTerm{name("/foo")}},
+		ast.ApplyFn{MapType, []ast.BaseTerm{ast.Number(2), name("/foo")}},
+		ast.ApplyFn{StructType, []ast.BaseTerm{name("/foo")}},
+		ast.ApplyFn{StructType, []ast.BaseTerm{ast.Number(2), name("/foo")}},
+	}
+	for _, test := range tests {
+		if h, err := NewTypeHandle(test); err == nil { // if NO error
+			t.Errorf("NewTypeHandle(%v)=%v succeeded, expected error", h, test)
+		}
+	}
+}
+
 func TestTypeConforms(t *testing.T) {
 	tests := []struct {
 		left ast.BaseTerm
@@ -133,6 +148,36 @@ func TestTypeConforms(t *testing.T) {
 		{name("/true"), ast.ApplyFn{UnionType, []ast.BaseTerm{name("/true"), name("/false")}}, true},
 		{ast.NameBound, name("/foo"), false},
 		{ast.ApplyFn{UnionType, []ast.BaseTerm{name("/true"), name("/false")}}, name("/true"), false},
+		{
+			ast.ApplyFn{MapType, []ast.BaseTerm{ast.AnyBound, ast.NumberBound}},
+			ast.ApplyFn{MapType, []ast.BaseTerm{ast.StringBound, ast.NumberBound}},
+			true,
+		},
+		{
+			ast.ApplyFn{MapType, []ast.BaseTerm{ast.NumberBound, ast.AnyBound}},
+			ast.ApplyFn{MapType, []ast.BaseTerm{ast.StringBound, ast.AnyBound}},
+			false,
+		},
+		{
+			ast.ApplyFn{StructType, []ast.BaseTerm{name("/foo"), ast.AnyBound, name("/bar"), ast.NumberBound}},
+			ast.ApplyFn{StructType, []ast.BaseTerm{name("/foo"), ast.AnyBound}},
+			true,
+		},
+		{
+			ast.ApplyFn{StructType, []ast.BaseTerm{name("/foo"), ast.AnyBound, name("/bar"), ast.NumberBound}},
+			ast.ApplyFn{StructType, []ast.BaseTerm{name("/foo"), ast.StringBound}},
+			false,
+		},
+		{
+			ast.ApplyFn{StructType, []ast.BaseTerm{name("/foo"), ast.AnyBound, name("/bar"), ast.NumberBound}},
+			ast.ApplyFn{StructType, nil},
+			true,
+		},
+		{
+			ast.ApplyFn{StructType, nil},
+			ast.ApplyFn{StructType, nil},
+			true,
+		},
 	}
 	for _, test := range tests {
 		if got := TypeConforms(test.left, test.righ); got != test.want {

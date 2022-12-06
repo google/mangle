@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -151,6 +152,12 @@ const (
 	PairShape
 	// ListShape indicates that the constant is a list.
 	ListShape
+	// MapShape indicates that the constant is a map.
+	// Internally, we just represent this as list of ($key, $value) pairs.
+	MapShape
+	// StructShape indicates that the constant is a struct.
+	// Internally, we just represent this as a list of (/field/$name, $value) pairs.
+	StructShape
 )
 
 var number = regexp.MustCompile(`-?\d+`)
@@ -172,11 +179,13 @@ type Constant struct {
 	// For a pair constant, the first component.
 	// For a list constant, the head of the list.
 	// For a map constant, the first map entry.
+	// For a struct constant, the first field.
 	fst *Constant
 
 	// For a pair constant, the second component
 	// For a list constant, the tail of the list.
 	// For a map constant, the tail of the entries.
+	// For a struct constant, the tail of the fields.
 	snd *Constant
 }
 
@@ -212,7 +221,7 @@ func Number(num int64) Constant {
 
 // Pair constructs a pair constant. Parts can only be accessed in transforms.
 func pair(tpe ConstantType, fst, snd *Constant) Constant {
-	return Constant{tpe, "", hashPair(fst, snd), fst, snd}
+	return Constant{tpe, "", hashPair(fst, snd, tpe), fst, snd}
 }
 
 // Pair constructs a pair constant. Parts can only be accessed in transforms.
@@ -225,8 +234,26 @@ func ListCons(fst, snd *Constant) Constant {
 	return pair(ListShape, fst, snd)
 }
 
+// MapCons constructs a map, using pairs. Parts can only be accessed in transforms.
+func MapCons(key, val, rest *Constant) Constant {
+	e := pair(PairShape, key, val)
+	return pair(MapShape, &e, rest)
+}
+
+// StructCons constructs a struct, using pairs. Parts can only be accessed in transforms.
+func StructCons(label, val, rest *Constant) Constant {
+	e := pair(PairShape, label, val)
+	return pair(StructShape, &e, rest)
+}
+
 // ListNil represents an empty list.
 var ListNil = Constant{ListShape, "", 0, nil, nil}
+
+// MapNil represents an empty map.
+var MapNil = Constant{MapShape, "", 0, nil, nil}
+
+// StructNil represents an empty struct.
+var StructNil = Constant{StructShape, "", 0, nil, nil}
 
 // List constructs a list constant. Parts can only be accessed in transforms.
 func List(constants []Constant) Constant {
@@ -239,6 +266,58 @@ func List(constants []Constant) Constant {
 		list = &next
 	}
 	return *list
+}
+
+func canonicalOrder(left *Constant, right *Constant) {
+
+}
+
+// Map constructs a map constant. Parts can only be accessed in transforms.
+// Keys and values must come in the order.
+func Map(kvMap map[*Constant]*Constant) *Constant {
+	m := &MapNil
+	if len(kvMap) == 0 {
+		return m
+	}
+	keys := make([]*Constant, len(kvMap))
+	vals := make([]*Constant, len(kvMap))
+	i := 0
+	for k, v := range kvMap {
+		keys[i] = k
+		vals[i] = v
+		i++
+	}
+	index := make([]int, len(kvMap))
+	SortIndexInto(keys, index)
+	for _, i := range index {
+		next := MapCons(keys[i], vals[i], m)
+		m = &next
+	}
+	return m
+}
+
+// Struct constructs a struct constant. Parts can only be accessed in transforms.
+// labels must be sorted .
+func Struct(kvMap map[*Constant]*Constant) *Constant {
+	m := &StructNil
+	if len(kvMap) == 0 {
+		return m
+	}
+	labels := make([]*Constant, len(kvMap))
+	vals := make([]*Constant, len(kvMap))
+	i := 0
+	for k, v := range kvMap {
+		labels[i] = k
+		vals[i] = v
+		i++
+	}
+	index := make([]int, len(kvMap))
+	SortIndexInto(labels, index)
+	for _, i := range index {
+		next := StructCons(labels[i], vals[i], m)
+		m = &next
+	}
+	return m
 }
 
 // StringValue returns the string value of this constant, if it is of type string.
@@ -284,7 +363,40 @@ func (c Constant) ListValues(cbCons func(Constant) error, cbNil func() error) (e
 		}
 	}
 	return nil, cbNil()
+}
 
+// MapValues provides the entries of the map via key-value callback.
+func (c Constant) MapValues(cbCons func(Constant, Constant) error, cbNil func() error) (error, error) {
+	if c.Type != MapShape {
+		return fmt.Errorf("not a map constant %v", c), nil
+	}
+	for ; !c.IsMapNil(); c = *c.snd {
+		p := c.fst
+		if p.Type != PairShape {
+			return fmt.Errorf("not a struct field %v", p), nil
+		}
+		if err := cbCons(*p.fst, *p.snd); err != nil {
+			return nil, err
+		}
+	}
+	return nil, cbNil()
+}
+
+// StructValues provides the entries that make up the struct via label-value callback.
+func (c Constant) StructValues(cbCons func(Constant, Constant) error, cbNil func() error) (error, error) {
+	if c.Type != StructShape {
+		return fmt.Errorf("not a struct constant %v", c), nil
+	}
+	for ; !c.IsStructNil(); c = *c.snd {
+		p := c.fst
+		if p.Type != PairShape {
+			return fmt.Errorf("not a map entry %v", p), nil
+		}
+		if err := cbCons(*p.fst, *p.snd); err != nil {
+			return nil, err
+		}
+	}
+	return nil, cbNil()
 }
 
 func (c Constant) isBaseTerm() {
@@ -327,6 +439,46 @@ func (c Constant) String() string {
 		}
 		s.WriteRune(']')
 		return s.String()
+	case MapShape:
+		if c.IsMapNil() {
+			return "fn:map()"
+		}
+		var s strings.Builder
+		s.WriteRune('[')
+		s.WriteString((*c.fst.fst).String())
+		s.WriteString(" : ")
+		s.WriteString((*c.fst.snd).String())
+		c = *c.snd
+		for !c.IsMapNil() {
+			s.WriteString(", ")
+			s.WriteString((*c.fst.fst).String())
+			s.WriteString(" : ")
+			s.WriteString((*c.fst.snd).String())
+			c = *c.snd
+		}
+		s.WriteRune(']')
+		return s.String()
+
+	case StructShape:
+		if c.IsStructNil() {
+			return "{}"
+		}
+		var s strings.Builder
+		s.WriteRune('{')
+		s.WriteString((*c.fst.fst).String())
+		s.WriteString(" : ")
+		s.WriteString((*c.fst.snd).String())
+		c = *c.snd
+		for !c.IsStructNil() {
+			s.WriteString(", ")
+			s.WriteString((*c.fst.fst).String())
+			s.WriteString(" : ")
+			s.WriteString((*c.fst.snd).String())
+			c = *c.snd
+		}
+		s.WriteRune('}')
+		return s.String()
+
 	default:
 		return "?" // cannot happen
 	}
@@ -335,6 +487,16 @@ func (c Constant) String() string {
 // IsListNil returns true if this constant represents the empty list.
 func (c Constant) IsListNil() bool {
 	return c.Type == ListShape && c.fst == nil
+}
+
+// IsMapNil returns true if this constant represents the empty map.
+func (c Constant) IsMapNil() bool {
+	return c.Type == MapShape && c.fst == nil
+}
+
+// IsStructNil returns true if this constant represents the empty struct.
+func (c Constant) IsStructNil() bool {
+	return c.Type == StructShape && c.fst == nil
 }
 
 // Equals returns true if u is the same constant.
@@ -365,6 +527,34 @@ func (c Constant) Equals(u Term) bool {
 		if uconst.IsListNil() {
 			return false
 		}
+		if c.NumValue != uconst.NumValue {
+			return false
+		}
+		return c.fst.Equals(uconst.fst) && c.snd.Equals(uconst.snd)
+
+	case MapShape:
+		// same keys, same values
+		if c.IsMapNil() {
+			return uconst.IsMapNil()
+		}
+		if uconst.IsMapNil() {
+			return false
+		}
+		if c.NumValue != uconst.NumValue {
+			return false
+		}
+		return c.fst.Equals(uconst.fst) && c.snd.Equals(uconst.snd)
+
+	case StructShape:
+		if c.IsStructNil() {
+			return uconst.IsStructNil()
+		}
+		if c.NumValue != uconst.NumValue {
+			return false
+		}
+		if uconst.IsStructNil() {
+			return false
+		}
 		return c.fst.Equals(uconst.fst) && c.snd.Equals(uconst.snd)
 	}
 	return false //  cannot happen, all cases covered.
@@ -377,8 +567,14 @@ func hashBytes(s []byte) uint64 {
 }
 
 // Computes a hash. The snd argument may be nil.
-func hashPair(fst, snd *Constant) int64 {
+func hashPair(fst, snd *Constant, tpe ConstantType) int64 {
 	left := fst.Hash()
+	switch tpe {
+	case MapShape:
+		left = left << 1
+	case StructShape:
+		left = left << 2
+	}
 	left = left<<19 - left
 	if snd == nil {
 		return int64(left)
@@ -687,7 +883,7 @@ func (a ApplyFn) Equals(t Term) bool {
 	if !ok {
 		return false
 	}
-	if a.Function != o.Function ||
+	if a.Function.Symbol != o.Function.Symbol ||
 		len(a.Args) != len(o.Args) {
 		return false
 	}
@@ -1146,4 +1342,36 @@ func AddVarsFromClause(clause Clause, m map[Variable]bool) {
 	for _, p := range clause.Premises {
 		AddVars(p, m)
 	}
+}
+
+// SortIndexInto sorts s and populates the index and hashes slice.
+func SortIndexInto(keys []*Constant, index []int) {
+	hashes := make([]uint64, len(keys))
+	for i := 0; i < len(keys); i++ {
+		index[i] = i
+		hashes[i] = keys[i].Hash()
+	}
+	sort.Stable(&keysorter{keys, hashes, index})
+}
+
+// Helper to sort []*Constant by it's Hash().
+type keysorter struct {
+	keys   []*Constant
+	hashes []uint64
+	index  []int
+}
+
+// Len is part of sort.Interface.
+func (s keysorter) Len() int {
+	return len(s.keys)
+}
+
+// Swap is part of sort.Interface.
+func (s *keysorter) Swap(i, j int) {
+	s.index[i], s.index[j] = s.index[j], s.index[i]
+}
+
+// Swap is part of sort.Interface.
+func (s *keysorter) Less(i, j int) bool {
+	return s.hashes[s.index[i]] < s.hashes[s.index[j]]
 }

@@ -23,15 +23,38 @@ import (
 )
 
 var (
-	fooName    = name("/foo")
-	barString  = String("bar")
-	num        = int64(-123)
-	fooBarPair = Pair(&fooName, &barString)
-	barFooPair = Pair(&barString, &fooName)
-	fooFooPair = Pair(&fooName, &fooName)
-	fooBarList = List([]Constant{fooName, barString})
-	barFooList = List([]Constant{barString, fooName})
-	fooFooList = List([]Constant{fooName, fooName})
+	fooName     = name("/foo")
+	fooNameSame = name("/foo")
+	barName     = name("/bar")
+	barString   = String("bar")
+	bazString   = String("baz")
+	num         = int64(-123)
+	numConstant = Number(num)
+	fooBarPair  = Pair(&fooName, &barString)
+	barFooPair  = Pair(&barString, &fooName)
+	fooFooPair  = Pair(&fooName, &fooName)
+	fooBarList  = List([]Constant{fooName, barString})
+	barFooList  = List([]Constant{barString, fooName})
+	fooFooList  = List([]Constant{fooName, fooName})
+	mapExample  = Map(map[*Constant]*Constant{
+		&barString: &fooName,
+		&bazString: &barName})
+	mapExampleSame = Map(map[*Constant]*Constant{
+		&bazString: &barName,
+		&barString: &fooNameSame})
+	mapExampleOther = Map(map[*Constant]*Constant{
+		&bazString: &barName})
+	structExample = Struct(map[*Constant]*Constant{
+		&fooName: &fooName,
+		&barName: &numConstant,
+	})
+	structExampleSame = Struct(map[*Constant]*Constant{
+		&fooNameSame: &fooNameSame,
+		&barName:     &numConstant,
+	})
+	structExampleOther = Struct(map[*Constant]*Constant{
+		&barName: &numConstant,
+	})
 )
 
 func name(str string) Constant {
@@ -69,11 +92,49 @@ func TestSelfEquals(t *testing.T) {
 		Eq{Variable{"X"}, Variable{"Y"}},
 		Ineq{Variable{"X"}, Variable{"Y"}},
 		ApplyFn{FunctionSym{"fn:list", -1}, []BaseTerm{Number(1), name("/foo")}},
+		mapExample,
+		structExample,
 	}
 	for _, testcase := range tests {
 		if !testcase.Equals(testcase) {
 			t.Errorf("(%v).Equals(%v) expected true got false", testcase, testcase)
 		}
+	}
+}
+
+func TestEqualsStructured(t *testing.T) {
+	tests := []struct {
+		left  *Constant
+		right *Constant
+		want  bool
+	}{
+		{&fooBarList, &barFooList, false},
+		{&fooBarList, &fooBarList, true},
+		{mapExample, mapExampleSame, true},
+		{mapExample, mapExampleOther, false},
+		{mapExample, &MapNil, false},
+		{&MapNil, mapExample, false},
+		{&MapNil, &MapNil, true},
+		{structExample, structExampleSame, true},
+		{structExample, structExampleOther, false},
+		{structExample, &StructNil, false},
+		{&StructNil, structExample, false},
+	}
+	for _, testcase := range tests {
+		got := testcase.left.Equals(testcase.right)
+		if got != testcase.want {
+			t.Errorf("(%v).Equals(%v) got %v want %v", testcase.left, testcase.right, got, testcase.want)
+		}
+	}
+}
+
+func TestSortIndexInto(t *testing.T) {
+	keys := []*Constant{&fooName, &barString, &fooBarPair}
+	index := make([]int, len(keys))
+	SortIndexInto(keys, index)
+	want := []int{2, 1, 0}
+	if !cmp.Equal(index, want) {
+		t.Errorf("SortIndexInto(%v) got %v want %v", keys, index, want)
 	}
 }
 
@@ -123,11 +184,19 @@ func TestHash(t *testing.T) {
 		},
 		{
 			c:    fooBarPair,
-			want: uint64(hashPair(&fooName, &barString)),
+			want: uint64(hashPair(&fooName, &barString, PairShape)),
 		},
 		{
 			c:    List([]Constant{fooName}),
-			want: uint64(hashPair(&fooName, &ListNil)),
+			want: uint64(hashPair(&fooName, &ListNil, ListShape)),
+		},
+		{
+			c:    MapCons(&fooName, &barString, &MapNil),
+			want: uint64(hashPair(&fooBarPair, &MapNil, MapShape)),
+		},
+		{
+			c:    StructCons(&fooName, &barString, &StructNil),
+			want: uint64(hashPair(&fooBarPair, &StructNil, StructShape)),
 		},
 	}
 	for _, test := range tests {

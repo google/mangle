@@ -256,12 +256,20 @@ func TestBuiltin(t *testing.T) {
 	}
 }
 
-func TestList(t *testing.T) {
+func TestListMapStruct(t *testing.T) {
 	store := factstore.NewSimpleInMemoryStore()
 	program := []ast.Clause{
+		// List
 		clause(`bar(1).`),
 		clause(`foo(X) :- bar(Y), X = [Y].`),
 		clause(`baz(Y) :- X = [0,1,2], Y = fn:list:get(X, 1).`),
+		// Map
+		clause(`bar_map([ "foo" : /foo, "bar": /bar ]).`),
+		clause(`bar_map([ "foo" : /hoo, "bar": /zar ]).`),
+		clause(`bar_entry(Y, Z) :- bar_map(X), :match_entry(X, "foo", Y), :match_entry(X, "bar", Z).`),
+		// Struct
+		clause(`bar_struct({ /foo : 1, /bar : "barbar"}).`),
+		clause(`bar_extracted(Y, Z) :- bar_struct(X), :match_field(X, /foo, Y), :match_field(X, /bar, Z).`),
 	}
 
 	if err := analyzeAndEvalProgram(t, program, store); err != nil {
@@ -272,6 +280,9 @@ func TestList(t *testing.T) {
 	expected := []ast.Atom{
 		ast.NewAtom("foo", ast.List([]ast.Constant{ast.Number(1)})),
 		atom("baz(1)"),
+		atom("bar_entry(/foo, /bar)"),
+		atom("bar_entry(/hoo, /zar)"),
+		ast.NewAtom("bar_extracted", ast.Number(1), ast.String("barbar")),
 	}
 
 	for _, fact := range expected {

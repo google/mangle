@@ -397,20 +397,40 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 				// where we are sure that variables have been assigned values.
 				var builtinVars = make(map[ast.Variable]bool)
 				ast.AddVars(p, builtinVars)
-				if p.Predicate == symbols.MatchPair || p.Predicate == symbols.MatchCons { // "matching predicate"
-					fstVar, fstOk := p.Args[1].(ast.Variable)
-					sndVar, sndOk := p.Args[2].(ast.Variable)
-					if !fstOk || !sndOk {
-						return fmt.Errorf("expected variables as arguments to %v", p)
+				if p.Predicate == symbols.MatchPair || p.Predicate == symbols.MatchCons {
+					if fstVar, fstOk := p.Args[1].(ast.Variable); fstOk {
+						boundVars[fstVar] = true
+
+						if scrutinee, ok := p.Args[0].(ast.Variable); ok && scrutinee == fstVar {
+							return fmt.Errorf("a variable that is matched cannot be used for binding %v", p)
+						}
+					} else if _, constOk := p.Args[1].(ast.Constant); !constOk {
+						return fmt.Errorf("expected variable or constant as second argument to %v", p)
 					}
-					if fstVar == sndVar {
-						return fmt.Errorf("expected distinct variables as arguments to %v", p)
+
+					if sndVar, sndOk := p.Args[2].(ast.Variable); sndOk {
+						boundVars[sndVar] = true
+
+						if scrutinee, ok := p.Args[0].(ast.Variable); ok && scrutinee == sndVar {
+							return fmt.Errorf("a variable that is matched cannot be used for binding %v", p)
+						}
+					} else if _, constOk := p.Args[2].(ast.Constant); !constOk {
+						return fmt.Errorf("expected variable or constant as second argument to %v", p)
 					}
-					if scrutinee, ok := p.Args[0].(ast.Variable); ok && (scrutinee == fstVar || scrutinee == sndVar) {
-						return fmt.Errorf("a variable that is matched cannot be used for binding %v", p)
+				}
+				if p.Predicate == symbols.MatchEntry || p.Predicate == symbols.MatchField {
+					if _, keyOk := p.Args[1].(ast.Constant); !keyOk {
+						return fmt.Errorf("expected constant as second argument to %v", p)
 					}
-					boundVars[fstVar] = true
-					boundVars[sndVar] = true
+					if valVar, valOk := p.Args[2].(ast.Variable); valOk {
+						boundVars[valVar] = true
+
+						if scrutinee, ok := p.Args[0].(ast.Variable); ok && scrutinee == valVar {
+							return fmt.Errorf("a variable that is matched cannot be used for binding %v", p)
+						}
+					} else if _, constOk := p.Args[2].(ast.Constant); !constOk {
+						return fmt.Errorf("expected variable or constant as third argument to %v", p)
+					}
 				}
 
 				for v := range builtinVars {

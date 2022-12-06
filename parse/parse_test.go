@@ -344,8 +344,8 @@ func TestParseUnitPositive(t *testing.T) {
 						{nil, ast.ApplyFn{ast.FunctionSym{"fn:party", 0}, nil}},
 						{&ast.Variable{"Z"}, ast.ApplyFn{ast.FunctionSym{"fn:foo", 1}, []ast.BaseTerm{ast.Variable{"X"}}}},
 					},
-							},
-						},
+				},
+			},
 			},
 		},
 		{
@@ -358,8 +358,8 @@ func TestParseUnitPositive(t *testing.T) {
 					[]ast.TransformStmt{
 						{&ast.Variable{"Y"}, ast.ApplyFn{ast.FunctionSym{"fn:plus", 2}, []ast.BaseTerm{ast.Variable{"X"}, ast.Number(1)}}},
 					},
-							},
-						}},
+				},
+			}},
 		},
 		{
 			name: "two clauses",
@@ -750,6 +750,37 @@ func TestParseTermPositive(t *testing.T) {
 				ast.ApplyFn{symbols.List, []ast.BaseTerm{ast.Number(1), name("/foo")}},
 			}},
 		},
+		{
+			name: "empty map",
+			str:  "fn:map()",
+			want: ast.ApplyFn{symbols.Map, nil},
+		},
+		{
+			name: "map",
+			str:  "[ 1 : 'one', 2 : 'two' ]",
+			want: ast.ApplyFn{symbols.Map, []ast.BaseTerm{
+				ast.Number(1), ast.String("one"), ast.Number(2), ast.String("two")}},
+		},
+		{
+			name: "bad map - caught in validation",
+			str:  "fn:map('foo')",
+			want: ast.ApplyFn{symbols.Map, []ast.BaseTerm{ast.String("foo")}},
+		},
+		{
+			name: "bad struct - caught in validation",
+			str:  "fn:struct('foo')",
+			want: ast.ApplyFn{symbols.Struct, []ast.BaseTerm{ast.String("foo")}},
+		},
+		{
+			name: "struct",
+			str:  "{}",
+			want: ast.ApplyFn{symbols.Struct, nil},
+		},
+		{
+			name: "struct2",
+			str:  "{ /foo : 'bar', /bar : /baz }",
+			want: ast.ApplyFn{symbols.Struct, []ast.BaseTerm{name("/foo"), ast.String("bar"), name("/bar"), name("/baz")}},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -759,7 +790,7 @@ func TestParseTermPositive(t *testing.T) {
 			} else if term == nil {
 				t.Errorf("Term(%v) = nil", test.str)
 			} else if !term.Equals(test.want) {
-				t.Errorf("Term(%v) = %v (%T) want %v (%T) ", test.str, term, term, test.want, test.want)
+				t.Errorf("Term(%q) = %v (%T) want %v (%T) ", test.str, term, term, test.want, test.want)
 			}
 		})
 	}
@@ -817,6 +848,14 @@ func TestParseTermNegative(t *testing.T) {
 		{
 			name: "number part",
 			str:  "/catch/[22]",
+		},
+		{
+			name: "bad map ",
+			str:  "[ /foo : ]",
+		},
+		{
+			name: "bad struct",
+			str:  "{ /foo : }",
 		},
 	}
 	for _, test := range tests {

@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/google/mangle/ast"
+	"github.com/google/mangle/builtin"
 	"github.com/google/mangle/parse"
 )
 
@@ -120,7 +121,11 @@ func (SimpleColumn) ReadInto(r io.Reader, store FactStore) error {
 				if err != nil {
 					return ErrCouldNotRead
 				}
-				c, err := parse.BaseTerm(s)
+				e, err := parse.BaseTerm(s)
+				if err != nil {
+					return ErrCouldNotRead
+				}
+				c, err := builtin.EvalExpr(e, nil)
 				if err != nil {
 					return ErrCouldNotRead
 				}

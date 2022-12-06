@@ -189,6 +189,10 @@ func (p *Parser) Visit(tree antlr.ParseTree) any {
 		return p.VisitStr(tree.(*gen.StrContext))
 	case *gen.ApplContext:
 		return p.VisitAppl(tree.(*gen.ApplContext))
+	case *gen.MapContext:
+		return p.VisitMap(tree.(*gen.MapContext))
+	case *gen.StructContext:
+		return p.VisitStruct(tree.(*gen.StructContext))
 	case *gen.ListContext:
 		return p.VisitList(tree.(*gen.ListContext))
 	case *gen.AtomContext:
@@ -456,7 +460,40 @@ func (p Parser) VisitAppl(ctx *gen.ApplContext) any {
 		args = append(args, baseTerm)
 	}
 	predicateSym := ast.PredicateSym{ctx.NAME().GetText(), len(args)}
-	return ast.Atom{predicateSym, args} // TODO
+	return ast.Atom{predicateSym, args}
+}
+
+// VisitMap visits a parse tree produced by MangleParser#Map.
+func (p Parser) VisitMap(ctx *gen.MapContext) any {
+	var args []ast.BaseTerm
+	termCtxs := ctx.AllTerm()
+	for _, e := range termCtxs {
+		arg := p.Visit(e)
+		baseTerm, ok := arg.(ast.BaseTerm)
+		if !ok {
+			p.errors.Add(fmt.Sprintf("expected base term got %v", arg), e.GetStart().GetLine(), e.GetStart().GetColumn())
+			args = append(args, ast.AnyBound)
+			continue
+		}
+		args = append(args, baseTerm)
+	}
+	return ast.ApplyFn{ast.FunctionSym{"fn:map", -1}, args}
+}
+
+// VisitStruct visits a parse tree produced by MangleParser#Struct.
+func (p Parser) VisitStruct(ctx *gen.StructContext) any {
+	var args []ast.BaseTerm
+	for _, e := range ctx.AllTerm() {
+		arg := p.Visit(e)
+		baseTerm, ok := arg.(ast.BaseTerm)
+		if !ok {
+			p.errors.Add(fmt.Sprintf("expected base term got %v", arg), e.GetStart().GetLine(), e.GetStart().GetColumn())
+			args = append(args, ast.AnyBound)
+			continue
+		}
+		args = append(args, baseTerm)
+	}
+	return ast.ApplyFn{ast.FunctionSym{"fn:struct", -1}, args}
 }
 
 // VisitList visits a parse tree produced by MangleParser#List.

@@ -76,6 +76,8 @@ term
    | STRING # Str
    | NAME '(' (term (',' term)*)? ')' # Appl
    | '[' (term (',' term)*)? ']' # List
+   | '[' (term ':' term (',' term ':' term)*)? ']' # Map
+   | '{' (term ':' term (',' term ':' term)*)? '}' # Struct
    ;
 
 // Implementation enforces that this is an atom NAME(...)

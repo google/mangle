@@ -31,14 +31,20 @@ var (
 	// Le is the less-than-or-equal relation on numbers.
 	Le = ast.PredicateSym{":le", 2}
 
-	// MatchPair matches a pair to its elements.
+	// MatchPair mode(+, -, -) matches a pair to its elements.
 	MatchPair = ast.PredicateSym{":match_pair", 3}
 
-	// MatchCons matches a cons to head and tail.
+	// MatchCons mode(+, -, -) matches a cons to head and tail.
 	MatchCons = ast.PredicateSym{":match_cons", 3}
 
 	// MatchNil matches the empty list.
 	MatchNil = ast.PredicateSym{":match_nil", 1}
+
+	// MatchEntry mode(+, +, -) matches an entry in a map.
+	MatchEntry = ast.PredicateSym{":match_entry", 3}
+
+	// MatchField mode(+, +, -) matches a field in a struct.
+	MatchField = ast.PredicateSym{":match_field", 3}
 
 	// WithinDistance is a relation on numbers X, Y, Z satisfying |X - Y| < Z.
 	WithinDistance = ast.PredicateSym{":within_distance", 3}
@@ -85,6 +91,10 @@ var (
 	Tuple = ast.FunctionSym{"fn:tuple", -1}
 	// List constructs a list.
 	List = ast.FunctionSym{"fn:list", -1}
+	// Map constructs a map.
+	Map = ast.FunctionSym{"fn:map", -1}
+	// Struct constructs a struct.
+	Struct = ast.FunctionSym{"fn:struct", -1}
 
 	// PairType is a constructor for a pair type.
 	PairType = ast.FunctionSym{"fn:Pair", 2}
@@ -92,6 +102,10 @@ var (
 	TupleType = ast.FunctionSym{"fn:Tuple", -1}
 	// ListType is a constructor for a list type.
 	ListType = ast.FunctionSym{"fn:List", 1}
+	// MapType is a constructor for a map type.
+	MapType = ast.FunctionSym{"fn:Map", 2}
+	// StructType is a constructor for a struct type.
+	StructType = ast.FunctionSym{"fn:Struct", -1}
 	// UnionType is a constructor for a union type.
 	UnionType = ast.FunctionSym{"fn:Union", -1}
 
@@ -102,10 +116,12 @@ var (
 
 	// TypeConstructors is a list of function symbols used in structured type expressions.
 	TypeConstructors = map[string]ast.FunctionSym{
-		UnionType.Symbol: UnionType,
-		ListType.Symbol:  ListType,
-		PairType.Symbol:  PairType,
-		TupleType.Symbol: TupleType,
+		UnionType.Symbol:  UnionType,
+		ListType.Symbol:   ListType,
+		PairType.Symbol:   PairType,
+		TupleType.Symbol:  TupleType,
+		MapType.Symbol:    MapType,
+		StructType.Symbol: StructType,
 	}
 
 	// EmptyType is a type without members.
@@ -174,20 +190,20 @@ func (t TypeHandle) HasType(c ast.Constant) bool {
 	if baseType, ok := t.expr.(ast.Constant); ok {
 		return hasBaseType(baseType, c)
 	}
-	structuredType, ok := t.expr.(ast.ApplyFn)
+	tpe, ok := t.expr.(ast.ApplyFn)
 	if !ok {
 		return false // This never happens.
 	}
-	switch structuredType.Function {
+	switch tpe.Function {
 	case PairType:
 		fst, snd, err := c.PairValue()
 		if err != nil {
 			return false
 		}
-		return TypeHandle{structuredType.Args[0]}.HasType(fst) &&
-			TypeHandle{structuredType.Args[1]}.HasType(snd)
+		return TypeHandle{tpe.Args[0]}.HasType(fst) &&
+			TypeHandle{tpe.Args[1]}.HasType(snd)
 	case ListType:
-		elementType := TypeHandle{structuredType.Args[0]}
+		elementType := TypeHandle{tpe.Args[0]}
 		shapeErr, err := c.ListValues(func(e ast.Constant) error {
 			if !elementType.HasType(e) {
 				return errTypeMismatch
@@ -204,9 +220,50 @@ func (t TypeHandle) HasType(c ast.Constant) bool {
 		}
 		return true
 	case TupleType:
-		return TypeHandle{expandTupleType(structuredType.Args)}.HasType(c)
+		return TypeHandle{expandTupleType(tpe.Args)}.HasType(c)
+	case MapType:
+		if c.IsMapNil() {
+			return true
+		}
+		keyTpe := TypeHandle{tpe.Args[0]}
+		valTpe := TypeHandle{tpe.Args[1]}
+		e, err := c.MapValues(func(key ast.Constant, val ast.Constant) error {
+			if keyTpe.HasType(key) && valTpe.HasType(val) {
+				return nil
+			}
+			return errTypeMismatch
+		}, func() error {
+			return nil
+		})
+		return e == nil && err == nil
+	case StructType:
+		if c.IsStructNil() {
+			return len(tpe.Args) == 0
+		}
+		fieldTpeMap := make(map[ast.Constant]TypeHandle)
+		for i := 0; i < len(tpe.Args); i++ {
+			key := tpe.Args[i].(ast.Constant)
+			i++
+			tpe := tpe.Args[i]
+			fieldTpeMap[key] = TypeHandle{tpe}
+		}
+		seen := make(map[ast.Constant]bool)
+		e, err := c.StructValues(func(key ast.Constant, val ast.Constant) error {
+			fieldTpe, ok := fieldTpeMap[key]
+			if !ok {
+				return errTypeMismatch
+			}
+			seen[key] = true
+			if !fieldTpe.HasType(val) {
+				return errTypeMismatch
+			}
+			return nil
+		}, func() error {
+			return nil
+		})
+		return e == nil && err == nil && len(fieldTpeMap) == len(seen)
 	case UnionType:
-		for _, arg := range structuredType.Args {
+		for _, arg := range tpe.Args {
 			alt := TypeHandle{arg}
 			if alt.HasType(c) {
 				return true
@@ -257,6 +314,24 @@ func CheckTypeExpression(expr ast.BaseTerm) error {
 		if fn == TupleType && len(args) <= 2 {
 			return fmt.Errorf("tuple type must have more than 2 args %v ", expr)
 		}
+		if fn == StructType {
+			if len(args)%2 != 0 {
+				return fmt.Errorf("struct type must have even number of arguments %v ", expr)
+			}
+			for i := 0; i < len(args); i++ {
+				key := args[i]
+				if c, ok := key.(ast.Constant); !ok || c.Type != ast.NameType {
+					return fmt.Errorf("in a struct type expression, odd arguments must be name constants, argument %d (%v) is not %v ", i, key, expr)
+				}
+				i++
+				tpe := args[i]
+				if err := CheckTypeExpression(tpe); err != nil {
+					return fmt.Errorf("in a struct type expression %v : %w", expr, err)
+				}
+			}
+			return nil
+		}
+
 		for _, arg := range args {
 			if err := CheckTypeExpression(arg); err != nil {
 				return err
@@ -281,29 +356,61 @@ func TypeConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
 			return leftConst.Type == ast.NameType && rightConst.Equals(ast.NameBound)
 		}
 	}
-	if leftUnion, ok := left.(ast.ApplyFn); ok && leftUnion.Function.Symbol == UnionType.Symbol {
-		for _, leftItem := range leftUnion.Args {
+	leftApply, leftApplyOk := left.(ast.ApplyFn)
+	rightApply, rightApplyOk := right.(ast.ApplyFn)
+	if leftApplyOk && leftApply.Function.Symbol == UnionType.Symbol {
+		for _, leftItem := range leftApply.Args {
 			if !TypeConforms(leftItem, right) {
 				return false
 			}
 		}
 		return true
 	}
-	if rightUnion, ok := right.(ast.ApplyFn); ok && rightUnion.Function.Symbol == UnionType.Symbol {
-		for _, rightItem := range rightUnion.Args {
+	if rightApplyOk && rightApply.Function.Symbol == UnionType.Symbol {
+		for _, rightItem := range rightApply.Args {
 			if TypeConforms(left, rightItem) {
 				return true
 			}
 		}
 	}
-	if leftList, ok := left.(ast.ApplyFn); ok && leftList.Function.Symbol == ListType.Symbol {
-		if rightList, ok := right.(ast.ApplyFn); ok && rightList.Function.Symbol == ListType.Symbol {
-			return TypeConforms(leftList.Args[0], rightList.Args[0])
+	if leftApplyOk && leftApply.Function.Symbol == ListType.Symbol {
+		if rightApplyOk && rightApply.Function.Symbol == ListType.Symbol {
+			return TypeConforms(leftApply.Args[0], rightApply.Args[0])
 		}
 	}
-	if leftPair, ok := left.(ast.ApplyFn); ok && leftPair.Function.Symbol == PairType.Symbol {
-		if rightPair, ok := right.(ast.ApplyFn); ok && rightPair.Function.Symbol == PairType.Symbol {
-			return TypeConforms(leftPair.Args[0], rightPair.Args[0]) && TypeConforms(leftPair.Args[1], rightPair.Args[1])
+	if leftApplyOk && leftApply.Function.Symbol == MapType.Symbol {
+		if rightApplyOk && rightApply.Function.Symbol == MapType.Symbol {
+			return TypeConforms(rightApply.Args[0], leftApply.Args[0]) && TypeConforms(leftApply.Args[1], rightApply.Args[1])
+		}
+	}
+	if leftApplyOk && leftApply.Function.Symbol == StructType.Symbol {
+		if rightApplyOk && rightApply.Function.Symbol == StructType.Symbol {
+			if len(leftApply.Args) < len(rightApply.Args) {
+				return false
+			}
+			leftMap := make(map[string]ast.BaseTerm)
+			for i := 0; i < len(leftApply.Args); i++ {
+				leftKey, _ := leftApply.Args[i].(ast.Constant)
+				i++
+				leftMap[leftKey.Symbol] = leftApply.Args[i]
+			}
+
+			for j := 0; j < len(rightApply.Args); j++ {
+				rightKey, _ := rightApply.Args[j].(ast.Constant)
+				j++
+				rightTpe := rightApply.Args[j]
+				leftTpe, ok := leftMap[rightKey.Symbol]
+				if !ok || !TypeConforms(leftTpe, rightTpe) {
+					return false
+				}
+			}
+			return true
+		}
+	}
+
+	if leftApplyOk && leftApply.Function.Symbol == PairType.Symbol {
+		if rightApplyOk && rightApply.Function.Symbol == PairType.Symbol {
+			return TypeConforms(leftApply.Args[0], rightApply.Args[0]) && TypeConforms(leftApply.Args[1], rightApply.Args[1])
 		}
 	}
 	if leftTuple, ok := left.(ast.ApplyFn); ok && leftTuple.Function.Symbol == TupleType.Symbol {

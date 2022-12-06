@@ -20,12 +20,28 @@ import (
 
 	"bitbucket.org/creachadair/stringset"
 	"github.com/google/mangle/ast"
+	"github.com/google/mangle/builtin"
 	"github.com/google/mangle/parse"
 )
 
 func atom(s string) ast.Atom {
-	term, _ := parse.Term(s)
+	term, err := parse.Term(s)
+	if err != nil {
+		panic(err)
+	}
 	return term.(ast.Atom)
+}
+
+func evalAtom(s string) ast.Atom {
+	term, err := parse.Term(s)
+	if err != nil {
+		panic(err)
+	}
+	eval, err := builtin.EvalAtom(term.(ast.Atom), nil)
+	if err != nil {
+		panic(err)
+	}
+	return eval
 }
 
 func TestAddContains(t *testing.T) {
@@ -39,6 +55,9 @@ func TestAddContains(t *testing.T) {
 				atom("bar(/bar,/baz)"),
 				atom("bar(/bar,/def)"),
 				atom("bar(/abc,/def)"),
+				evalAtom("bar([/abc],1,/def)"),
+				evalAtom("baz([/abc : 1,  /def : 2], 1, /def)"),
+				evalAtom("baz({/abc : 1,  /def : 2}, 1, /def)"),
 			}
 			for _, atom := range tests {
 				if got := fs.Add(atom); !got {
@@ -105,7 +124,7 @@ func TestAddContains(t *testing.T) {
 				})
 			}
 
-			if got, want := fs.EstimateFactCount(), 7; got != want {
+			if got, want := fs.EstimateFactCount(), len(tests); got != want {
 				t.Errorf("EstimateFactCount() = %d want %d", got, want)
 			}
 		})

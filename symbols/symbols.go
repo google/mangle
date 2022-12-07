@@ -34,7 +34,7 @@ var (
 	// MatchPair mode(+, -, -) matches a pair to its elements.
 	MatchPair = ast.PredicateSym{":match_pair", 3}
 
-	// MatchCons mode(+, -, -) matches a cons to head and tail.
+	// MatchCons mode(+, -, -) matches a list to head and tail.
 	MatchCons = ast.PredicateSym{":match_cons", 3}
 
 	// MatchNil matches the empty list.

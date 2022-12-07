@@ -25,7 +25,8 @@ rigorous as to become inaccessible.
 ## Language
 
 - [Rationale](rationale.md)
-- (specification - TODO)
+- [Data Model](spec_datamodel.md)
+- [Built-in Operations](spec_builtin_operations.md)
 
 ## Implementation
 

@@ -87,6 +87,10 @@ var (
 	Cons = ast.FunctionSym{"fn:list:cons", 2}
 	// Pair constructs a pair.
 	Pair = ast.FunctionSym{"fn:pair", 2}
+	// MapGet is a function (Map, Key) which returns element at key.
+	MapGet = ast.FunctionSym{"fn:map:get", 2}
+	// StructGet is a function (Struct, Field) which returns specified field.
+	StructGet = ast.FunctionSym{"fn:struct:get", 2}
 	// Tuple acts either as identity (one argument), pair (two arguments) or nested pair (more).
 	Tuple = ast.FunctionSym{"fn:tuple", -1}
 	// List constructs a list.

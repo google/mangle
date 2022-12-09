@@ -378,22 +378,63 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 			return ast.Constant{}, err
 		}
 		i := 0
-		var errBreak = errors.New("break")
 		var res *ast.Constant
 		_, loopErr := arg.ListValues(func(c ast.Constant) error {
 			if i == int(index) {
 				res = &c
-				return errBreak
+				return errFound
 			}
 			i++
 			return nil
 		}, func() error {
 			return nil
 		})
-		if errors.Is(loopErr, errBreak) {
+		if errors.Is(loopErr, errFound) {
 			return *res, nil
 		}
 		return ast.Constant{}, fmt.Errorf("index out of bounds: %d", index)
+
+	case symbols.MapGet.Symbol:
+		arg, err := getMapValue(evaluatedArgs[0])
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		lookupKey := evaluatedArgs[1]
+		var res *ast.Constant
+		_, loopErr := arg.MapValues(func(key ast.Constant, val ast.Constant) error {
+			if key.Equals(lookupKey) {
+				res = &val
+				return errFound
+			}
+			return nil
+		}, func() error {
+			return nil
+		})
+		if errors.Is(loopErr, errFound) {
+			return *res, nil
+		}
+		return ast.Constant{}, fmt.Errorf("key does not exist: %v", lookupKey)
+
+	case symbols.StructGet.Symbol:
+		arg, err := getStructValue(evaluatedArgs[0])
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		lookupField := evaluatedArgs[1]
+		var res *ast.Constant
+		_, loopErr := arg.StructValues(func(field ast.Constant, val ast.Constant) error {
+			if field.Equals(lookupField) {
+				res = &val
+				return errFound
+			}
+			return nil
+		}, func() error {
+			return nil
+		})
+		if errors.Is(loopErr, errFound) {
+			return *res, nil
+		}
+		return ast.Constant{}, fmt.Errorf("key does not exist: %v", lookupField)
 
 	default:
 		return EvalNumericApplyFn(applyFn, subst)
@@ -450,6 +491,20 @@ func getNumberValue(b ast.BaseTerm) (int64, error) {
 func getListValue(c ast.Constant) (ast.Constant, error) {
 	if c.Type != ast.ListShape {
 		return ast.Constant{}, fmt.Errorf("value %v (%v) is not a list", c, c.Type)
+	}
+	return c, nil
+}
+
+func getMapValue(c ast.Constant) (ast.Constant, error) {
+	if c.Type != ast.MapShape {
+		return ast.Constant{}, fmt.Errorf("value %v (%v) is not a map", c, c.Type)
+	}
+	return c, nil
+}
+
+func getStructValue(c ast.Constant) (ast.Constant, error) {
+	if c.Type != ast.StructShape {
+		return ast.Constant{}, fmt.Errorf("value %v (%v) is not a struct", c, c.Type)
 	}
 	return c, nil
 }

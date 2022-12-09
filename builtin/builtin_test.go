@@ -497,9 +497,37 @@ func TestEvalApplyFn(t *testing.T) {
 			want: *ast.Map(map[*ast.Constant]*ast.Constant{ptr(ast.Number(1)): ptr(ast.String("v")), ptr(ast.Number(2)): ptr(ast.String("foo"))}),
 		},
 		{
+			name: "lookup map",
+			expr: ast.ApplyFn{symbols.MapGet, []ast.BaseTerm{
+				ast.ApplyFn{symbols.Map, []ast.BaseTerm{ast.Number(1), ast.String("v"), ast.Number(2), ast.String("foo")}},
+				ast.Number(1)}},
+			want: ast.String("v"),
+		},
+		{
+			name: "lookup map 2",
+			expr: ast.ApplyFn{symbols.MapGet, []ast.BaseTerm{
+				ast.ApplyFn{symbols.Map, []ast.BaseTerm{ast.Number(1), ast.String("v"), ast.Number(2), ast.String("foo")}},
+				ast.Number(2)}},
+			want: ast.String("foo"),
+		},
+		{
 			name: "construct a struct",
 			expr: ast.ApplyFn{symbols.Struct, []ast.BaseTerm{name("/field1"), ast.String("value"), name("/field2"), ast.Number(32)}},
 			want: *ast.Struct(map[*ast.Constant]*ast.Constant{ptr(name("/field1")): ptr(ast.String("value")), ptr(name("/field2")): ptr(ast.Number(32))}),
+		},
+		{
+			name: "field access",
+			expr: ast.ApplyFn{symbols.StructGet, []ast.BaseTerm{
+				ast.ApplyFn{symbols.Struct, []ast.BaseTerm{name("/field1"), ast.String("value"), name("/field2"), ast.Number(32)}},
+				name("/field1")}},
+			want: ast.String("value"),
+		},
+		{
+			name: "field access 2",
+			expr: ast.ApplyFn{symbols.StructGet, []ast.BaseTerm{
+				ast.ApplyFn{symbols.Struct, []ast.BaseTerm{name("/field1"), ast.String("value"), name("/field2"), ast.Number(32)}},
+				name("/field2")}},
+			want: ast.Number(32),
 		},
 	}
 	for _, test := range tests {
@@ -535,6 +563,18 @@ func TestEvalApplyFnNegative(t *testing.T) {
 		{
 			name: "out of bounds",
 			expr: ast.ApplyFn{symbols.ListGet, []ast.BaseTerm{ast.ListNil, ast.Number(1)}},
+		},
+		{
+			name: "lookup map not found",
+			expr: ast.ApplyFn{symbols.MapGet, []ast.BaseTerm{
+				ast.ApplyFn{symbols.Map, []ast.BaseTerm{ast.Number(1), ast.String("v"), ast.Number(2), ast.String("foo")}},
+				ast.Number(3)}},
+		},
+		{
+			name: "lookup struct not found",
+			expr: ast.ApplyFn{symbols.StructGet, []ast.BaseTerm{
+				ast.ApplyFn{symbols.Struct, []ast.BaseTerm{name("/field1"), ast.String("value"), name("/field2"), ast.Number(32)}},
+				name("/field3")}},
 		},
 	}
 	for _, test := range tests {

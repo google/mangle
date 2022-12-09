@@ -4,10 +4,11 @@ Mangle is a programming language for deductive database programming. It
 is an extension of Datalog, with various extensions like aggregation, function
 calls and optional type-checking.
 
-Deductive database is useful for bringing data from multiple data sources
-together since it enables us to represent and query that data in a uniform way.
-It can also be used to model domain knowledge, similar to machine-readable
-ontology but without being restricted to binary predicates.
+Deductive database programming is useful for bringing data from multiple
+data sources together since it enables us to represent and query that data in
+a uniform way. It can also be used to model domain knowledge, similar
+to machine-readable ontology but without being restricted to binary
+predicates.
 
 Datalog is an expressive declarative language similar to relational calculus
 (think SQL and relational views). Unlike relational calculus, it also supports
@@ -15,12 +16,16 @@ recursive rules and program structuring in a straightforward way.
 
 Mangle contains Datalog as a fragment and adds extensions that make its use
 more practical. Some of the good properties like guaranteed termination are
-lost when extensions are used.
+lost when such extensions are used.
 
 The goal of Mangle as an open source project is to convey the concepts in
 a way that is accessible to developers and lends itself to easy experimentation.
 This repository contains an implementation of Mangle as a go library that can be
 easily embedded into applications.
+
+Check out the [docs](docs/README.md) and the
+[GitHub discussions](https://github.com/google/mangle/discussions) for more
+information. There is also a Q&A section.
 
 This is not an officially supported Google product. 
 
@@ -94,10 +99,11 @@ either directly, or through some dependency.
 
 ### Knowledge Graphs, Property Graphs
 
-When engineering requirements, it is useful to model a slice of the real world 
-through a domain model and controlled vocabulary. Description logics use
-roles to describe how concepts interact, but the relationships are always
-binary. Mangle can represent binary predicates, but also arbitrary n-ary relations.
+In requirements engineering, one needs to captures real world concepts in a
+domain model and controlled vocabulary. Description logics use
+roles to describe how concepts interact, but these relationships are always
+binary. Mangle can represent binary predicates, but also arbitrary n-ary
+relations. Moreover it also has support for structured data.
 
 ```
 one_or_two_leg_trip(Codes, Start, Destination, Price) :-
@@ -136,8 +142,8 @@ antlr -Dlanguage=Go -package gen -o ./ parse/gen/Mangle.g4 -visitor
 
 ... and finally get the dependencies (see [go.mod](go.mod)) and build the library:
 ```
-go get ...
-go build ...
+go get ./...
+go build ./...
 ```
 
 ## Contributing

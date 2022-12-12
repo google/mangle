@@ -114,7 +114,7 @@ one_or_two_leg_trip(Codes, Start, Destination, Price) :-
   direct_conn(FirstCode, Start, Connecting, FirstLegPrice).
   direct_conn(SecondCode, Connecting, Destination, SecondLegPrice)
   |> let Code = [FirstCode, SecondCode],
-     let Price = fn:sum(FirstLegPrice, SecondLegPrice).
+     let Price = fn:plus(FirstLegPrice, SecondLegPrice).
 
 ```
 

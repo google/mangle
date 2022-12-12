@@ -76,6 +76,7 @@ func TestCheckRulePositive(t *testing.T) {
 		clause("foo(fn:cons(1, [23]))."),
 		clause("foo(X) :- X = [37]."),
 		clause("foo(X) :- Y = 2, X = [Y]."),
+		clause("foo(X) :- Y = 2 |> let X = [Y]."),
 		clause("foo(X) :- Y = 2, X = fn:list(Y)."),
 		clause("foo(X) :- bar(X), 0 < X."),
 		clause("foo(Y) :- bar(X) |> let Y = fn:plus(X, X)."),

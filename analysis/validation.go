@@ -705,16 +705,14 @@ func (a *Analyzer) checkFunctions(clause ast.Clause) error {
 	}
 	for _, stmt := range clause.Transform.Statements {
 		sym := stmt.Fn.Function
+		if _, ok := a.builtInFunctions[ast.FunctionSym{sym.Symbol, -1}]; ok {
+			continue
+		}
 		if _, ok := a.builtInFunctions[sym]; ok {
 			if sym.Arity == len(stmt.Fn.Args) {
 				continue
 			}
 			return fmt.Errorf("function %v expects %d arguments, provided: %v", sym.Symbol, sym.Arity, stmt.Fn.Args)
-		}
-		// Check for varyadic function.
-		if _, ok := a.builtInFunctions[ast.FunctionSym{sym.Symbol, -1}]; ok {
-			//TODO: check variable-arity functions that require at least one arg (fn:collect(...)).
-			continue
 		}
 		return fmt.Errorf("clause %v could not find function %v", clause, sym)
 	}

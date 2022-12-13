@@ -17,26 +17,29 @@ package ast
 import (
 	"encoding/binary"
 	"hash/fnv"
+	"math"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
 
 var (
-	fooName     = name("/foo")
-	fooNameSame = name("/foo")
-	barName     = name("/bar")
-	barString   = String("bar")
-	bazString   = String("baz")
-	num         = int64(-123)
-	numConstant = Number(num)
-	fooBarPair  = Pair(&fooName, &barString)
-	barFooPair  = Pair(&barString, &fooName)
-	fooFooPair  = Pair(&fooName, &fooName)
-	fooBarList  = List([]Constant{fooName, barString})
-	barFooList  = List([]Constant{barString, fooName})
-	fooFooList  = List([]Constant{fooName, fooName})
-	mapExample  = Map(map[*Constant]*Constant{
+	fooName                  = name("/foo")
+	fooNameSame              = name("/foo")
+	barName                  = name("/bar")
+	barString                = String("bar")
+	bazString                = String("baz")
+	num                      = int64(-123)
+	numConstant              = Number(num)
+	floatNum         float64 = 3.1415
+	floatNumConstant         = Float64(floatNum)
+	fooBarPair               = Pair(&fooName, &barString)
+	barFooPair               = Pair(&barString, &fooName)
+	fooFooPair               = Pair(&fooName, &fooName)
+	fooBarList               = List([]Constant{fooName, barString})
+	barFooList               = List([]Constant{barString, fooName})
+	fooFooList               = List([]Constant{fooName, fooName})
+	mapExample               = Map(map[*Constant]*Constant{
 		&barString: &fooName,
 		&bazString: &barName})
 	mapExampleSame = Map(map[*Constant]*Constant{
@@ -86,6 +89,7 @@ func TestSelfEquals(t *testing.T) {
 		name("/foo"),
 		String("foo"),
 		Number(-123),
+		floatNumConstant,
 		fooBarPair,
 		fooBarList,
 		NewAtom("foo", Variable{"X"}),
@@ -150,6 +154,7 @@ func TestEqualsNegative(t *testing.T) {
 		{left: fooBarList, right: barFooList},
 		{left: fooBarList, right: fooFooList},
 		{left: fooBarList, right: ListNil},
+		{left: floatNumConstant, right: numConstant},
 		{left: ListNil, right: fooBarList},
 		{left: Variable{"X"}, right: Variable{"Y"}},
 		{left: name("/foo"), right: name("/bar")},
@@ -181,6 +186,10 @@ func TestHash(t *testing.T) {
 		{
 			c:    Number(num),
 			want: uint64(num),
+		},
+		{
+			c:    floatNumConstant,
+			want: math.Float64bits(floatNum),
 		},
 		{
 			c:    fooBarPair,

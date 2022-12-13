@@ -19,6 +19,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash/fnv"
+	"math"
 	"regexp"
 	"sort"
 	"strings"
@@ -26,6 +27,9 @@ import (
 
 // AnyBound is a type expression that has all values as elements.
 var AnyBound Constant
+
+// Float64Bound is a type expression that has all float64s as elements.
+var Float64Bound Constant
 
 // NameBound is a type expression that has all names as elements.
 var NameBound Constant
@@ -49,14 +53,20 @@ var TrueAnd = And{}
 
 func init() {
 	AnyBound, _ = Name("/any")
+	Float64Bound, _ = Name("/float64")
 	NameBound, _ = Name("/name")
 	NumberBound, _ = Name("/number")
 	StringBound, _ = Name("/string")
 }
 
-// FormatNumber turns a number constant into a string using NumberFormat.
+// FormatNumber turns a number constant into a string.
 func FormatNumber(num int64) string {
 	return fmt.Sprintf("%d", num)
+}
+
+// FormatFloat64 turns a float64 constant into a string.
+func FormatFloat64(floatNum float64) string {
+	return fmt.Sprintf("%f", floatNum)
 }
 
 // Term represents the building blocks of datalog programs, namely constants, variables, atoms,
@@ -146,8 +156,10 @@ const (
 	NameType ConstantType = iota
 	// StringType is the type of string constants.
 	StringType
-	// NumberType is the type of number constants.
+	// NumberType is the type of number (int64) constants.
 	NumberType
+	// Float64Type is the type of float64 constants.
+	Float64Type
 	// PairShape indicates that the constant is a pair.
 	PairShape
 	// ListShape indicates that the constant is a list.
@@ -217,6 +229,11 @@ func String(str string) Constant {
 // Number constructs a constant symbol that contains a number.
 func Number(num int64) Constant {
 	return Constant{NumberType, "", num, nil, nil}
+}
+
+// Float64 constructs a constant symbol that contains a float64.
+func Float64(floatNum float64) Constant {
+	return Constant{Float64Type, "", int64(math.Float64bits(floatNum)), nil, nil}
 }
 
 // Pair constructs a pair constant. Parts can only be accessed in transforms.
@@ -328,12 +345,20 @@ func (c Constant) StringValue() (string, error) {
 	return c.Symbol, nil
 }
 
-// NumberValue returns the number value of this constant, if it is of type number.
+// NumberValue returns the number(int64) value of this constant, if it is of type number.
 func (c Constant) NumberValue() (int64, error) {
 	if c.Type != NumberType {
 		return 0, fmt.Errorf("not a number constant %v", c)
 	}
 	return c.NumValue, nil
+}
+
+// Float64Value returns the float64 value of this constant, if it is of type float64.
+func (c Constant) Float64Value() (float64, error) {
+	if c.Type != Float64Type {
+		return 0, fmt.Errorf("not a number constant %v", c)
+	}
+	return math.Float64frombits(uint64(c.NumValue)), nil
 }
 
 // PairValue returns the two constants that make up this pair.
@@ -420,6 +445,8 @@ func (c Constant) String() string {
 		return fmt.Sprintf(`"%s"`, str)
 	case NumberType:
 		return FormatNumber(c.NumValue)
+	case Float64Type:
+		return FormatFloat64(math.Float64frombits(uint64(c.NumValue)))
 	case PairShape:
 		fst := *c.fst
 		snd := *c.snd
@@ -517,6 +544,8 @@ func (c Constant) Equals(u Term) bool {
 	case StringType:
 		return c.Symbol == uconst.Symbol
 	case NumberType:
+		fallthrough
+	case Float64Type:
 		return true
 	case PairShape:
 		return c.fst.Equals(uconst.fst) && c.snd.Equals(uconst.snd)

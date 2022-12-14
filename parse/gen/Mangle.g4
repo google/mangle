@@ -73,6 +73,7 @@ term
    : VARIABLE # Var
    | CONSTANT # Const
    | NUMBER # Num
+   | FLOAT # Float
    | STRING # Str
    | NAME '(' (term (',' term)*)? ')' # Appl
    | '[' (term (',' term)*)? ']' # List
@@ -118,6 +119,11 @@ fragment LETTER : 'A'..'Z' | 'a'..'z' ;
 fragment DIGIT  : '0'..'9' ;
 
 NUMBER : '-'? DIGIT (DIGIT)*;
+FLOAT : '-'? (DIGIT)+ '.' (DIGIT)+ EXPONENT?
+      | '-'? '.' (DIGIT)+ EXPONENT?;
+
+fragment
+EXPONENT : ('e'|'E') ('+'|'-')? DIGIT+ ;
 
 fragment VARIABLE_START : 'A'..'Z' ;
 fragment VARIABLE_CHAR : LETTER | DIGIT ;

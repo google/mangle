@@ -71,8 +71,8 @@ func TestCheckTypeExpression(t *testing.T) {
 			},
 		},
 		{
-			tpe:  ast.ApplyFn{PairType, []ast.BaseTerm{ast.NumberBound, ast.StringBound}},
-			good: []ast.Constant{pair(ast.Number(2), ast.String("foo"))},
+			tpe:  ast.ApplyFn{PairType, []ast.BaseTerm{ast.Float64Bound, ast.StringBound}},
+			good: []ast.Constant{pair(ast.Float64(2.2), ast.String("foo"))},
 			bad:  []ast.Constant{ast.Number(2), pair(ast.String("foo"), ast.Number(2))},
 		},
 		{

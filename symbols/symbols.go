@@ -153,6 +153,8 @@ func IsBaseTypeExpression(c ast.Constant) bool {
 	switch c {
 	case ast.AnyBound:
 		return true
+	case ast.Float64Bound:
+		return true
 	case ast.NumberBound:
 		return true
 	case ast.StringBound:
@@ -282,6 +284,8 @@ func hasBaseType(typeExpr ast.Constant, c ast.Constant) bool {
 	switch typeExpr {
 	case ast.AnyBound:
 		return true
+	case ast.Float64Bound:
+		return c.Type == ast.Float64Type
 	case ast.NameBound:
 		return c.Type == ast.NameType
 	case ast.NumberBound:

@@ -185,6 +185,8 @@ func (p *Parser) Visit(tree antlr.ParseTree) any {
 		return p.VisitConst(tree.(*gen.ConstContext))
 	case *gen.NumContext:
 		return p.VisitNum(tree.(*gen.NumContext))
+	case *gen.FloatContext:
+		return p.VisitFloat(tree.(*gen.FloatContext))
 	case *gen.StrContext:
 		return p.VisitStr(tree.(*gen.StrContext))
 	case *gen.ApplContext:
@@ -422,6 +424,16 @@ func (p Parser) VisitNum(ctx *gen.NumContext) any {
 		return ast.Number(-1)
 	}
 	return ast.Number(num)
+}
+
+// VisitFloat visits a parse tree produced by MangleParser#Float.
+func (p Parser) VisitFloat(ctx *gen.FloatContext) any {
+	floatNum, err := strconv.ParseFloat(ctx.FLOAT().GetText(), 64)
+	if err != nil {
+		p.errors.Add(err.Error(), ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
+		return ast.Float64(-1)
+	}
+	return ast.Float64(floatNum)
 }
 
 // VisitStr visits a parse tree produced by MangleParser#Str.

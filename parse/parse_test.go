@@ -679,6 +679,12 @@ func TestParseTermPositive(t *testing.T) {
 			want: ast.Number(0),
 		},
 		{
+			name: "float64 constant",
+			str:  "-100.123",
+			want: ast.Float64(-100.123),
+		},
+
+		{
 			name: "variable",
 			str:  "X",
 			want: ast.Variable{"X"},
@@ -697,6 +703,11 @@ func TestParseTermPositive(t *testing.T) {
 			name: "atom number",
 			str:  "foo(100)",
 			want: ast.NewAtom("foo", ast.Number(100)),
+		},
+		{
+			name: "atom float number",
+			str:  "foo(.123)",
+			want: ast.NewAtom("foo", ast.Float64(.123)),
 		},
 		{
 			name: "constant skip whitespace",
@@ -844,6 +855,10 @@ func TestParseTermNegative(t *testing.T) {
 		{
 			name: "number too big",
 			str:  "287326487236487264378264",
+		},
+		{
+			name: "bad float ",
+			str:  ".e",
 		},
 		{
 			name: "number part",

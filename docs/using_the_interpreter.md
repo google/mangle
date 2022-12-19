@@ -87,13 +87,13 @@ predicate like this:
 
 ```
 Decl foo(Arg1, Arg2).
-mr >Decl foo(X,Y).
+mg >Decl foo(X,Y).
 defined [foo(A, B)].
-mr >bar(X) :- foo(X, _).
+mg >bar(X) :- foo(X, _).
 defined [foo(A, B) bar(A)].
-mr >foo(1,1).
+mg >foo(1,1).
 defined [foo(A, B) bar(A)].
-mr >?bar
+mg >?bar
 bar(1)
 Found 1 entries for bar.
 ```

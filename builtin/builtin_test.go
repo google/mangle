@@ -199,15 +199,16 @@ func TestMatchCons(t *testing.T) {
 		fstVar    ast.BaseTerm
 		sndVar    ast.BaseTerm
 		want      bool
-		subst     unionfind.UnionFind
 	}{
-		{ast.List([]ast.Constant{ast.Number(1)}), ast.Variable{"_"}, ast.Variable{"_"}, true, unionfind.New()},
-		{ast.List([]ast.Constant{ast.Number(1)}), ast.Variable{"X"}, ast.Variable{"Y"}, true,
-			extend(extend(unionfind.New(), ast.Variable{"X"}, ast.Number(1)), ast.Variable{"Y"}, ast.ListNil)},
+		{ast.List([]ast.Constant{ast.Number(1)}), ast.Variable{"_"}, ast.Variable{"_"}, true},
+		{ast.List([]ast.Constant{ast.Number(1)}), ast.Variable{"X"}, ast.Variable{"Y"}, true},
+		{ast.Number(1), ast.Variable{"_"}, ast.Variable{"_"}, false},
+		{ast.ListNil, ast.Variable{"_"}, ast.Variable{"_"}, false},
 	}
 	for _, test := range tests {
 		atom := ast.NewAtom(":match_cons", test.scrutinee, test.fstVar, test.sndVar)
-		got, _, err := Decide(atom, &test.subst)
+		var subst unionfind.UnionFind
+		got, _, err := Decide(atom, &subst)
 		if err != nil {
 			t.Fatal(err)
 		}

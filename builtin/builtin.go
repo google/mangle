@@ -193,7 +193,7 @@ func match(pattern ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.Union
 
 		scrutineeList, err := getListValue(scrutinee)
 		if err != nil {
-			return false, nil, err
+			return false, nil, nil // failing match is not an error
 		}
 		hd, tail, err := scrutineeList.ConsValue()
 		if err != nil {

@@ -18,6 +18,7 @@ package builtin
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/google/mangle/ast"
@@ -367,6 +368,78 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		}
 		return *tuple, nil
 
+	case symbols.Max.Symbol:
+		list, err := getListValue(evaluatedArgs[0])
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return evalMax(func(cbNext func(ast.Constant) error, cbNil func() error) error {
+			if _, err = list.ListValues(cbNext, cbNil); err != nil {
+				return err
+			}
+			return nil
+		})
+
+	case symbols.FloatMax.Symbol:
+		list, err := getListValue(evaluatedArgs[0])
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return evalFloatMax(func(cbNext func(ast.Constant) error, cbNil func() error) error {
+			if _, err = list.ListValues(cbNext, cbNil); err != nil {
+				return err
+			}
+			return nil
+		})
+
+	case symbols.Min.Symbol:
+		list, err := getListValue(evaluatedArgs[0])
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return evalMin(func(cbNext func(ast.Constant) error, cbNil func() error) error {
+			if _, err = list.ListValues(cbNext, cbNil); err != nil {
+				return err
+			}
+			return nil
+		})
+
+	case symbols.FloatMin.Symbol:
+		list, err := getListValue(evaluatedArgs[0])
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return evalFloatMin(func(cbNext func(ast.Constant) error, cbNil func() error) error {
+			if _, err = list.ListValues(cbNext, cbNil); err != nil {
+				return err
+			}
+			return nil
+		})
+
+	case symbols.Sum.Symbol:
+		list, err := getListValue(evaluatedArgs[0])
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return evalSum(func(cbNext func(ast.Constant) error, cbNil func() error) error {
+			if _, err = list.ListValues(cbNext, cbNil); err != nil {
+				return err
+			}
+			return nil
+		})
+
+	case symbols.FloatSum.Symbol:
+		list, err := getListValue(evaluatedArgs[0])
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return evalFloatSum(func(cbNext func(ast.Constant) error, cbNil func() error) error {
+			if _, err = list.ListValues(cbNext, cbNil); err != nil {
+				return err
+			}
+			return nil
+		})
+
 	case symbols.ListGet.Symbol:
 		arg, err := getListValue(evaluatedArgs[0])
 		if err != nil {
@@ -486,6 +559,17 @@ func getNumberValue(b ast.BaseTerm) (int64, error) {
 		return 0, fmt.Errorf("value %v (%v) is not a number", c, c.Type)
 	}
 	return c.NumberValue()
+}
+
+func getFloatValue(b ast.BaseTerm) (float64, error) {
+	c, ok := b.(ast.Constant)
+	if !ok {
+		return 0, fmt.Errorf("not a value %v (%T)", b, b)
+	}
+	if c.Type != ast.Float64Type {
+		return 0, fmt.Errorf("value %v (%v) is not a number", c, c.Type)
+	}
+	return c.Float64Value()
 }
 
 func getListValue(c ast.Constant) (ast.Constant, error) {
@@ -634,41 +718,79 @@ func EvalReduceFn(reduceFn ast.ApplyFn, rows []ast.ConstSubstList) (ast.Constant
 		return ast.Number(int64(len(rows))), nil
 	case symbols.Max.Symbol:
 		v := reduceFn.Args[0].(ast.Variable)
-		var max int64
-		for _, subst := range rows {
-			num, err := getNumberValue(subst.Get(v).(ast.Constant))
-			if err != nil {
-				continue
+		return evalMax(func(cbNext func(ast.Constant) error, cbNil func() error) error {
+			for _, subst := range rows {
+				if num, ok := subst.Get(v).(ast.Constant); ok {
+					if err := cbNext(num); err != nil {
+						return err
+					}
+				}
 			}
-			if num > max {
-				max = num
+			if err := cbNil(); err != nil {
+				return err
 			}
-		}
-		return ast.Number(max), nil
+			return nil
+		})
+	case symbols.FloatMax.Symbol:
+		v := reduceFn.Args[0].(ast.Variable)
+		return evalFloatMax(func(cbNext func(ast.Constant) error, cbNil func() error) error {
+			for _, subst := range rows {
+				if num, ok := subst.Get(v).(ast.Constant); ok {
+					if err := cbNext(num); err != nil {
+						return err
+					}
+				}
+			}
+			return cbNil()
+		})
 	case symbols.Min.Symbol:
 		v := reduceFn.Args[0].(ast.Variable)
-		var min int64
-		for _, subst := range rows {
-			num, err := getNumberValue(subst.Get(v).(ast.Constant))
-			if err != nil {
-				continue
+		return evalMin(func(cbNext func(ast.Constant) error, cbNil func() error) error {
+			for _, subst := range rows {
+				if num, ok := subst.Get(v).(ast.Constant); ok {
+					if err := cbNext(num); err != nil {
+						return err
+					}
+				}
 			}
-			if num < min {
-				min = num
+			return cbNil()
+		})
+	case symbols.FloatMin.Symbol:
+		v := reduceFn.Args[0].(ast.Variable)
+		return evalFloatMin(func(cbNext func(ast.Constant) error, cbNil func() error) error {
+			for _, subst := range rows {
+				if num, ok := subst.Get(v).(ast.Constant); ok {
+					if err := cbNext(num); err != nil {
+						return err
+					}
+				}
 			}
-		}
-		return ast.Number(min), nil
+			return cbNil()
+		})
 	case symbols.Sum.Symbol:
 		v := reduceFn.Args[0].(ast.Variable)
-		var sum int64
-		for _, subst := range rows {
-			num, err := getNumberValue(subst.Get(v).(ast.Constant))
-			if err != nil {
-				continue
+		return evalSum(func(cbNext func(ast.Constant) error, cbNil func() error) error {
+			for _, subst := range rows {
+				if num, ok := subst.Get(v).(ast.Constant); ok {
+					if err := cbNext(num); err != nil {
+						return err
+					}
+				}
 			}
-			sum += num
-		}
-		return ast.Number(sum), nil
+			return cbNil()
+		})
+	case symbols.FloatSum.Symbol:
+		v := reduceFn.Args[0].(ast.Variable)
+		return evalFloatSum(func(cbNext func(ast.Constant) error, cbNil func() error) error {
+			for _, subst := range rows {
+				if num, ok := subst.Get(v).(ast.Constant); ok {
+					if err := cbNext(num); err != nil {
+						return err
+					}
+				}
+			}
+			return cbNil()
+		})
 	default:
 		return ast.Constant{}, fmt.Errorf("unknown reducer %v", reduceFn.Function)
 	}
@@ -790,4 +912,102 @@ func (t TypeChecker) CheckOneBoundDecl(fact ast.Atom, boundDecl ast.BoundDecl) e
 		}
 	}
 	return nil
+}
+
+func evalMax(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
+	max := int64(math.MinInt64)
+	if err := iter(func(c ast.Constant) error {
+		num, err := getNumberValue(c)
+		if err != nil {
+			return err
+		}
+		if num > max {
+			max = num
+		}
+		return nil
+	}, func() error { return nil }); err != nil {
+		return ast.Constant{}, err
+	}
+	return ast.Number(max), nil
+}
+
+func evalFloatMax(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
+	max := -1 * math.MaxFloat64
+	if err := iter(func(c ast.Constant) error {
+		num, err := getFloatValue(c)
+		if err != nil {
+			return err
+		}
+		if num > max {
+			max = num
+		}
+		return nil
+	}, func() error { return nil }); err != nil {
+		return ast.Constant{}, err
+	}
+	return ast.Float64(max), nil
+}
+
+func evalMin(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
+	min := int64(math.MaxInt64)
+	if err := iter(func(c ast.Constant) error {
+		num, err := getNumberValue(c)
+		if err != nil {
+			return err
+		}
+		if num < min {
+			min = num
+		}
+		return nil
+	}, func() error { return nil }); err != nil {
+		return ast.Constant{}, err
+	}
+	return ast.Number(min), nil
+}
+
+func evalFloatMin(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
+	min := math.MaxFloat64
+	if err := iter(func(c ast.Constant) error {
+		floatNum, err := getFloatValue(c)
+		if err != nil {
+			return err
+		}
+		if floatNum < min {
+			min = floatNum
+		}
+		return nil
+	}, func() error { return nil }); err != nil {
+		return ast.Constant{}, err
+	}
+	return ast.Float64(min), nil
+}
+
+func evalSum(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
+	var sum int64
+	if err := iter(func(c ast.Constant) error {
+		num, err := getNumberValue(c)
+		if err != nil {
+			return err
+		}
+		sum += num
+		return nil
+	}, func() error { return nil }); err != nil {
+		return ast.Constant{}, err
+	}
+	return ast.Number(sum), nil
+}
+
+func evalFloatSum(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
+	var sum float64
+	if err := iter(func(c ast.Constant) error {
+		num, err := getFloatValue(c)
+		if err != nil {
+			return err
+		}
+		sum += num
+		return nil
+	}, func() error { return nil }); err != nil {
+		return ast.Constant{}, err
+	}
+	return ast.Float64(sum), nil
 }

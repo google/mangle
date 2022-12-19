@@ -66,10 +66,16 @@ var (
 	PickAny = ast.FunctionSym{"fn:pick_any", 1}
 	// Max reduces a set { x_1,...x_n } to { x_i } that is maximal.
 	Max = ast.FunctionSym{"fn:max", 1}
+	// FloatMax reduces a set of float64 { x_1,...x_n } to { x_i } that is maximal.
+	FloatMax = ast.FunctionSym{"fn:float:max", 1}
 	// Min reduces a set { x_1,...x_n } to { x_i } that is minimal.
 	Min = ast.FunctionSym{"fn:min", 1}
+	// FloatMin reduces a set of float64 { x_1,...x_n } to { x_i } that is minimal.
+	FloatMin = ast.FunctionSym{"fn:float:min", 1}
 	// Sum reduces a set { x_1,...x_n } to { x_1 + ... + x_n }.
 	Sum = ast.FunctionSym{"fn:sum", 1}
+	// FloatSum reduces a set of float64 { x_1,...x_n } to { x_1 + ... + x_n }.
+	FloatSum = ast.FunctionSym{"fn:float:sum", 1}
 	// Count reduces a set { x_1,...x_n } to { n }.
 	Count = ast.FunctionSym{"fn:count", 0}
 

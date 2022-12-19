@@ -16,6 +16,7 @@ package builtin
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/google/mangle/ast"
@@ -424,6 +425,144 @@ func TestReducerCollectDistinct(t *testing.T) {
 	}
 }
 
+func TestReducerMinMaxSum(t *testing.T) {
+	tests := []struct {
+		rows    [][]ast.Constant
+		wantMin ast.Constant
+		wantMax ast.Constant
+		wantSum ast.Constant
+	}{
+		{
+			rows: [][]ast.Constant{
+				{ast.Number(1)},
+				{ast.Number(1)},
+				{ast.Number(3)},
+			},
+			wantMin: ast.Number(1),
+			wantMax: ast.Number(3),
+			wantSum: ast.Number(5),
+		},
+		{
+			rows:    nil,
+			wantMin: ast.Number(math.MaxInt64),
+			wantMax: ast.Number(math.MinInt64),
+			wantSum: ast.Number(0),
+		},
+	}
+	for _, test := range tests {
+		var rows []ast.ConstSubstList
+		for _, row := range test.rows {
+			rows = append(rows, makeConstSubstList([]ast.Variable{ast.Variable{"X"}}, row))
+		}
+		gotMax, err := EvalReduceFn(ast.ApplyFn{symbols.Max, []ast.BaseTerm{ast.Variable{"X"}}}, rows)
+		if err != nil {
+			t.Fatalf("EvalReduceFn(Max,%v) failed with %v", rows, err)
+		}
+		if test.wantMax != gotMax {
+			t.Errorf("EvalReduceFn(Max, %v)=%v want %v", rows, gotMax, test.wantMax)
+		}
+		gotMin, err := EvalReduceFn(ast.ApplyFn{symbols.Min, []ast.BaseTerm{ast.Variable{"X"}}}, rows)
+		if err != nil {
+			t.Fatalf("EvalReduceFn(Min,%v) failed with %v", rows, err)
+		}
+		if test.wantMin != gotMin {
+			t.Errorf("EvalReduceFn(Min, %v)=%v want %v", rows, gotMin, test.wantMin)
+		}
+		gotSum, err := EvalReduceFn(ast.ApplyFn{symbols.Sum, []ast.BaseTerm{ast.Variable{"X"}}}, rows)
+		if err != nil {
+			t.Fatalf("EvalReduceFn(Sum, %v) failed with %v", rows, err)
+		}
+		if test.wantSum != gotSum {
+			t.Errorf("EvalReduceFn(Sum, %v)=%v want %v", rows, gotSum, test.wantSum)
+		}
+	}
+}
+
+func TestReducerMinMaxSumNegative(t *testing.T) {
+	tests := []struct {
+		rows [][]ast.Constant
+	}{
+		{
+			rows: [][]ast.Constant{
+				{ast.Number(1)},
+				{ast.Float64(1.0)},
+				{ast.Number(3)},
+			},
+		},
+	}
+	for _, test := range tests {
+		var rows []ast.ConstSubstList
+		for _, row := range test.rows {
+			rows = append(rows, makeConstSubstList([]ast.Variable{ast.Variable{"X"}}, row))
+		}
+		if got, err := EvalReduceFn(ast.ApplyFn{symbols.Max, []ast.BaseTerm{ast.Variable{"X"}}}, rows); err == nil {
+			// if NO error
+			t.Fatalf("EvalReduceFn(Max,%v) = %v want error", rows, got)
+		}
+		if got, err := EvalReduceFn(ast.ApplyFn{symbols.Min, []ast.BaseTerm{ast.Variable{"X"}}}, rows); err == nil {
+			// if NO error
+			t.Fatalf("EvalReduceFn(Min,%v) = %v want error", rows, got)
+		}
+		if got, err := EvalReduceFn(ast.ApplyFn{symbols.Sum, []ast.BaseTerm{ast.Variable{"X"}}}, rows); err == nil {
+			// if NO error
+			t.Fatalf("EvalReduceFn(Sum,%v) = %v want error", rows, got)
+		}
+	}
+}
+
+func TestReducerFloatMinMaxSum(t *testing.T) {
+	tests := []struct {
+		rows    [][]ast.Constant
+		wantMin ast.Constant
+		wantMax ast.Constant
+		wantSum ast.Constant
+	}{
+		{
+			rows: [][]ast.Constant{
+				{ast.Float64(1.0)},
+				{ast.Float64(1.1)},
+				{ast.Float64(3.0)},
+			},
+			wantMin: ast.Float64(1.0),
+			wantMax: ast.Float64(3.0),
+			wantSum: ast.Float64(5.1),
+		},
+		{
+			rows:    nil,
+			wantMin: ast.Float64(math.MaxFloat64),
+			wantMax: ast.Float64(-1 * math.MaxFloat64),
+			wantSum: ast.Float64(0.0),
+		},
+	}
+	for _, test := range tests {
+		var rows []ast.ConstSubstList
+		for _, row := range test.rows {
+			rows = append(rows, makeConstSubstList([]ast.Variable{ast.Variable{"X"}}, row))
+		}
+		gotMax, err := EvalReduceFn(ast.ApplyFn{symbols.FloatMax, []ast.BaseTerm{ast.Variable{"X"}}}, rows)
+		if err != nil {
+			t.Fatalf("EvalReduceFn(FloatMax,%v) failed with %v", rows, err)
+		}
+		if test.wantMax != gotMax {
+			t.Errorf("EvalReduceFn(FloatMax, %v)=%v want %v", rows, gotMax, test.wantMax)
+		}
+		gotMin, err := EvalReduceFn(ast.ApplyFn{symbols.FloatMin, []ast.BaseTerm{ast.Variable{"X"}}}, rows)
+		if err != nil {
+			t.Fatalf("EvalReduceFn(FloatMin,%v) failed with %v", rows, err)
+		}
+		if test.wantMin != gotMin {
+			t.Errorf("EvalReduceFn(FloatMin, %v)=%v want %v", rows, gotMin, test.wantMin)
+		}
+		gotSum, err := EvalReduceFn(ast.ApplyFn{symbols.FloatSum, []ast.BaseTerm{ast.Variable{"X"}}}, rows)
+		if err != nil {
+			t.Fatalf("EvalReduceFn(FloatSum, %v) failed with %v", rows, err)
+		}
+		if test.wantSum != gotSum {
+			t.Errorf("EvalReduceFn(FloatSum, %v)=%v want %v", rows, gotSum, test.wantSum)
+		}
+	}
+}
+
 func pair(a, b ast.Constant) *ast.Constant {
 	p := ast.Pair(&a, &b)
 	return &p
@@ -470,6 +609,24 @@ func TestEvalApplyFn(t *testing.T) {
 				ast.List([]ast.Constant{ast.String("hello"), ast.Number(2), ast.Number(32)}),
 				ast.Number(2)}},
 			want: ast.Number(32),
+		},
+		{
+			name: "min of number list",
+			expr: ast.ApplyFn{symbols.Min, []ast.BaseTerm{
+				ast.List([]ast.Constant{ast.Number(2), ast.Number(5), ast.Number(32)})}},
+			want: ast.Number(2),
+		},
+		{
+			name: "sum of number list",
+			expr: ast.ApplyFn{symbols.Sum, []ast.BaseTerm{
+				ast.List([]ast.Constant{ast.Number(2), ast.Number(5), ast.Number(32)})}},
+			want: ast.Number(39),
+		},
+		{
+			name: "floatmax of float64 list",
+			expr: ast.ApplyFn{symbols.FloatMax, []ast.BaseTerm{
+				ast.List([]ast.Constant{ast.Float64(2.0), ast.Float64(5.0), ast.Float64(32.0)})}},
+			want: ast.Float64(32.0),
 		},
 		{
 			name: "append element to empty list",

@@ -456,7 +456,7 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 					ast.AddVars(p.Left, vars)
 					for v := range vars {
 						if !boundVars[v] {
-							return fmt.Errorf("variable %v in apply expression %v not bound", p, v)
+							return fmt.Errorf("variable %v in apply expression %v not bound", v, p)
 						}
 					}
 					if v, isvar := p.Right.(ast.Variable); isvar {
@@ -469,7 +469,7 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 					ast.AddVars(p.Right, vars)
 					for v := range vars {
 						if !boundVars[v] {
-							return fmt.Errorf("variable %v in apply expression %v not bound", p, v)
+							return fmt.Errorf("variable %v in apply expression %v not bound", v, p)
 						}
 					}
 					if v, isvar := p.Left.(ast.Variable); isvar {

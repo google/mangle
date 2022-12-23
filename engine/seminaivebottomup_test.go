@@ -57,6 +57,7 @@ func init() {
 		clause("decompose_pair(Y,Z) :- :match_pair(fn:pair(1,2),Y,Z)."),
 		clause("decompose_cons(Y,Z) :- :match_cons(fn:list:cons(1,[]),Y,Z)."),
 		clause("decompose_nil() :- :match_nil([])."),
+		clause("expanded_stuff(X) :- :list:member(X, [1, 2, 3])."),
 	}
 }
 
@@ -186,6 +187,9 @@ func TestSimpleEval(t *testing.T) {
 		atom("path(/c,/d)"),
 		atom("neighbor_label(/a, /b, 100)"),
 		atom("has_neighbor(/c)"),
+		atom("expanded_stuff(1)"),
+		atom("expanded_stuff(2)"),
+		atom("expanded_stuff(3)"),
 	}
 
 	for _, fact := range expected {

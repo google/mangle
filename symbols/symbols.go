@@ -46,6 +46,9 @@ var (
 	// MatchField mode(+, +, -) matches a field in a struct.
 	MatchField = ast.PredicateSym{":match_field", 3}
 
+	// ListMember mode(+, -) either checks membership or binds var to every element.
+	ListMember = ast.PredicateSym{":list:member", 2}
+
 	// WithinDistance is a relation on numbers X, Y, Z satisfying |X - Y| < Z.
 	WithinDistance = ast.PredicateSym{":within_distance", 3}
 
@@ -85,8 +88,13 @@ var (
 
 	// Append appends a element to a list.
 	Append = ast.FunctionSym{"fn:list:append", 2}
+
 	// ListGet is a function (List, Number) which returns element at index 'Number'.
 	ListGet = ast.FunctionSym{"fn:list:get", 2}
+
+	// ListContains is a function (List, Member) which returns /true if Member is contained in list.
+	ListContains = ast.FunctionSym{"fn:list:contains", 2}
+
 	// Len returns length of a list.
 	Len = ast.FunctionSym{"fn:list:len", 1}
 	// Cons constructs a pair.

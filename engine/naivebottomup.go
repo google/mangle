@@ -152,12 +152,15 @@ func (e naiveEngine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionF
 			return nil
 		}
 		if p.Predicate.IsBuiltin() {
-			res, nsubst, err := builtin.Decide(p, &subst)
+			res, nsubsts, err := builtin.Decide(p, &subst)
 			if err != nil {
 				// Treat errors in built-in predicate evaluation as false.
 				return nil
 			}
-			if res {
+			if !res {
+				return nil
+			}
+			for _, nsubst := range nsubsts {
 				solutions = append(solutions, *nsubst)
 			}
 			return solutions

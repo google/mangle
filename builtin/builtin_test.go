@@ -19,6 +19,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/parse"
 	"github.com/google/mangle/symbols"
@@ -122,6 +123,37 @@ func TestLessThanOrEqualError(t *testing.T) {
 	invalid := ast.NewAtom(":le", ast.Number(2), ast.Number(2), ast.Number(2))
 	if got, _, err := Decide(invalid, &emptySubst); err == nil { // if no error
 		t.Errorf("Decide(%v) = %v want error", invalid, got)
+	}
+}
+
+func TestListContains(t *testing.T) {
+	tests := []struct {
+		listTerm   ast.BaseTerm
+		memberTerm ast.BaseTerm
+		want       ast.Constant
+		subst      unionfind.UnionFind
+	}{
+		{ast.List([]ast.Constant{ast.Number(10), ast.Number(11), ast.Number(2)}), ast.Number(2), ast.TrueConstant, unionfind.New()},
+		{ast.ListNil, ast.Number(2), ast.FalseConstant, unionfind.New()},
+		{ast.List([]ast.Constant{ast.Number(10)}), ast.Number(2), ast.FalseConstant, unionfind.New()},
+		{ast.List([]ast.Constant{ast.Number(10)}), ast.Variable{"X"}, ast.FalseConstant, extend(unionfind.New(), ast.Variable{"X"}, ast.Number(2))},
+		{ast.List([]ast.Constant{ast.Number(2)}), ast.Variable{"X"}, ast.TrueConstant, extend(unionfind.New(), ast.Variable{"X"}, ast.Number(2))},
+		{
+			ast.Variable{"Y"},
+			ast.Variable{"X"},
+			ast.TrueConstant,
+			extend(extend(unionfind.New(), ast.Variable{"X"}, ast.Number(2)), ast.Variable{"Y"}, ast.List([]ast.Constant{ast.Number(2)})),
+		},
+	}
+	for _, test := range tests {
+		term := ast.ApplyFn{symbols.ListContains, []ast.BaseTerm{test.listTerm, test.memberTerm}}
+		got, err := EvalExpr(term, test.subst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("TestListContaints(%v, %v)=%v want %v.", term, test.subst, got, test.want)
+		}
 	}
 }
 
@@ -570,6 +602,94 @@ func pair(a, b ast.Constant) *ast.Constant {
 
 func ptr(c ast.Constant) *ast.Constant {
 	return &c
+}
+
+func TestExpand(t *testing.T) {
+	tests := []struct {
+		atom      ast.Atom
+		subst     unionfind.UnionFind
+		wantBool  bool
+		wantSubst []map[ast.Variable]ast.Constant
+	}{
+		{
+			atom:     evAtom(":list:member(X, [1,2,3])"),
+			subst:    unionfind.New(),
+			wantBool: true,
+			wantSubst: []map[ast.Variable]ast.Constant{
+				{ast.Variable{"X"}: ast.Number(1)},
+				{ast.Variable{"X"}: ast.Number(2)},
+				{ast.Variable{"X"}: ast.Number(3)},
+			},
+		},
+		{
+			atom:      evAtom(":list:member(2, [1,2,3])"),
+			subst:     unionfind.New(),
+			wantBool:  true,
+			wantSubst: nil,
+		},
+		{
+			atom:      evAtom(":list:member(4, [1,2,3])"),
+			subst:     unionfind.New(),
+			wantBool:  false,
+			wantSubst: nil,
+		},
+		{
+			atom:     evAtom(":list:member(X, [1,2,3])"),
+			subst:    extend(unionfind.New(), ast.Variable{"X"}, ast.Number(2)),
+			wantBool: true,
+			wantSubst: []map[ast.Variable]ast.Constant{
+				{ast.Variable{"X"}: ast.Number(2)},
+			},
+		},
+		{
+			atom:     evAtom(":list:member(2, [1,2,3])"),
+			subst:    extend(unionfind.New(), ast.Variable{"X"}, ast.String("hello")),
+			wantBool: true,
+			wantSubst: []map[ast.Variable]ast.Constant{
+				{ast.Variable{"X"}: ast.String("hello")},
+			},
+		},
+	}
+	for _, test := range tests {
+		gotBool, gotSubsts, err := Decide(test.atom, &test.subst)
+		if err != nil {
+			t.Fatalf("Decide(%v,%v) failed with %v", test.atom, test.subst, err)
+		}
+		if gotBool != test.wantBool {
+			t.Fatalf("Decide(%v,%v)=bool %v want %v", test.atom, test.subst, gotBool, test.wantBool)
+		}
+		if test.wantSubst != nil {
+			domain := func(substMap map[ast.Variable]ast.Constant) []ast.Variable {
+				var vars []ast.Variable
+				for v := range substMap {
+					vars = append(vars, v)
+				}
+				return vars
+			}
+			substToMap := func(subst *unionfind.UnionFind, substDomain []ast.Variable) map[ast.Variable]ast.Constant {
+				substMap := make(map[ast.Variable]ast.Constant)
+				for _, v := range substDomain {
+					substMap[v] = subst.Get(v).(ast.Constant)
+				}
+				return substMap
+			}
+			if len(test.wantSubst) != len(gotSubsts) {
+				t.Errorf("Decide(%v,%v)=%v want %v", test.atom, test.subst, gotSubsts, test.wantSubst)
+			}
+			for _, gotSubst := range gotSubsts {
+				var found bool
+				for _, wantSubstMap := range test.wantSubst {
+					gotSubstMap := substToMap(gotSubst, domain(wantSubstMap))
+					if cmp.Equal(gotSubstMap, wantSubstMap, cmp.AllowUnexported(ast.Constant{})) {
+						found = true
+					}
+				}
+				if !found {
+					t.Errorf("Decide(%v,%v)=...%s... want %v", test.atom, test.subst, gotSubst, test.wantSubst)
+				}
+			}
+		}
+	}
 }
 
 func TestEvalApplyFn(t *testing.T) {

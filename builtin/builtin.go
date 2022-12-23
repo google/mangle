@@ -31,6 +31,7 @@ var (
 	Predicates = map[ast.PredicateSym]struct{}{
 		symbols.Lt:             {},
 		symbols.Le:             {},
+		symbols.ListMember:     {},
 		symbols.WithinDistance: {},
 		symbols.MatchPair:      {},
 		symbols.MatchCons:      {},
@@ -105,7 +106,7 @@ func IsReducerFunction(sym ast.FunctionSym) bool {
 
 // Decide evaluates an atom of a built-in predicate. The atom must no longer contain any
 // apply-expressions or variables.
-func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.UnionFind, error) {
+func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, []*unionfind.UnionFind, error) {
 	switch atom.Predicate.Symbol {
 	case symbols.MatchPair.Symbol:
 		fallthrough
@@ -116,7 +117,14 @@ func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.UnionFi
 	case symbols.MatchField.Symbol:
 		fallthrough
 	case symbols.MatchNil.Symbol:
-		return match(atom, subst)
+		ok, nsubst, err := match(atom, subst)
+		if err != nil {
+			return false, nil, err
+		}
+		if !ok {
+			return false, nil, nil
+		}
+		return ok, []*unionfind.UnionFind{nsubst}, nil
 	}
 	switch atom.Predicate.Symbol {
 	case symbols.Lt.Symbol:
@@ -127,7 +135,7 @@ func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.UnionFi
 		if err != nil {
 			return false, nil, err
 		}
-		return nums[0] < nums[1], subst, nil
+		return nums[0] < nums[1], []*unionfind.UnionFind{subst}, nil
 	case symbols.Le.Symbol:
 		if len(atom.Args) != 2 {
 			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate '<=': %v", atom.Args)
@@ -136,7 +144,53 @@ func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.UnionFi
 		if err != nil {
 			return false, nil, err
 		}
-		return nums[0] <= nums[1], subst, nil
+		return nums[0] <= nums[1], []*unionfind.UnionFind{subst}, nil
+
+	case symbols.ListMember.Symbol: // :list:member(Member, List)
+		evaluatedArg, err := EvalExpr(atom.Args[1], subst)
+		if err != nil {
+			return false, nil, err
+		}
+		c, ok := evaluatedArg.(ast.Constant)
+		if !ok {
+			return false, nil, fmt.Errorf("not a constant: %v %T", evaluatedArg, evaluatedArg)
+		}
+		evaluatedMember := atom.Args[0]
+		memberVar, memberIsVar := evaluatedMember.(ast.Variable)
+		if memberIsVar && subst != nil {
+			evaluatedMember = subst.Get(memberVar)
+			_, memberIsVar = evaluatedMember.(ast.Variable)
+		}
+		if !memberIsVar { // We are looking for a member
+			res, err := EvalExpr(
+				ast.ApplyFn{symbols.ListContains, []ast.BaseTerm{evaluatedArg, evaluatedMember}}, nil)
+			if err != nil {
+				return false, nil, err
+			}
+			return res.Equals(ast.TrueConstant), []*unionfind.UnionFind{subst}, nil
+		}
+		list, err := getListValue(c)
+		if err != nil {
+			return false, nil, nil // If expanding fails, this is not an error.
+		}
+		var values []ast.Constant
+		list.ListValues(func(elem ast.Constant) error {
+			values = append(values, elem)
+			return nil
+		}, func() error { return nil })
+		if len(values) > 0 {
+			var nsubsts []*unionfind.UnionFind
+			for _, elem := range values {
+				nsubst, err := unionfind.UnifyTermsExtend([]ast.BaseTerm{memberVar}, []ast.BaseTerm{elem}, *subst)
+				if err != nil {
+					return false, nil, err
+				}
+				nsubsts = append(nsubsts, &nsubst)
+			}
+			return true, nsubsts, nil
+		}
+		return false, nil, nil
+
 	case symbols.WithinDistance.Symbol:
 		if len(atom.Args) != 3 {
 			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate 'within_distance': %v", atom.Args)
@@ -145,7 +199,7 @@ func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.UnionFi
 		if err != nil {
 			return false, nil, err
 		}
-		return abs(nums[0]-nums[1]) < nums[2], subst, nil
+		return abs(nums[0]-nums[1]) < nums[2], []*unionfind.UnionFind{subst}, nil
 	default:
 		return false, nil, fmt.Errorf("not a builtin predicate: %s", atom.Predicate.Symbol)
 	}
@@ -296,6 +350,26 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		}, func() error { return nil })
 		res = append(res, elem)
 		return ast.List(res), nil
+
+	case symbols.ListContains.Symbol: // fn:list:contains(List, Member)
+		list, err := getListValue(evaluatedArgs[0])
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		elem := evaluatedArgs[1]
+		_, loopErr := list.ListValues(func(c ast.Constant) error {
+			if c.Equals(elem) {
+				return errFound
+			}
+			return nil
+		}, func() error { return nil })
+		if errors.Is(loopErr, errFound) {
+			return ast.TrueConstant, nil
+		}
+		if loopErr != nil {
+			return ast.Constant{}, loopErr
+		}
+		return ast.FalseConstant, nil
 
 	case symbols.Cons.Symbol:
 		fst := evaluatedArgs[0]

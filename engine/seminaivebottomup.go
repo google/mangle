@@ -369,14 +369,18 @@ func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind)
 			return nil, err
 		}
 		if p.Predicate.IsBuiltin() {
-			res, nsubst, err := builtin.Decide(p, &subst)
+			ok, nsubsts, err := builtin.Decide(p, &subst)
 			if err != nil {
 				return nil, err
 			}
-			if res {
+			if !ok {
+				return nil, nil // no solution
+			}
+			for _, nsubst := range nsubsts {
 				solutions = append(solutions, *nsubst)
 			}
 			return solutions, nil
+
 		}
 		// Not a built-in predicate.
 		cb := func(fact ast.Atom) error {
@@ -392,6 +396,8 @@ func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind)
 		} else {
 			e.store.GetFacts(p, cb)
 		}
+		return solutions, nil
+
 	case ast.NegAtom:
 		n, err := builtin.EvalAtom(p.Atom, subst)
 		if err != nil {
@@ -407,7 +413,7 @@ func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind)
 			return nil
 		})
 		if err == nil {
-			solutions = append(solutions, subst)
+			return []unionfind.UnionFind{subst}, nil
 		}
 	case ast.Eq:
 		left, right, err := builtin.EvalBaseTermPair(p.Left, p.Right, subst)
@@ -415,11 +421,11 @@ func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind)
 			return nil, err
 		}
 		p = ast.Eq{left, right}
-		newSubst, err := unionfind.UnifyTermsExtend([]ast.BaseTerm{p.Left}, []ast.BaseTerm{p.Right}, subst)
+		nsubst, err := unionfind.UnifyTermsExtend([]ast.BaseTerm{p.Left}, []ast.BaseTerm{p.Right}, subst)
 		if err != nil {
 			return nil, nil // Ignore error
 		}
-		solutions = append(solutions, newSubst)
+		return []unionfind.UnionFind{nsubst}, nil
 
 	case ast.Ineq:
 		left, right, err := builtin.EvalBaseTermPair(p.Left, p.Right, subst)
@@ -429,8 +435,8 @@ func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind)
 		p = ast.Ineq{left, right}
 		if _, err := unionfind.UnifyTermsExtend([]ast.BaseTerm{p.Left}, []ast.BaseTerm{p.Right}, subst); err != nil {
 			// TODO: Check that error is indeed "cannot unify."
-			solutions = append(solutions, subst)
+			return []unionfind.UnionFind{subst}, nil
 		}
 	}
-	return solutions, nil
+	return nil, nil
 }

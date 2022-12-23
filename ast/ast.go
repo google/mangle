@@ -51,12 +51,20 @@ var FalsePredicate = PredicateSym{"false", 0}
 // TrueAnd represents true() in empty conjunction form.
 var TrueAnd = And{}
 
+// TrueConstant is the "/true" name constant.
+var TrueConstant Constant
+
+// FalseConstant is the "/false" name constant.
+var FalseConstant Constant
+
 func init() {
 	AnyBound, _ = Name("/any")
 	Float64Bound, _ = Name("/float64")
 	NameBound, _ = Name("/name")
 	NumberBound, _ = Name("/number")
 	StringBound, _ = Name("/string")
+	TrueConstant, _ = Name("/true")
+	FalseConstant, _ = Name("/false")
 }
 
 // FormatNumber turns a number constant into a string.
@@ -689,6 +697,9 @@ func (v Variable) ApplySubst(s Subst) Term {
 
 // ApplySubstBase returns the result of applying the given substituion.
 func (v Variable) ApplySubstBase(s Subst) BaseTerm {
+	if s == nil {
+		return v
+	}
 	if t := s.Get(v); t != nil {
 		return t
 	}

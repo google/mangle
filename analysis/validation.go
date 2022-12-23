@@ -433,6 +433,18 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 					}
 				}
 
+				if p.Predicate == symbols.ListMember { // :list:member(Member, List)
+					if memberVar, memberOk := p.Args[0].(ast.Variable); memberOk {
+						boundVars[memberVar] = true
+
+						if listArg, ok := p.Args[1].(ast.Variable); ok && listArg == memberVar {
+							return fmt.Errorf("a variable whose value is expanded cannot be used for binding %v", p)
+						}
+					} else if _, constOk := p.Args[0].(ast.Constant); !constOk {
+						return fmt.Errorf("expected variable or constant as 2nd argument to %v", p)
+					}
+				}
+
 				for v := range builtinVars {
 					if !boundVars[v] {
 						return fmt.Errorf("variable %v in %v will not have a value yet; move the subgoal to the right", v, p)

@@ -816,7 +816,7 @@ func getArgumentRangeFromDecl(pred ast.PredicateSym, decl ast.Decl) []ast.BaseTe
 // It will inspect clause bodies, only consulting decl for extensional predicates.
 func (bc *BoundsAnalyzer) inferArgumentRange(pred ast.PredicateSym) ([]ast.BaseTerm, error) {
 	if pred.IsBuiltin() {
-		return symbols.GetBuiltinArgumentRange(pred)
+		return symbols.RelTypeArgs(symbols.BuiltinRelations[pred])
 	}
 	if ranges, ok := bc.rangeMap[pred]; ok {
 		return ranges, nil

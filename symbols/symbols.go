@@ -114,6 +114,13 @@ var (
 	// Struct constructs a struct.
 	Struct = ast.FunctionSym{"fn:struct", -1}
 
+	// FunType is a constructor for a function type.
+	// fn:Fun(Res, Arg1, ..., ArgN) is Res <= Arg1, ..., ArgN
+	FunType = ast.FunctionSym{"fn:Fun", -1}
+
+	// RelType is a constructor for a relation type.
+	RelType = ast.FunctionSym{"fn:Rel", -1}
+
 	// PairType is a constructor for a pair type.
 	PairType = ast.FunctionSym{"fn:Pair", 2}
 	// TupleType is a type-level function that returns a tuple type out of pair types.
@@ -133,6 +140,7 @@ var (
 	Use = ast.PredicateSym{"Use", 0}
 
 	// TypeConstructors is a list of function symbols used in structured type expressions.
+	// Each name is mapped to the corresponding type constructor (a function at the level of types).
 	TypeConstructors = map[string]ast.FunctionSym{
 		UnionType.Symbol:  UnionType,
 		ListType.Symbol:   ListType,
@@ -140,29 +148,70 @@ var (
 		TupleType.Symbol:  TupleType,
 		MapType.Symbol:    MapType,
 		StructType.Symbol: StructType,
+		FunType.Symbol:    FunType,
+		RelType.Symbol:    RelType,
 	}
 
 	// EmptyType is a type without members.
 	EmptyType = ast.ApplyFn{UnionType, nil}
 
-	argumentRange = map[ast.PredicateSym][]ast.BaseTerm{
-		Lt:       {ast.NumberBound, ast.NumberBound},
-		Le:       {ast.NumberBound, ast.NumberBound},
-		MatchNil: {ast.ApplyFn{ListType, []ast.BaseTerm{ast.Number(0)}}},
-		MatchCons: {
-			ast.ApplyFn{ListType, []ast.BaseTerm{ast.Number(0)}},
-			ast.Number(0),
-			ast.ApplyFn{ListType, []ast.BaseTerm{ast.Number(0)}}},
-		MatchPair: {
-			ast.ApplyFn{PairType, []ast.BaseTerm{ast.Number(0), ast.Number(1)}},
-			ast.Number(0),
-			ast.Number(1)},
+	// BuiltinRelations maps each builtin predicate to its argument range list
+	BuiltinRelations = map[ast.PredicateSym]ast.BaseTerm{
+		// TODO: support float64
+		Lt:       NewRelType(ast.NumberBound, ast.NumberBound),
+		Le:       NewRelType(ast.NumberBound, ast.NumberBound),
+		MatchNil: NewRelType(NewListType(ast.Variable{"X"})),
+		MatchCons: NewRelType(
+			NewListType(ast.Variable{"X"}), ast.Variable{"X"}, NewListType(ast.Variable{"X"})),
+		MatchPair: NewRelType(
+			NewPairType(ast.Variable{"X"}, ast.Variable{"Y"}), ast.Variable{"X"}, ast.Variable{"Y"}),
+		ListMember: NewRelType(ast.Variable{"X"}, NewListType(ast.Variable{"X"})),
 	}
 
 	errTypeMismatch = errors.New("type mismatch")
 )
 
-// IsBaseTypeExpression returns true if c is a base type expression constants.
+// NewPairType returns a new PairType.
+func NewPairType(left, right ast.BaseTerm) ast.ApplyFn {
+	return ast.ApplyFn{PairType, []ast.BaseTerm{left, right}}
+}
+
+// NewTupleType returns a new TupleType.
+func NewTupleType(parts ...ast.BaseTerm) ast.ApplyFn {
+	return ast.ApplyFn{TupleType, parts}
+}
+
+// NewListType returns a new ListType.
+func NewListType(elem ast.BaseTerm) ast.ApplyFn {
+	return ast.ApplyFn{ListType, []ast.BaseTerm{elem}}
+}
+
+// NewMapType returns a new MapType.
+func NewMapType(left, right ast.BaseTerm) ast.ApplyFn {
+	return ast.ApplyFn{MapType, []ast.BaseTerm{left, right}}
+}
+
+// NewStructType returns a new StructType.
+func NewStructType(args ...ast.BaseTerm) ast.ApplyFn {
+	return ast.ApplyFn{StructType, args}
+}
+
+// NewFunType returns a new FunType.
+func NewFunType(res ast.BaseTerm, args ...ast.BaseTerm) ast.ApplyFn {
+	return ast.ApplyFn{FunType, append([]ast.BaseTerm{res}, args...)}
+}
+
+// NewRelType returns a new RelType.
+func NewRelType(args ...ast.BaseTerm) ast.ApplyFn {
+	return ast.ApplyFn{RelType, args}
+}
+
+// NewUnionType returns a new UnionType.
+func NewUnionType(elems ...ast.BaseTerm) ast.ApplyFn {
+	return ast.ApplyFn{UnionType, elems}
+}
+
+// IsBaseTypeExpression returns true if c is a base type expression.
 func IsBaseTypeExpression(c ast.Constant) bool {
 	switch c {
 	case ast.AnyBound:
@@ -178,13 +227,43 @@ func IsBaseTypeExpression(c ast.Constant) bool {
 	}
 }
 
-// GetBuiltinArgumentRange returns argument range for a builtin predicate.
-// The returning type expression may contain type variable (ast.Number).
-func GetBuiltinArgumentRange(pred ast.PredicateSym) ([]ast.BaseTerm, error) {
-	if res, ok := argumentRange[pred]; ok {
-		return res, nil
+// IsUnionTypeExpression returns true if tpe is a UnionType.
+func IsUnionTypeExpression(tpe ast.BaseTerm) bool {
+	unionType, ok := tpe.(ast.ApplyFn)
+	return ok && unionType.Function == UnionType
+}
+
+// IsRelTypeExpression returns true if tpe is a RelType.
+func IsRelTypeExpression(tpe ast.BaseTerm) bool {
+	relType, ok := tpe.(ast.ApplyFn)
+	return ok && relType.Function == RelType
+}
+
+// UnionTypeArgs returns type arguments of a UnionType.
+func UnionTypeArgs(tpe ast.BaseTerm) ([]ast.BaseTerm, error) {
+	unionType, ok := tpe.(ast.ApplyFn)
+	if !ok || unionType.Function != UnionType {
+		return nil, fmt.Errorf("not a union type expression: %v", tpe)
 	}
-	return nil, fmt.Errorf("not a builtin predicate: %v", pred)
+	return unionType.Args, nil
+}
+
+// RelTypeArgs returns type arguments of a RelType.
+func RelTypeArgs(tpe ast.BaseTerm) ([]ast.BaseTerm, error) {
+	relType, ok := tpe.(ast.ApplyFn)
+	if !ok || relType.Function != RelType {
+		return nil, fmt.Errorf("not a relation type expression: %v", tpe)
+	}
+	return relType.Args, nil
+}
+
+// RelTypesFromDecl converts bounds a list of RelTypes.
+func RelTypesFromDecl(decl ast.Decl) []ast.BaseTerm {
+	relTypes := make([]ast.BaseTerm, len(decl.Bounds))
+	for i, boundDecl := range decl.Bounds {
+		relTypes[i] = NewRelType(boundDecl.Bounds...)
+	}
+	return relTypes
 }
 
 // TypeHandle provides functionality related to type expression.
@@ -311,7 +390,7 @@ func hasBaseType(typeExpr ast.Constant, c ast.Constant) bool {
 	}
 }
 
-// CheckTypeExpression returns an error if expr is not a type expression.
+// CheckTypeExpression returns an error if expr is not a valid type expression.
 func CheckTypeExpression(expr ast.BaseTerm) error {
 	switch expr := expr.(type) {
 	case ast.Constant:
@@ -327,6 +406,9 @@ func CheckTypeExpression(expr ast.BaseTerm) error {
 			return fmt.Errorf("not a structured type expression: %v", expr)
 		}
 		args := expr.Args
+		if fn == FunType {
+			return CheckFunTypeExpression(expr)
+		}
 		if fn.Arity != -1 && len(args) != fn.Arity {
 			return fmt.Errorf("expected %d arguments in type expression %v ", fn.Arity, expr)
 		}
@@ -365,6 +447,11 @@ func CheckTypeExpression(expr ast.BaseTerm) error {
 	}
 }
 
+// CheckFunTypeExpression checks fun type expression.
+func CheckFunTypeExpression(expr ast.ApplyFn) error {
+	return fmt.Errorf("CheckFunTypeExpression: not implemented %v", expr)
+}
+
 // TypeConforms returns true if left <: right.
 func TypeConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
 	if left.Equals(right) || right.Equals(ast.AnyBound) {
@@ -380,6 +467,25 @@ func TypeConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
 	}
 	leftApply, leftApplyOk := left.(ast.ApplyFn)
 	rightApply, rightApplyOk := right.(ast.ApplyFn)
+	if leftApplyOk && leftApply.Function.Symbol == FunType.Symbol &&
+		rightApplyOk && rightApply.Function.Symbol == FunType.Symbol {
+		// FunType subtyping is covariant in codomain, contravariant in domain
+		// E.g. /genus_species <: /name and /animal/bird <: /animal
+		// therefore FunType(/genus_species <= /animal) <: FunType(/name <= /animal/bird)
+		leftCodomain, rightCodomain := leftApply.Args[0], rightApply.Args[0]
+		if !TypeConforms(leftCodomain, rightCodomain) {
+			return false
+		}
+		leftDomain, rightDomain := leftApply.Args[1:], rightApply.Args[1:]
+
+		for i, leftArg := range leftDomain {
+			if !TypeConforms(rightDomain[i], leftArg) {
+				return false
+			}
+		}
+		return true
+	}
+
 	if leftApplyOk && leftApply.Function.Symbol == UnionType.Symbol {
 		for _, leftItem := range leftApply.Args {
 			if !TypeConforms(leftItem, right) {
@@ -449,9 +555,9 @@ func TypeConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
 }
 
 func expandTupleType(args []ast.BaseTerm) ast.BaseTerm {
-	res := ast.ApplyFn{PairType, []ast.BaseTerm{args[len(args)-2], args[len(args)-1]}}
+	res := NewPairType(args[len(args)-2], args[len(args)-1])
 	for j := len(args) - 3; j >= 0; j-- {
-		res = ast.ApplyFn{PairType, []ast.BaseTerm{args[j], res}}
+		res = NewPairType(args[j], res)
 	}
 	return res
 }
@@ -470,7 +576,7 @@ func UpperBound(typeExprs []ast.BaseTerm) ast.BaseTerm {
 		worklist = append(worklist, typeExpr)
 	}
 	if len(worklist) == 0 {
-		return ast.ApplyFn{UnionType, nil}
+		return EmptyType
 	}
 	reduced := []ast.BaseTerm{worklist[0]}
 	worklist = worklist[1:]

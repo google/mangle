@@ -905,10 +905,10 @@ func TestCheckTypeExpressionStructured(t *testing.T) {
 		bad  []ast.Constant
 	}{
 		{
-			tpe: ast.ApplyFn{symbols.MapType, []ast.BaseTerm{
+			tpe: symbols.NewMapType(
 				ast.NumberBound,
 				ast.StringBound,
-			}},
+			),
 			good: []ast.Constant{
 				evalExpr(ast.ApplyFn{symbols.Map, []ast.BaseTerm{
 					ast.Number(3), ast.String("three"),
@@ -923,14 +923,14 @@ func TestCheckTypeExpressionStructured(t *testing.T) {
 			},
 		},
 		{
-			tpe: ast.ApplyFn{symbols.StructType, []ast.BaseTerm{
+			tpe: symbols.NewStructType(
 				name("/foo"),
 				ast.NumberBound,
 				name("/bar"),
 				ast.StringBound,
 				name("/baz"),
-				ast.ApplyFn{symbols.ListType, []ast.BaseTerm{ast.NumberBound}},
-			}},
+				symbols.NewListType(ast.NumberBound),
+			),
 			good: []ast.Constant{
 				evalExpr(ast.ApplyFn{symbols.Struct, []ast.BaseTerm{
 					name("/foo"), ast.Number(3),

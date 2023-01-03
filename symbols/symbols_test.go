@@ -58,7 +58,7 @@ func TestCheckTypeExpression(t *testing.T) {
 			bad:  []ast.Constant{ast.Number(23), ast.AnyBound, ast.ListNil},
 		},
 		{
-			tpe: ast.ApplyFn{ListType, []ast.BaseTerm{ast.NumberBound}},
+			tpe: NewListType(ast.NumberBound),
 			good: []ast.Constant{
 				ast.ListNil,
 				ast.List([]ast.Constant{ast.Number(2), ast.Number(2)}),
@@ -71,25 +71,17 @@ func TestCheckTypeExpression(t *testing.T) {
 			},
 		},
 		{
-			tpe:  ast.ApplyFn{PairType, []ast.BaseTerm{ast.Float64Bound, ast.StringBound}},
+			tpe:  NewPairType(ast.Float64Bound, ast.StringBound),
 			good: []ast.Constant{pair(ast.Float64(2.2), ast.String("foo"))},
 			bad:  []ast.Constant{ast.Number(2), pair(ast.String("foo"), ast.Number(2))},
 		},
 		{
-			tpe: ast.ApplyFn{TupleType, []ast.BaseTerm{
-				ast.NumberBound,
-				ast.StringBound,
-				ast.ApplyFn{ListType, []ast.BaseTerm{ast.NumberBound}},
-			}},
+			tpe:  NewTupleType(ast.NumberBound, ast.StringBound, NewListType(ast.NumberBound)),
 			good: []ast.Constant{pair(ast.Number(2), pair(ast.String("foo"), ast.ListNil))},
 			bad:  []ast.Constant{ast.Number(2), pair(ast.String("foo"), ast.Number(2))},
 		},
 		{
-			tpe: ast.ApplyFn{UnionType, []ast.BaseTerm{
-				ast.NumberBound,
-				ast.StringBound,
-				ast.ApplyFn{ListType, []ast.BaseTerm{ast.NumberBound}},
-			}},
+			tpe: NewUnionType(ast.NumberBound, ast.StringBound, NewListType(ast.NumberBound)),
 			good: []ast.Constant{
 				ast.Number(2),
 				ast.String("foo"),
@@ -137,51 +129,56 @@ func TestCheckTypeExpressionNegative(t *testing.T) {
 
 func TestTypeConforms(t *testing.T) {
 	tests := []struct {
-		left ast.BaseTerm
-		righ ast.BaseTerm
-		want bool
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
 	}{
 		{ast.NameBound, ast.AnyBound, true},
 		{ast.NameBound, ast.NameBound, true},
 		{name("/foo"), name("/foo"), true},
 		{name("/foo"), ast.NameBound, true},
-		{name("/true"), ast.ApplyFn{UnionType, []ast.BaseTerm{name("/true"), name("/false")}}, true},
+		{name("/true"), NewUnionType(name("/true"), name("/false")), true},
 		{ast.NameBound, name("/foo"), false},
-		{ast.ApplyFn{UnionType, []ast.BaseTerm{name("/true"), name("/false")}}, name("/true"), false},
+		{NewUnionType(name("/true"), name("/false")), name("/true"), false},
 		{
-			ast.ApplyFn{MapType, []ast.BaseTerm{ast.AnyBound, ast.NumberBound}},
-			ast.ApplyFn{MapType, []ast.BaseTerm{ast.StringBound, ast.NumberBound}},
+			NewMapType(ast.AnyBound, ast.NumberBound),
+			NewMapType(ast.StringBound, ast.NumberBound),
 			true,
 		},
 		{
-			ast.ApplyFn{MapType, []ast.BaseTerm{ast.NumberBound, ast.AnyBound}},
-			ast.ApplyFn{MapType, []ast.BaseTerm{ast.StringBound, ast.AnyBound}},
+			NewMapType(ast.NumberBound, ast.AnyBound),
+			NewMapType(ast.StringBound, ast.AnyBound),
 			false,
 		},
 		{
-			ast.ApplyFn{StructType, []ast.BaseTerm{name("/foo"), ast.AnyBound, name("/bar"), ast.NumberBound}},
-			ast.ApplyFn{StructType, []ast.BaseTerm{name("/foo"), ast.AnyBound}},
+			NewStructType(name("/foo"), ast.AnyBound, name("/bar"), ast.NumberBound),
+			NewStructType(name("/foo"), ast.AnyBound),
 			true,
 		},
 		{
-			ast.ApplyFn{StructType, []ast.BaseTerm{name("/foo"), ast.AnyBound, name("/bar"), ast.NumberBound}},
-			ast.ApplyFn{StructType, []ast.BaseTerm{name("/foo"), ast.StringBound}},
+			NewStructType(name("/foo"), ast.AnyBound, name("/bar"), ast.NumberBound),
+			NewStructType(name("/foo"), ast.StringBound),
 			false,
 		},
 		{
-			ast.ApplyFn{StructType, []ast.BaseTerm{name("/foo"), ast.AnyBound, name("/bar"), ast.NumberBound}},
-			ast.ApplyFn{StructType, nil},
+			NewStructType(name("/foo"), ast.AnyBound, name("/bar"), ast.NumberBound),
+			NewStructType(),
 			true,
 		},
 		{
-			ast.ApplyFn{StructType, nil},
-			ast.ApplyFn{StructType, nil},
+			NewStructType(),
+			NewStructType(),
 			true,
 		},
+		//{
+		//	NewFunType(name("/animal"), name("/genus_species")),
+		//	NewFunType(name("/animal/bird"), ast.NameBound),
+		//	true,
+		//},
 	}
 	for _, test := range tests {
-		if got := TypeConforms(test.left, test.righ); got != test.want {
-			t.Errorf("TypeConforms(%v, %v)=%v want %v", test.left, test.righ, got, test.want)
+		if got := TypeConforms(test.left, test.right); got != test.want {
+			t.Errorf("TypeConforms(%v, %v)=%v want %v", test.left, test.right, got, test.want)
 		}
 	}
 }
@@ -197,31 +194,31 @@ func TestUpperBound(t *testing.T) {
 		},
 		{
 			exprs: []ast.BaseTerm{ast.NumberBound, ast.StringBound},
-			want:  ast.ApplyFn{UnionType, []ast.BaseTerm{ast.StringBound, ast.NumberBound}},
+			want:  NewUnionType(ast.StringBound, ast.NumberBound),
 		},
 		{
-			exprs: []ast.BaseTerm{ast.NumberBound, ast.ApplyFn{UnionType, []ast.BaseTerm{ast.NumberBound, ast.StringBound}}},
-			want:  ast.ApplyFn{UnionType, []ast.BaseTerm{ast.StringBound, ast.NumberBound}},
+			exprs: []ast.BaseTerm{ast.NumberBound, NewUnionType(ast.NumberBound, ast.StringBound)},
+			want:  NewUnionType(ast.StringBound, ast.NumberBound),
 		},
 		{
 			exprs: []ast.BaseTerm{ast.AnyBound, ast.StringBound},
 			want:  ast.AnyBound,
 		},
 		{
-			exprs: []ast.BaseTerm{ast.ApplyFn{ListType, []ast.BaseTerm{ast.AnyBound}}, ast.ApplyFn{ListType, []ast.BaseTerm{ast.StringBound}}},
-			want:  ast.ApplyFn{ListType, []ast.BaseTerm{ast.AnyBound}},
+			exprs: []ast.BaseTerm{NewListType(ast.AnyBound), NewListType(ast.StringBound)},
+			want:  NewListType(ast.AnyBound),
 		},
 		{
 			exprs: []ast.BaseTerm{
-				ast.ApplyFn{PairType, []ast.BaseTerm{ast.StringBound, ast.NumberBound}},
-				ast.ApplyFn{PairType, []ast.BaseTerm{ast.AnyBound, ast.NumberBound}}},
-			want: ast.ApplyFn{PairType, []ast.BaseTerm{ast.AnyBound, ast.NumberBound}},
+				NewPairType(ast.StringBound, ast.NumberBound),
+				NewPairType(ast.AnyBound, ast.NumberBound)},
+			want: NewPairType(ast.AnyBound, ast.NumberBound),
 		},
 		{
 			exprs: []ast.BaseTerm{
-				ast.ApplyFn{TupleType, []ast.BaseTerm{ast.AnyBound, ast.NumberBound, ast.NameBound}},
-				ast.ApplyFn{TupleType, []ast.BaseTerm{ast.StringBound, ast.NumberBound, name("/foo")}}},
-			want: ast.ApplyFn{TupleType, []ast.BaseTerm{ast.AnyBound, ast.NumberBound, ast.NameBound}},
+				NewTupleType(ast.AnyBound, ast.NumberBound, ast.NameBound),
+				NewTupleType(ast.StringBound, ast.NumberBound, name("/foo"))},
+			want: NewTupleType(ast.AnyBound, ast.NumberBound, ast.NameBound),
 		},
 		{
 			exprs: nil,
@@ -255,23 +252,23 @@ func TestLowerBound(t *testing.T) {
 		},
 		{
 			exprs: []ast.BaseTerm{ast.NumberBound, ast.StringBound},
-			want:  ast.ApplyFn{UnionType, nil},
+			want:  NewUnionType(),
 		},
 		{
 			exprs: []ast.BaseTerm{ast.StringBound, ast.NumberBound},
-			want:  ast.ApplyFn{UnionType, nil},
+			want:  NewUnionType(),
 		},
 		{
 			exprs: []ast.BaseTerm{ast.AnyBound, ast.StringBound},
 			want:  ast.StringBound,
 		},
 		{
-			exprs: []ast.BaseTerm{ast.ApplyFn{PairType, []ast.BaseTerm{ast.StringBound, ast.StringBound}}, ast.StringBound},
+			exprs: []ast.BaseTerm{NewPairType(ast.StringBound, ast.StringBound), ast.StringBound},
 			want:  EmptyType,
 		},
 		{
 			exprs: []ast.BaseTerm{
-				ast.ApplyFn{UnionType, []ast.BaseTerm{ast.NumberBound, ast.StringBound}},
+				NewUnionType(ast.NumberBound, ast.StringBound),
 				ast.StringBound,
 			},
 			want: ast.StringBound,
@@ -279,46 +276,46 @@ func TestLowerBound(t *testing.T) {
 		{
 			exprs: []ast.BaseTerm{
 				ast.StringBound,
-				ast.ApplyFn{UnionType, []ast.BaseTerm{ast.NumberBound, ast.StringBound}},
+				NewUnionType(ast.NumberBound, ast.StringBound),
 			},
 			want: ast.StringBound,
 		},
 		{
 			exprs: []ast.BaseTerm{
-				ast.ApplyFn{UnionType, []ast.BaseTerm{ast.NumberBound, ast.StringBound}},
-				ast.ApplyFn{UnionType, []ast.BaseTerm{ast.NumberBound, ast.StringBound}},
+				NewUnionType(ast.NumberBound, ast.StringBound),
+				NewUnionType(ast.NumberBound, ast.StringBound),
 			},
-			want: ast.ApplyFn{UnionType, []ast.BaseTerm{ast.NumberBound, ast.StringBound}},
+			want: NewUnionType(ast.NumberBound, ast.StringBound),
 		},
 		{
 			exprs: []ast.BaseTerm{
-				ast.ApplyFn{UnionType, []ast.BaseTerm{fooBarBaz, fooBarFoo}},
+				NewUnionType(fooBarBaz, fooBarFoo),
 				foo,
 			},
-			want: ast.ApplyFn{UnionType, []ast.BaseTerm{fooBarBaz, fooBarFoo}},
+			want: NewUnionType(fooBarBaz, fooBarFoo),
 		},
 		{
 			exprs: []ast.BaseTerm{
-				ast.ApplyFn{UnionType, []ast.BaseTerm{fooBarBaz, foo}},
+				NewUnionType(fooBarBaz, foo),
 				fooBarBaz,
 			},
 			want: fooBarBaz,
 		},
 		{
-			exprs: []ast.BaseTerm{ast.ApplyFn{ListType, []ast.BaseTerm{ast.AnyBound}}, ast.ApplyFn{ListType, []ast.BaseTerm{ast.StringBound}}},
-			want:  ast.ApplyFn{ListType, []ast.BaseTerm{ast.StringBound}},
+			exprs: []ast.BaseTerm{NewListType(ast.AnyBound), NewListType(ast.StringBound)},
+			want:  NewListType(ast.StringBound),
 		},
 		{
 			exprs: []ast.BaseTerm{
-				ast.ApplyFn{PairType, []ast.BaseTerm{ast.StringBound, ast.NumberBound}},
-				ast.ApplyFn{PairType, []ast.BaseTerm{ast.AnyBound, ast.NumberBound}}},
-			want: ast.ApplyFn{PairType, []ast.BaseTerm{ast.StringBound, ast.NumberBound}},
+				NewPairType(ast.StringBound, ast.NumberBound),
+				NewPairType(ast.AnyBound, ast.NumberBound)},
+			want: NewPairType(ast.StringBound, ast.NumberBound),
 		},
 		{
 			exprs: []ast.BaseTerm{
-				ast.ApplyFn{TupleType, []ast.BaseTerm{ast.AnyBound, ast.NumberBound, ast.NameBound}},
-				ast.ApplyFn{TupleType, []ast.BaseTerm{ast.StringBound, ast.NumberBound, name("/foo")}}},
-			want: ast.ApplyFn{TupleType, []ast.BaseTerm{ast.StringBound, ast.NumberBound, name("/foo")}},
+				NewTupleType(ast.AnyBound, ast.NumberBound, ast.NameBound),
+				NewTupleType(ast.StringBound, ast.NumberBound, name("/foo"))},
+			want: NewTupleType(ast.StringBound, ast.NumberBound, name("/foo")),
 		},
 	}
 	for _, test := range tests {

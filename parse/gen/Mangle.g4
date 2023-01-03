@@ -40,7 +40,7 @@ descrBlock
     ;
 
 boundsBlock
-    : 'bound' '[' term (',' term)* ']'
+    : 'bound' '[' (term ',')* term? ']'
     ;
 
 constraintsBlock
@@ -52,7 +52,7 @@ clause
     ;
 
 clauseBody
-    : literalOrFml (',' literalOrFml)* ('|>' transform)?
+    : literalOrFml (',' literalOrFml)* ','? ('|>' transform)?
     ;
 
 transform
@@ -75,10 +75,10 @@ term
    | NUMBER # Num
    | FLOAT # Float
    | STRING # Str
-   | NAME '(' (term (',' term)*)? ')' # Appl
-   | '[' (term (',' term)*)? ']' # List
-   | '[' (term ':' term (',' term ':' term)*)? ']' # Map
-   | '{' (term ':' term (',' term ':' term)*)? '}' # Struct
+   | NAME '(' (term ',')* term? ')' # Appl
+   | '[' (term ',')* term? ']' # List
+   | '[' (term ':' term ',')* (term ':' term)? ']' # Map
+   | '{' (term ':' term ',')* (term ':' term)? '}' # Struct
    ;
 
 // Implementation enforces that this is an atom NAME(...)
@@ -87,7 +87,7 @@ atom
    ;
 
 atoms
-   :  '[' (atom (',' atom)*)? ']'
+   :  '[' (atom ',')* atom? ']'
    ;
 
 // lexer rules

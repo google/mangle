@@ -258,8 +258,8 @@ func TestParseUnitDecls(t *testing.T) {
 			},
 		},
 		{
-			name: "Use with atoms",
-			str:  `Use foo.bar [atom1("hello"), atom2()]!`,
+			name: "Use with atoms (trailing comma)",
+			str:  `Use foo.bar [atom1("hello"), atom2(),]!`,
 			want: []ast.Decl{
 				makeDecl(t, ast.NewAtom("Package"), []ast.Atom{ast.NewAtom("name", ast.String(""))}, nil, nil),
 				makeDecl(t, ast.NewAtom("Use"), []ast.Atom{ast.NewAtom("name", ast.String("foo.bar")), ast.NewAtom("atom1", ast.String("hello")), ast.NewAtom("atom2")}, nil, nil),
@@ -329,8 +329,8 @@ func TestParseUnitPositive(t *testing.T) {
 			want: []ast.Clause{ast.NewClause(ast.NewAtom("foo", ast.Variable{"X"}), []ast.Term{ast.NewAtom("bar", ast.Variable{"X"})})},
 		},
 		{
-			name: "one clause, with body, both contain '.'",
-			str:  "foo.bar(X) :- bar.foo(X).",
+			name: "one clause, with body, both contain '.', trailing comma",
+			str:  "foo.bar(X) :- bar.foo(X),.",
 			want: []ast.Clause{ast.NewClause(ast.NewAtom("foo.bar", ast.Variable{"X"}), []ast.Term{ast.NewAtom("bar.foo", ast.Variable{"X"})})},
 		},
 		{
@@ -559,8 +559,8 @@ func TestParseLiteralOrFormulaPositive(t *testing.T) {
 			want: ast.NewAtom(":le", ast.Number(0), ast.Number(1)),
 		},
 		{
-			name: "atom",
-			str:  "foo(/bar)",
+			name: "atom (trailing comma)",
+			str:  "foo(/bar,)",
 			want: ast.NewAtom("foo", name("/bar")),
 		},
 		{
@@ -602,7 +602,7 @@ func TestParseLiteralOrFormulaNegative(t *testing.T) {
 			str:  "!X",
 		},
 		{
-			name: "list",
+			name: "list is not a literal",
 			str:  "[]",
 		},
 		{
@@ -737,6 +737,11 @@ func TestParseTermPositive(t *testing.T) {
 			want: ast.ApplyFn{symbols.List, []ast.BaseTerm{ast.Number(1)}},
 		},
 		{
+			name: "singleton list (trailing comma)",
+			str:  "[1,]",
+			want: ast.ApplyFn{symbols.List, []ast.BaseTerm{ast.Number(1)}},
+		},
+		{
 			name: "singleton list arg fn'",
 			str:  "foo(fn:list(1))",
 			want: ast.NewAtom("foo",
@@ -768,7 +773,13 @@ func TestParseTermPositive(t *testing.T) {
 		},
 		{
 			name: "map",
-			str:  "[ 1 : 'one', 2 : 'two' ]",
+			str:  "[ 1 : 'one', 2 : 'two']",
+			want: ast.ApplyFn{symbols.Map, []ast.BaseTerm{
+				ast.Number(1), ast.String("one"), ast.Number(2), ast.String("two")}},
+		},
+		{
+			name: "map (trailing comma)",
+			str:  "[ 1 : 'one', 2 : 'two', ]",
 			want: ast.ApplyFn{symbols.Map, []ast.BaseTerm{
 				ast.Number(1), ast.String("one"), ast.Number(2), ast.String("two")}},
 		},
@@ -789,7 +800,7 @@ func TestParseTermPositive(t *testing.T) {
 		},
 		{
 			name: "struct2",
-			str:  "{ /foo : 'bar', /bar : /baz }",
+			str:  "{ /foo : 'bar', /bar : /baz, }",
 			want: ast.ApplyFn{symbols.Struct, []ast.BaseTerm{name("/foo"), ast.String("bar"), name("/bar"), name("/baz")}},
 		},
 	}
@@ -867,6 +878,14 @@ func TestParseTermNegative(t *testing.T) {
 		{
 			name: "bad map ",
 			str:  "[ /foo : ]",
+		},
+		{
+			name: "list/map with just trailing comma",
+			str:  "[,]",
+		},
+		{
+			name: "struct with just trailing comma",
+			str:  "{,}",
 		},
 		{
 			name: "bad struct",

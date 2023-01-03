@@ -28,6 +28,8 @@ rigorous as to become inaccessible.
 - [Data Model](spec_datamodel.md)
 - [Built-in Operations](spec_builtin_operations.md)
 
+- [Relational algebra and logic](relational_algebra_and_logic.md)
+
 ## Implementation
 
 ### Understanding

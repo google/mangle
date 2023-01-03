@@ -257,6 +257,23 @@ func RelTypeArgs(tpe ast.BaseTerm) ([]ast.BaseTerm, error) {
 	return relType.Args, nil
 }
 
+// ApproximateRelTypeFromDecl returns an approximate relation type.
+// TODO: Fix the cases where the approximation is not sound.
+func ApproximateRelTypeFromDecl(decl ast.Decl) ast.BaseTerm {
+	arity := decl.DeclaredAtom.Predicate.Arity
+	transposed := make([][]ast.BaseTerm, arity)
+	for i := 0; i < arity; i++ {
+		for j := 0; j < len(decl.Bounds); j++ {
+			transposed[i] = append(transposed[i], decl.Bounds[j].Bounds[i])
+		}
+	}
+	res := make([]ast.BaseTerm, arity)
+	for i := 0; i < arity; i++ {
+		res[i] = UpperBound(transposed[i])
+	}
+	return NewRelType(res...)
+}
+
 // RelTypesFromDecl converts bounds a list of RelTypes.
 func RelTypesFromDecl(decl ast.Decl) []ast.BaseTerm {
 	relTypes := make([]ast.BaseTerm, len(decl.Bounds))

@@ -357,10 +357,9 @@ func newBoundsAnalyzer(programInfo *ProgramInfo, nameTrie nametrie, initialFacts
 
 	relTypeMap := make(map[ast.PredicateSym]ast.BaseTerm)
 
-	for pred := range rulesMap {
-		if decl, ok := programInfo.Decls[pred]; ok && isExtensional(*decl) {
-			relTypeMap[pred] = symbols.NewRelType(getArgumentRangeFromDecl(pred, *decl)...)
-		}
+	// Populate relTypes with declared type for extensional relations.
+	for pred := range programInfo.EdbPredicates {
+		relTypeMap[pred] = symbols.ApproximateRelTypeFromDecl(*programInfo.Decls[pred])
 	}
 
 	visiting := make(map[ast.PredicateSym]bool)
@@ -752,7 +751,8 @@ func (bc *BoundsAnalyzer) inferAndCheckBounds(pred ast.PredicateSym) error {
 		return err
 	}
 	// Iterate over arguments
-	for i, declared := range getArgumentRangeFromDecl(pred, *decl) {
+	argumentRange, _ := symbols.RelTypeArgs(symbols.ApproximateRelTypeFromDecl(*decl))
+	for i, declared := range argumentRange {
 		inferred := inferredArgs[i]
 		if symbols.TypeConforms(inferred, declared) {
 			continue
@@ -783,11 +783,11 @@ func (bc *BoundsAnalyzer) getOrInferArgumentRange(pred ast.PredicateSym) ([]ast.
 	if relType, ok := bc.relTypeMap[pred]; ok {
 		return symbols.RelTypeArgs(relType)
 	}
-	if decl, ok := bc.programInfo.Decls[pred]; ok && (!decl.IsSynthetic() || isExtensional(*decl)) {
-		// If there is a synth decl with all any, we can ignore it
-		argRanges := getArgumentRangeFromDecl(pred, *decl)
-		bc.relTypeMap[pred] = symbols.NewRelType(argRanges...)
-		return argRanges, nil
+	if decl, ok := bc.programInfo.Decls[pred]; ok && !decl.IsSynthetic() {
+		// If a decl was provided, use that.
+		relTypeFromDecl := symbols.ApproximateRelTypeFromDecl(*decl)
+		bc.relTypeMap[pred] = relTypeFromDecl
+		return symbols.RelTypeArgs(relTypeFromDecl)
 	}
 
 	res, err := bc.inferArgumentRange(pred)
@@ -796,20 +796,6 @@ func (bc *BoundsAnalyzer) getOrInferArgumentRange(pred ast.PredicateSym) ([]ast.
 	}
 	bc.relTypeMap[pred] = symbols.NewRelType(res...)
 	return res, nil
-}
-
-func getArgumentRangeFromDecl(pred ast.PredicateSym, decl ast.Decl) []ast.BaseTerm {
-	transposed := make([][]ast.BaseTerm, pred.Arity)
-	for i := 0; i < pred.Arity; i++ {
-		for j := 0; j < len(decl.Bounds); j++ {
-			transposed[i] = append(transposed[i], decl.Bounds[j].Bounds[i])
-		}
-	}
-	res := make([]ast.BaseTerm, pred.Arity)
-	for i := 0; i < pred.Arity; i++ {
-		res[i] = symbols.UpperBound(transposed[i])
-	}
-	return res
 }
 
 // inferArgumentRange ensures that bc.range[pred] is populated with the inferred argument range.

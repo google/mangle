@@ -74,8 +74,8 @@ type BoundsAnalyzer struct {
 	// Trie of name constants from declarations different from /any,/name,/number,/string.
 	nameTrie nametrie
 	RulesMap map[ast.PredicateSym][]ast.Clause
-	// maps foo(X, Y, Z) to [boundX, boundY, boundZ]
-	rangeMap map[ast.PredicateSym][]ast.BaseTerm
+	// maps foo(X, Y, Z) to RelType(boundX, boundY, boundZ)
+	relTypeMap map[ast.PredicateSym]ast.BaseTerm
 	// types observed from initial facts.
 	initialFactMap map[ast.PredicateSym][]ast.BaseTerm
 	visiting       map[ast.PredicateSym]bool
@@ -355,16 +355,16 @@ func newBoundsAnalyzer(programInfo *ProgramInfo, nameTrie nametrie, initialFacts
 		initialFactTypes[pred] = res
 	}
 
-	rangeMap := make(map[ast.PredicateSym][]ast.BaseTerm)
+	relTypeMap := make(map[ast.PredicateSym]ast.BaseTerm)
 
 	for pred := range rulesMap {
 		if decl, ok := programInfo.Decls[pred]; ok && isExtensional(*decl) {
-			rangeMap[pred] = getArgumentRangeFromDecl(pred, *decl)
+			relTypeMap[pred] = symbols.NewRelType(getArgumentRangeFromDecl(pred, *decl)...)
 		}
 	}
 
 	visiting := make(map[ast.PredicateSym]bool)
-	return &BoundsAnalyzer{programInfo, nameTrie, rulesMap, rangeMap, initialFactTypes, visiting}
+	return &BoundsAnalyzer{programInfo, nameTrie, rulesMap, relTypeMap, initialFactTypes, visiting}
 }
 
 // CheckRule checks that every variable is either "bound" or defined by a transform.
@@ -780,13 +780,13 @@ func (bc *BoundsAnalyzer) getOrInferArgumentRange(pred ast.PredicateSym) ([]ast.
 
 	bc.visiting[pred] = true
 	defer delete(bc.visiting, pred)
-	if argumentRange, ok := bc.rangeMap[pred]; ok {
-		return argumentRange, nil
+	if relType, ok := bc.relTypeMap[pred]; ok {
+		return symbols.RelTypeArgs(relType)
 	}
 	if decl, ok := bc.programInfo.Decls[pred]; ok && (!decl.IsSynthetic() || isExtensional(*decl)) {
 		// If there is a synth decl with all any, we can ignore it
 		argRanges := getArgumentRangeFromDecl(pred, *decl)
-		bc.rangeMap[pred] = argRanges
+		bc.relTypeMap[pred] = symbols.NewRelType(argRanges...)
 		return argRanges, nil
 	}
 
@@ -794,7 +794,7 @@ func (bc *BoundsAnalyzer) getOrInferArgumentRange(pred ast.PredicateSym) ([]ast.
 	if err != nil {
 		return nil, err
 	}
-	bc.rangeMap[pred] = res
+	bc.relTypeMap[pred] = symbols.NewRelType(res...)
 	return res, nil
 }
 
@@ -818,8 +818,8 @@ func (bc *BoundsAnalyzer) inferArgumentRange(pred ast.PredicateSym) ([]ast.BaseT
 	if pred.IsBuiltin() {
 		return symbols.RelTypeArgs(symbols.BuiltinRelations[pred])
 	}
-	if ranges, ok := bc.rangeMap[pred]; ok {
-		return ranges, nil
+	if ranges, ok := bc.relTypeMap[pred]; ok {
+		return symbols.RelTypeArgs(ranges)
 	}
 
 	// Inspect all clauses for pred
@@ -929,7 +929,7 @@ func (bc *BoundsAnalyzer) inferArgumentRange(pred ast.PredicateSym) ([]ast.BaseT
 		}
 		argRanges[i] = symbols.UpperBound(res[i])
 	}
-	bc.rangeMap[pred] = argRanges
+	bc.relTypeMap[pred] = symbols.NewRelType(argRanges...)
 	return argRanges, nil
 }
 

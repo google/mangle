@@ -9,10 +9,10 @@ support aggregations, it is worthwhile to understand what is really
 meant.
 
 This section informally explains the connection between non-recursive datalog
-programs and relational algebra. Relational algebra is foundation for
-relational calculus and SQL that mathematical explanation for the operations
-of selection(filtering), projection, joining. For details, please refer to
-Ullman's ["Principles of..." book](bibliography.md).
+programs and relational algebra. Relational algebra is foundation for relational
+calculus and SQL that mathematical explanation for the operations of
+selection(filtering), projection, joining. For details, please refer to Ullman's
+["Principles of database and knowledge-base systems Vol. I" book](bibliography.md).
 
 ## Relational algebra
 

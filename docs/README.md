@@ -27,8 +27,7 @@ rigorous as to become inaccessible.
 - [Rationale](rationale.md)
 - [Data Model](spec_datamodel.md)
 - [Built-in Operations](spec_builtin_operations.md)
-
-- [Relational algebra and logic](relational_algebra_and_logic.md)
+- [Relational algebra](spec_explain_relational_algebra.md)
 
 ## Implementation
 
@@ -37,3 +36,7 @@ rigorous as to become inaccessible.
 - [Example: Volunteer DB](example_volunteer_db.md)
 - [Understanding Derivation of Facts](explanation_derived_facts.md)
 - [Using the interactive interpreter](using_the_interpreter.md)
+
+Some additional resources for datalog:
+
+- [Bibliography](bibliography.md)

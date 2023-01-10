@@ -18,6 +18,7 @@ package analysis
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/google/mangle/ast"
@@ -732,7 +733,15 @@ func (a *Analyzer) checkFunctions(clause ast.Clause) error {
 
 // BoundsCheck checks whether the rules respect the bounds.
 func (bc *BoundsAnalyzer) BoundsCheck() error {
+	preds := make([]ast.PredicateSym, len(bc.programInfo.IdbPredicates))
+	i := 0
 	for pred := range bc.programInfo.IdbPredicates {
+		preds[i] = pred
+		i++
+	}
+	// Fix the order in which we do our checks.
+	sort.Slice(preds, func(i, j int) bool { return preds[i].Symbol < preds[j].Symbol })
+	for _, pred := range preds {
 		if err := bc.inferAndCheckBounds(pred); err != nil {
 			return err
 		}
@@ -802,7 +811,11 @@ func (bc *BoundsAnalyzer) getOrInferArgumentRange(pred ast.PredicateSym) ([]ast.
 // It will inspect clause bodies, only consulting decl for extensional predicates.
 func (bc *BoundsAnalyzer) inferArgumentRange(pred ast.PredicateSym) ([]ast.BaseTerm, error) {
 	if pred.IsBuiltin() {
-		return symbols.RelTypeArgs(symbols.BuiltinRelations[pred])
+		relTypeArgs, err := symbols.RelTypeArgs(symbols.BuiltinRelations[pred])
+		if err != nil {
+			return nil, fmt.Errorf("could not get relation type args for builtin %v : %v", pred, err)
+		}
+		return relTypeArgs, nil
 	}
 	if ranges, ok := bc.relTypeMap[pred]; ok {
 		return symbols.RelTypeArgs(ranges)
@@ -835,7 +848,7 @@ func (bc *BoundsAnalyzer) inferArgumentRange(pred ast.PredicateSym) ([]ast.BaseT
 			return nil
 		}
 
-		handleAtom := func(atom ast.Atom) error {
+		handleAtom := func(atom ast.Atom, isBinding bool) error {
 			ranges, err := bc.getOrInferArgumentRange(atom.Predicate)
 			if err != nil {
 				return err
@@ -849,13 +862,18 @@ func (bc *BoundsAnalyzer) inferArgumentRange(pred ast.PredicateSym) ([]ast.BaseT
 					}
 					continue
 				}
-				if err := addToVarRange(v, ranges[i]); err != nil {
-					return err
+				if isBinding { // negated subgoals do not contribute to binding.
+					if err := addToVarRange(v, ranges[i]); err != nil {
+						return err
+					}
 				}
 			}
 			return nil
 		}
-		handlePair := func(left ast.BaseTerm, right ast.BaseTerm) error {
+		handlePair := func(left ast.BaseTerm, right ast.BaseTerm, isBinding bool) error {
+			if !isBinding {
+				return nil //  check that types are comparable?
+			}
 			if leftVar, ok := left.(ast.Variable); ok {
 				return addToVarRange(leftVar, boundOfArg(right, varRanges, bc.nameTrie))
 			}
@@ -871,22 +889,22 @@ func (bc *BoundsAnalyzer) inferArgumentRange(pred ast.PredicateSym) ([]ast.BaseT
 		for _, premise := range clause.Premises {
 			switch subgoal := premise.(type) {
 			case ast.Atom:
-				if err := handleAtom(subgoal); err != nil {
+				if err := handleAtom(subgoal, true); err != nil {
 					return nil, err
 				}
 
 			case ast.NegAtom:
-				if err := handleAtom(subgoal.Atom); err != nil {
+				if err := handleAtom(subgoal.Atom, false); err != nil {
 					return nil, err
 				}
 
 			case ast.Eq:
-				if err := handlePair(subgoal.Left, subgoal.Right); err != nil {
+				if err := handlePair(subgoal.Left, subgoal.Right, true); err != nil {
 					return nil, err
 				}
 
 			case ast.Ineq:
-				if err := handlePair(subgoal.Left, subgoal.Right); err != nil {
+				if err := handlePair(subgoal.Left, subgoal.Right, false); err != nil {
 					return nil, err
 				}
 			}

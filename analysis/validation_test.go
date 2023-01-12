@@ -32,6 +32,14 @@ func name(str string) ast.Constant {
 	return n
 }
 
+func fml(str string) ast.Term {
+	t, err := parse.LiteralOrFormula(str)
+	if err != nil {
+		panic(fmt.Errorf("bad fml syntax in test case: %s got %w", str, err))
+	}
+	return t
+}
+
 func atom(str string) ast.Atom {
 	term, err := parse.Term(str)
 	if err != nil {

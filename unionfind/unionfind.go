@@ -123,6 +123,22 @@ func (uf UnionFind) Get(v ast.Variable) ast.BaseTerm {
 	return v
 }
 
+// InitVars initializes a unionfind with a given substitution. The caller
+// needs to ensure that none of the variables is "_" and none of the variables
+// appears among the terms.
+func InitVars(vars []ast.Variable, ts []ast.BaseTerm) (UnionFind, error) {
+	uf := UnionFind{make(map[ast.BaseTerm]ast.BaseTerm)}
+	if len(vars) != len(ts) {
+		return UnionFind{}, fmt.Errorf("not of equal size")
+	}
+	for i, v := range vars {
+		t := ts[i]
+		uf.parent[t] = t
+		uf.parent[v] = t
+	}
+	return uf, nil
+}
+
 // UnifyTerms unifies two same-length lists of relational terms. It does not handle
 // apply-expressions.
 func UnifyTerms(xs []ast.BaseTerm, ys []ast.BaseTerm) (UnionFind, error) {

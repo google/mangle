@@ -257,30 +257,45 @@ func RelTypeArgs(tpe ast.BaseTerm) ([]ast.BaseTerm, error) {
 	return relType.Args, nil
 }
 
-// ApproximateRelTypeFromDecl returns an approximate relation type.
-// TODO: Fix the cases where the approximation is not sound.
-func ApproximateRelTypeFromDecl(decl ast.Decl) ast.BaseTerm {
-	arity := decl.DeclaredAtom.Predicate.Arity
-	transposed := make([][]ast.BaseTerm, arity)
-	for i := 0; i < arity; i++ {
-		for j := 0; j < len(decl.Bounds); j++ {
-			transposed[i] = append(transposed[i], decl.Bounds[j].Bounds[i])
-		}
+// relTypesFromDecl converts bounds a list of RelTypes.
+func relTypesFromDecl(decl ast.Decl) ([]ast.BaseTerm, error) {
+	if len(decl.Bounds) == 0 {
+		return nil, fmt.Errorf("no bound decls in %v", decl)
 	}
-	res := make([]ast.BaseTerm, arity)
-	for i := 0; i < arity; i++ {
-		res[i] = UpperBound(transposed[i])
-	}
-	return NewRelType(res...)
-}
-
-// RelTypesFromDecl converts bounds a list of RelTypes.
-func RelTypesFromDecl(decl ast.Decl) []ast.BaseTerm {
 	relTypes := make([]ast.BaseTerm, len(decl.Bounds))
 	for i, boundDecl := range decl.Bounds {
 		relTypes[i] = NewRelType(boundDecl.Bounds...)
 	}
-	return relTypes
+	return relTypes, nil
+}
+
+// RelTypeFromAlternatives converts list of rel types bounds to union of relation types.
+// It is assumed that each alternatives is a RelType.
+// An empty list of alternatives corresponds to the empty type fn:Union().
+func RelTypeFromAlternatives(alternatives []ast.BaseTerm) ast.BaseTerm {
+	if len(alternatives) == 1 {
+		return alternatives[0]
+	}
+	// Could be reduced to a single alternative in some cases.
+	return NewUnionType(alternatives...)
+}
+
+// RelTypeExprFromDecl converts bounds to relation type expression.
+func RelTypeExprFromDecl(decl ast.Decl) (ast.BaseTerm, error) {
+	alts, err := relTypesFromDecl(decl)
+	if err != nil {
+		return nil, err
+	}
+	return RelTypeFromAlternatives(alts), nil
+}
+
+// RelTypeAlternatives converts a relation type expression to a list of alternatives relTypes.
+func RelTypeAlternatives(relTypeExpr ast.BaseTerm) []ast.BaseTerm {
+	if IsUnionTypeExpression(relTypeExpr) {
+		relTypes, _ := UnionTypeArgs(relTypeExpr)
+		return relTypes
+	}
+	return []ast.BaseTerm{relTypeExpr}
 }
 
 // TypeHandle provides functionality related to type expression.
@@ -568,6 +583,17 @@ func TypeConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
 			return true
 		}
 	}
+	if leftTuple, ok := left.(ast.ApplyFn); ok && leftTuple.Function.Symbol == RelType.Symbol {
+		if rightTuple, ok := right.(ast.ApplyFn); ok && rightTuple.Function.Symbol == RelType.Symbol {
+			for i, leftArg := range leftTuple.Args {
+				if !TypeConforms(leftArg, rightTuple.Args[i]) {
+					return false
+				}
+			}
+			return true
+		}
+	}
+
 	return false
 }
 

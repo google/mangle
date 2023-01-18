@@ -526,10 +526,33 @@ func TestBoundsAnalyzer(t *testing.T) {
 			makeSimpleDecl(atom("foo(X)"), ast.NumberBound),
 			makeSimpleDecl(atom("bar(A)"), ast.NumberBound),
 		}),
+		newBoundsTestCase([]ast.Clause{
+			clause("foo(1)."),
+			clause("foo('a')."),
+			clause("foo(X) :- bar(X)."),
+			clause("bar(X) :- foo(X)."),
+		}, []ast.Decl{
+			ast.Decl{
+				DeclaredAtom: atom("foo(X)"),
+				Bounds: []ast.BoundDecl{
+					ast.NewBoundDecl(ast.NumberBound),
+					ast.NewBoundDecl(ast.StringBound),
+				},
+			},
+			ast.Decl{
+				DeclaredAtom: atom("bar(X)"),
+				Bounds: []ast.BoundDecl{
+					ast.NewBoundDecl(ast.NumberBound),
+					ast.NewBoundDecl(ast.StringBound),
+				},
+			},
+		}),
 	}
 	for _, test := range tests {
-		bc := newBoundsAnalyzer(&test.programInfo, newNameTrie(), nil, test.rulesMap)
-
+		bc, err := newBoundsAnalyzer(&test.programInfo, newNameTrie(), nil, test.rulesMap)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if err := bc.BoundsCheck(); err != nil {
 			t.Errorf("BoundsCheck(%v, %v) returns error when it shouldn't: %v", test.programInfo, test.rulesMap, err)
 		}
@@ -591,8 +614,10 @@ func TestBoundsAnalyzerNegative(t *testing.T) {
 		}),
 	}
 	for _, test := range tests {
-		bc := newBoundsAnalyzer(&test.programInfo, newNameTrie(), nil, test.rulesMap)
-
+		bc, err := newBoundsAnalyzer(&test.programInfo, newNameTrie(), nil, test.rulesMap)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if err := bc.BoundsCheck(); err == nil { // if NO error
 			t.Errorf("BoundsCheck should have returned error but did not: %v", test.rulesMap)
 		}
@@ -677,7 +702,10 @@ func TestBoundsAnalyzerWithNames(t *testing.T) {
 	},
 		newNameTrie().Add([]string{"foo"}),
 	)
-	bc := newBoundsAnalyzer(&test.programInfo, test.nameTrie, []ast.Atom{atom("b(/foo/bar)")}, test.rulesMap)
+	bc, err := newBoundsAnalyzer(&test.programInfo, test.nameTrie, []ast.Atom{atom("b(/foo/bar)")}, test.rulesMap)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := bc.BoundsCheck(); err != nil {
 		t.Errorf("BoundsCheck(%v, %v) returns error when it shouldn't: %v", test.programInfo, test.rulesMap, err)
 	}
@@ -696,7 +724,10 @@ func TestBoundsAnalyzerWithManyInitialFacts(t *testing.T) {
 	for i := 0; i < 100000; i++ {
 		facts = append(facts, atom(fmt.Sprintf("b(/foo/bar%d)", i)))
 	}
-	bc := newBoundsAnalyzer(&test.programInfo, test.nameTrie, facts, test.rulesMap)
+	bc, err := newBoundsAnalyzer(&test.programInfo, test.nameTrie, facts, test.rulesMap)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := bc.BoundsCheck(); err != nil {
 		t.Errorf("BoundsCheck(%v, %v) returns error when it shouldn't: %v", test.programInfo, test.rulesMap, err)
 	}
@@ -710,7 +741,10 @@ func TestBoundsAnalyzerWithNamesNegative(t *testing.T) {
 	},
 		newNameTrie().Add([]string{"foo"}),
 	)
-	bc := newBoundsAnalyzer(&test.programInfo, test.nameTrie, nil, test.rulesMap)
+	bc, err := newBoundsAnalyzer(&test.programInfo, test.nameTrie, nil, test.rulesMap)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := bc.BoundsCheck(); err == nil {
 		t.Errorf("BoundsCheck(%v, %v) should have returned error but did not", test.programInfo, test.rulesMap)
 	}

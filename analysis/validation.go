@@ -75,11 +75,13 @@ type BoundsAnalyzer struct {
 	// Trie of name constants from declarations different from /any,/name,/number,/string.
 	nameTrie nametrie
 	RulesMap map[ast.PredicateSym][]ast.Clause
-	// maps foo(X, Y, Z) to RelType(boundX, boundY, boundZ)
+	// maps `foo`` to either RelType[...] or fn:Union(RelType[...]...RelType[...])
 	relTypeMap map[ast.PredicateSym]ast.BaseTerm
-	// types observed from initial facts.
-	initialFactMap map[ast.PredicateSym][]ast.BaseTerm
-	visiting       map[ast.PredicateSym]bool
+	// maps `foo`` to either RelType[...] or fn:Union(RelType[...]...RelType[...])
+	initialFactMap map[ast.PredicateSym]ast.BaseTerm
+	// maps `foo`` to either RelType[...] or fn:Union(RelType[...]...RelType[...])
+	inferred map[ast.PredicateSym]ast.BaseTerm
+	visiting map[ast.PredicateSym]bool
 }
 
 // AnalyzeOneUnit is a convenience method to analyze a program consisting of a single source unit.
@@ -279,12 +281,14 @@ func (a *Analyzer) Analyze(program []ast.Clause) (*ProgramInfo, error) {
 		if err != nil {
 			return nil, err
 		}
-		bc := newBoundsAnalyzer(&programInfo, nameTrie, initialFacts, rulesMap)
+		bc, err := newBoundsAnalyzer(&programInfo, nameTrie, initialFacts, rulesMap)
+		if err != nil {
+			return nil, err
+		}
 		if err := bc.BoundsCheck(); err != nil {
 			if a.boundsCheckingMode == ErrorForBoundsMismatch {
 				return nil, err
 			}
-			fmt.Printf("bounds error: %v\n", err)
 		}
 	}
 
@@ -328,43 +332,65 @@ func collectNamePrefixes(programInfo ProgramInfo) (nametrie, error) {
 	return nameTrie, nil
 }
 
-func newBoundsAnalyzer(programInfo *ProgramInfo, nameTrie nametrie, initialFacts []ast.Atom, rulesMap map[ast.PredicateSym][]ast.Clause) *BoundsAnalyzer {
-	initialFactUnion := make(map[ast.PredicateSym][][]ast.BaseTerm)
-	for _, f := range initialFacts {
-		observation := make([]ast.BaseTerm, len(f.Args))
-		for i, arg := range f.Args {
-			if c, ok := arg.(ast.Constant); ok {
-				observation[i] = boundOfArg(c, nil, nameTrie)
-			} else {
-				observation[i] = ast.AnyBound // This cannot happen.
-			}
-		}
-		initialFactUnion[f.Predicate] = append(initialFactUnion[f.Predicate], observation)
-	}
-	initialFactTypes := make(map[ast.PredicateSym][]ast.BaseTerm)
-	for pred, obs := range initialFactUnion {
-		transposed := make([][]ast.BaseTerm, pred.Arity)
-		for i := 0; i < pred.Arity; i++ {
-			for _, observed := range obs {
-				transposed[i] = append(transposed[i], observed[i])
-			}
-		}
-		res := make([]ast.BaseTerm, pred.Arity)
-		for i := 0; i < pred.Arity; i++ {
-			res[i] = symbols.UpperBound(transposed[i])
-		}
-		initialFactTypes[pred] = res
-	}
-
+func newBoundsAnalyzer(programInfo *ProgramInfo, nameTrie nametrie, initialFacts []ast.Atom, rulesMap map[ast.PredicateSym][]ast.Clause) (*BoundsAnalyzer, error) {
+	var err error
 	relTypeMap := make(map[ast.PredicateSym]ast.BaseTerm)
 
-	// Populate relTypes with declared type for extensional relations.
-	for pred := range programInfo.EdbPredicates {
-		relTypeMap[pred] = symbols.ApproximateRelTypeFromDecl(*programInfo.Decls[pred])
+	initialFactTypes := make(map[ast.PredicateSym]map[uint64]ast.BaseTerm)
+	for _, f := range initialFacts {
+		// From a unit clause (initial fact) `foo(2, 'a')` we
+		// derive an "observation" [/int /string].
+		observation := make([]ast.BaseTerm, len(f.Args))
+		for i, arg := range f.Args {
+			observation[i] = boundOfArg(arg, nil, nameTrie)
+		}
+		relType := symbols.NewRelType(observation...)
+		m, ok := initialFactTypes[f.Predicate]
+		if !ok {
+			m = make(map[uint64]ast.BaseTerm)
+			initialFactTypes[f.Predicate] = m
+		}
+		m[relType.Hash()] = relType
+	}
+
+	// We gather all relation types.
+	initialFactMap := make(map[ast.PredicateSym]ast.BaseTerm, len(initialFactTypes))
+	for pred, relTypeMap := range initialFactTypes {
+		relTypes := make([]ast.BaseTerm, 0, len(relTypeMap))
+		for _, relType := range relTypeMap {
+			relTypes = append(relTypes, relType)
+		}
+		if len(relTypes) == 1 {
+			initialFactMap[pred] = relTypes[0]
+		} else {
+			initialFactMap[pred] = symbols.NewUnionType(relTypes...)
+		}
+	}
+
+	for _, decl := range programInfo.Decls {
+		if decl.IsSynthetic() && !isExtensional(*decl) {
+			continue
+		}
+		// Populate relTypes with type info from declarations.
+		// For intensional predicates, we include only user-supplied declaration.
+		// For extensional predicates, we include declarations whether or not they
+		// are synthetic.
+		pred := decl.DeclaredAtom.Predicate
+		relTypeMap[pred], err = symbols.RelTypeExprFromDecl(*programInfo.Decls[pred])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Populate relTypes with all builtin relation types.
+	for pred, relTypeExpr := range symbols.BuiltinRelations {
+		relTypeMap[pred] = relTypeExpr
 	}
 
 	visiting := make(map[ast.PredicateSym]bool)
-	return &BoundsAnalyzer{programInfo, nameTrie, rulesMap, relTypeMap, initialFactTypes, visiting}
+	return &BoundsAnalyzer{
+		programInfo, nameTrie, rulesMap, relTypeMap, initialFactMap,
+		make(map[ast.PredicateSym]ast.BaseTerm), visiting}, nil
 }
 
 // CheckRule checks that every variable is either "bound" or defined by a transform.
@@ -749,196 +775,374 @@ func (bc *BoundsAnalyzer) BoundsCheck() error {
 	return nil
 }
 
+// Entry point for bounds checking.
 func (bc *BoundsAnalyzer) inferAndCheckBounds(pred ast.PredicateSym) error {
 	decl, ok := bc.programInfo.Decls[pred]
 	if !ok {
 		return nil // This should not happen.
 	}
+	if !decl.IsSynthetic() {
+		return bc.checkClauses(decl)
+	}
+	_, err := bc.inferRelTypes(pred)
+	return err
+}
 
-	inferredArgs, err := bc.inferArgumentRange(pred)
+// checkRelTypes takes a pred that has a declaration supplied by the user.
+// It checks every clause, including unit clauses ("initial facts").
+func (bc *BoundsAnalyzer) checkClauses(decl *ast.Decl) error {
+	pred := decl.DeclaredAtom.Predicate
+	clauses := bc.RulesMap[pred]
+
+	declaredRelTypeExpr, err := symbols.RelTypeExprFromDecl(*decl)
 	if err != nil {
 		return err
 	}
-	// Iterate over arguments
-	argumentRange, _ := symbols.RelTypeArgs(symbols.ApproximateRelTypeFromDecl(*decl))
-	for i, declared := range argumentRange {
-		inferred := inferredArgs[i]
-		if symbols.TypeConforms(inferred, declared) {
-			continue
-		}
 
-		var rules strings.Builder
-		for _, r := range bc.RulesMap[pred] {
-			rules.WriteString(r.String() + "\n")
+	// Handle unit clauses (initial facts). We inferred some relation types, each must
+	// conform to the declaration (at least one alternative among declared ones).
+	if initialFactRelTypes, ok := bc.initialFactMap[pred]; ok {
+		for _, inferred := range symbols.RelTypeAlternatives(initialFactRelTypes) {
+			if !symbols.TypeConforms(inferred, declaredRelTypeExpr) {
+				return fmt.Errorf("found unit clause with %v that does not conform to any decl %v", inferred, declaredRelTypeExpr)
+			}
 		}
-		return fmt.Errorf("type mismatch for pred %v argument %q\ninferred: %v\nvs declared %v\nrules:\n%s",
-			decl.DeclaredAtom, decl.DeclaredAtom.Args[i].String(), inferred, declared, rules.String())
+	}
+
+	for _, clause := range clauses {
+		inferredRelTypeExpr, err := bc.inferRelTypesFromClause(clause)
+		if err != nil {
+			return err
+		}
+		if !symbols.TypeConforms(inferredRelTypeExpr, declaredRelTypeExpr) {
+			var rules strings.Builder
+			for _, r := range bc.RulesMap[pred] {
+				rules.WriteString(r.String() + "\n")
+			}
+			return fmt.Errorf("type mismatch for pred %v rule: %s \n inferred: %v\nvs declared %v",
+				decl.DeclaredAtom, clause, inferredRelTypeExpr, declaredRelTypeExpr)
+		}
 	}
 	return nil
 }
 
-func (bc *BoundsAnalyzer) getOrInferArgumentRange(pred ast.PredicateSym) ([]ast.BaseTerm, error) {
-	if bc.visiting[pred] {
-		unknownBounds := make([]ast.BaseTerm, pred.Arity)
-		for i := 0; i < pred.Arity; i++ {
-			unknownBounds[i] = ast.AnyBound
+// feasibleAlternatives returns those alternatives from a relation type expression that
+// make sense for a given list of arguments and type assignments.
+func (bc *BoundsAnalyzer) feasibleAlternatives(relTypeExpr ast.BaseTerm, args []ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm) ([]ast.BaseTerm, error) {
+	alternatives := symbols.RelTypeAlternatives(relTypeExpr)
 
+	// Construct a relation type from what we know.
+	argBoundForAlternative := func(alternative ast.BaseTerm) (ast.BaseTerm, error) {
+		argBound := make([]ast.BaseTerm, len(args))
+		relTypeArgs, err := symbols.RelTypeArgs(alternative)
+		if err != nil {
+			return nil, err
 		}
-		return unknownBounds, nil
+		for i, arg := range args {
+			v, isVar := arg.(ast.Variable)
+			if !isVar {
+				argBound[i] = boundOfArg(arg, varRanges, bc.nameTrie)
+			}
+			if _, ok := varRanges[v]; ok {
+				argBound[i] = varRanges[v]
+			} else {
+				argBound[i] = relTypeArgs[i] // a new variable binding
+			}
+		}
+		return symbols.NewRelType(argBound...), nil
+	}
+
+	var feasible []ast.BaseTerm
+	for _, alternative := range alternatives {
+		argBound, err := argBoundForAlternative(alternative)
+		if err != nil {
+			return nil, err
+		}
+		tpe := symbols.LowerBound([]ast.BaseTerm{argBound, alternative})
+		if !tpe.Equals(symbols.EmptyType) {
+			feasible = append(feasible, alternative)
+		}
+	}
+	if len(feasible) == 0 {
+		return nil, fmt.Errorf("no feasible alternative reltypes %v args %v var ranges %v", relTypeExpr, args, varRanges)
+	}
+	return feasible, nil
+}
+
+// While checking a rule, we want to look up possible relation types.
+// If we find several applicable ones, we return the feasible ones.
+func (bc *BoundsAnalyzer) getOrInferRelTypes(
+	pred ast.PredicateSym,
+	args []ast.BaseTerm,
+	varRanges map[ast.Variable]ast.BaseTerm) ([]ast.BaseTerm, error) {
+	if pred.IsBuiltin() {
+		return bc.feasibleAlternatives(bc.relTypeMap[pred], args, varRanges)
+	}
+
+	if relType, ok := bc.relTypeMap[pred]; ok {
+		return bc.feasibleAlternatives(relType, args, varRanges)
+	}
+
+	if relType, ok := bc.inferred[pred]; ok {
+		return bc.feasibleAlternatives(relType, args, varRanges)
+	}
+
+	if bc.visiting[pred] {
+		// We are asking for pred in a recursive call. Use [any ... any]
+		relType, err := symbols.RelTypeExprFromDecl(*bc.programInfo.Decls[pred])
+		if err != nil {
+			return nil, err
+		}
+		return []ast.BaseTerm{relType}, nil
 	}
 
 	bc.visiting[pred] = true
 	defer delete(bc.visiting, pred)
-	if relType, ok := bc.relTypeMap[pred]; ok {
-		return symbols.RelTypeArgs(relType)
-	}
-	if decl, ok := bc.programInfo.Decls[pred]; ok && !decl.IsSynthetic() {
-		// If a decl was provided, use that.
-		relTypeFromDecl := symbols.ApproximateRelTypeFromDecl(*decl)
-		bc.relTypeMap[pred] = relTypeFromDecl
-		return symbols.RelTypeArgs(relTypeFromDecl)
-	}
 
-	res, err := bc.inferArgumentRange(pred)
+	relTypeExpr, err := bc.inferRelTypes(pred)
 	if err != nil {
 		return nil, err
 	}
-	bc.relTypeMap[pred] = symbols.NewRelType(res...)
-	return res, nil
+	bc.inferred[pred] = relTypeExpr
+	return bc.feasibleAlternatives(relTypeExpr, args, varRanges)
 }
 
-// inferArgumentRange ensures that bc.range[pred] is populated with the inferred argument range.
-// It will inspect clause bodies, only consulting decl for extensional predicates.
-func (bc *BoundsAnalyzer) inferArgumentRange(pred ast.PredicateSym) ([]ast.BaseTerm, error) {
-	if pred.IsBuiltin() {
-		relTypeArgs, err := symbols.RelTypeArgs(symbols.BuiltinRelations[pred])
-		if err != nil {
-			return nil, fmt.Errorf("could not get relation type args for builtin %v : %v", pred, err)
-		}
-		return relTypeArgs, nil
+// inferRelType infers a relation type from rules when no decl is available.
+// inferRelType ensures that bc.inferred[pred] is populated with the inferred relation type.
+func (bc *BoundsAnalyzer) inferRelTypes(pred ast.PredicateSym) (ast.BaseTerm, error) {
+	if existing, ok := bc.relTypeMap[pred]; ok {
+		return existing, nil
 	}
-	if ranges, ok := bc.relTypeMap[pred]; ok {
-		return symbols.RelTypeArgs(ranges)
+	if existing, ok := bc.inferred[pred]; ok {
+		return existing, nil
 	}
 
-	// Inspect all clauses for pred
-	res := make([][]ast.BaseTerm, pred.Arity)
+	var alternatives []ast.BaseTerm
+	if initialFactRelTypeExpr, ok := bc.initialFactMap[pred]; ok {
+		alternatives = symbols.RelTypeAlternatives(initialFactRelTypeExpr)
+	}
+
 	clauses := bc.RulesMap[pred]
-	if len(clauses) == 0 && len(bc.initialFactMap[pred]) == 0 {
-		return nil, fmt.Errorf("unknown predicate %v (no clauses, no decls). typo?", pred)
-	}
 	for _, clause := range clauses {
-		// We map each variable to a type expressions (possibly a union).
-		varRanges := make(map[ast.Variable]ast.BaseTerm)
-		// When we add an expected type from argument range, we check.
-		addToVarRange := func(v ast.Variable, expectedTpe ast.BaseTerm) error {
-			if v.Symbol == "_" {
-				return nil
-			}
-			existing, ok := varRanges[v]
-			if !ok {
-				varRanges[v] = expectedTpe
-				return nil
-			}
-			tpe := symbols.LowerBound([]ast.BaseTerm{existing, expectedTpe})
-			if tpe.Equals(symbols.EmptyType) {
-				return fmt.Errorf("problem in rule '%v': variable %v cannot have both %v and %v", clause, v, existing, expectedTpe)
-			}
-			varRanges[v] = tpe
-			return nil
+		relType, err := bc.inferRelTypesFromClause(clause)
+		if err != nil {
+			return nil, err
 		}
+		for _, alternative := range symbols.RelTypeAlternatives(relType) {
+			if !symbols.TypeConforms(alternative, symbols.RelTypeFromAlternatives(alternatives)) {
+				alternatives = append(alternatives, alternative)
+			}
+		}
+	}
+	bc.inferred[pred] = symbols.RelTypeFromAlternatives(alternatives)
+	return bc.inferred[pred], nil
+}
 
-		handleAtom := func(atom ast.Atom, isBinding bool) error {
-			ranges, err := bc.getOrInferArgumentRange(atom.Predicate)
+// inferState is state of inference while iterating over premises.
+// The relation type is represented implicitly in usedVars and varTpe.
+// Assigns to each var in usedVars a type (possibly union) in varTpe.
+type inferState struct {
+	// The index of the premise to be inspected with this state.
+	index    int
+	usedVars VarList
+	varTpe   []ast.BaseTerm
+}
+
+func (s *inferState) String() string {
+	return fmt.Sprintf("<%d; %v, %v>", s.index, s.usedVars, s.varTpe)
+}
+
+func (s *inferState) makeNext() *inferState {
+	dest := make([]ast.BaseTerm, len(s.varTpe))
+	for i, tpe := range s.varTpe {
+		dest[i] = tpe
+	}
+	return &inferState{s.index + 1, s.usedVars, dest}
+}
+
+// addOrRefine either adds a binding or intersects type for an existing one.
+func (s *inferState) addOrRefine(v ast.Variable, tpe ast.BaseTerm) error {
+	if v.Symbol == "_" {
+		return nil
+	}
+	i := s.usedVars.Find(v)
+	if i == -1 {
+		s.usedVars = s.usedVars.Extend([]ast.Variable{v})
+		s.varTpe = append(s.varTpe, tpe)
+		return nil
+	}
+
+	tpe = symbols.LowerBound([]ast.BaseTerm{s.varTpe[i], tpe})
+	if tpe.Equals(symbols.EmptyType) {
+		return fmt.Errorf("variable %v cannot have both %v and %v", v, s.varTpe[i], tpe)
+	}
+	s.varTpe[i] = tpe
+	return nil
+}
+
+func (s *inferState) asMap() map[ast.Variable]ast.BaseTerm {
+	m := make(map[ast.Variable]ast.BaseTerm, len(s.varTpe))
+	for i, v := range s.usedVars.Vars {
+		m[v] = s.varTpe[i]
+	}
+	return m
+}
+
+// inferRelTypesFromPremise is called for index \in 0..len(premises). It
+// maps one state of inference to its (possibly empty) list of successors.
+func (bc *BoundsAnalyzer) inferRelTypesFromPremise(premises []ast.Term, state *inferState) ([]*inferState, error) {
+	var nextStates []*inferState
+
+	premise := premises[state.index]
+	switch t := premise.(type) {
+	case ast.Atom:
+		atom := t
+		var (
+			alternatives []ast.BaseTerm
+			err          error
+		)
+		if declared, ok := bc.relTypeMap[atom.Predicate]; ok {
+			alternatives, err = bc.feasibleAlternatives(declared, atom.Args, state.asMap())
+		} else {
+			alternatives, err = bc.getOrInferRelTypes(atom.Predicate, atom.Args, state.asMap())
+		}
+		if err != nil {
+			return nil, fmt.Errorf("type mismatch %v : %v ", premise, err)
+		}
+		for _, alternative := range alternatives {
+			relTypeArgs, err := symbols.RelTypeArgs(alternative)
 			if err != nil {
-				return err
+				return nil, err // This cannot happen.
 			}
-			for i, arg := range atom.Args {
-				v, ok := arg.(ast.Variable)
-				if !ok {
-					tpe := boundOfArg(arg, varRanges, bc.nameTrie)
-					if !symbols.TypeConforms(tpe, ranges[i]) {
-						return fmt.Errorf("problem in rule '%v' subgoal %v: argument %v of type %v does not conform to type %v", clause, atom, arg, tpe, ranges[i])
-					}
-					continue
-				}
-				if isBinding { // negated subgoals do not contribute to binding.
-					if err := addToVarRange(v, ranges[i]); err != nil {
-						return err
-					}
+			nextState := state.makeNext()
+			for i, a := range atom.Args {
+				if v, ok := a.(ast.Variable); ok {
+					// No error-check needed - alternative is feasible.
+					nextState.addOrRefine(v, relTypeArgs[i])
 				}
 			}
-			return nil
+			nextStates = append(nextStates, nextState)
 		}
-		handlePair := func(left ast.BaseTerm, right ast.BaseTerm, isBinding bool) error {
-			if !isBinding {
-				return nil //  check that types are comparable?
-			}
-			if leftVar, ok := left.(ast.Variable); ok {
-				return addToVarRange(leftVar, boundOfArg(right, varRanges, bc.nameTrie))
-			}
+		return nextStates, nil
 
-			if rightVar, ok := right.(ast.Variable); ok {
-				return addToVarRange(rightVar, boundOfArg(left, varRanges, bc.nameTrie))
-			}
-
-			// This cannot happen.
-			return fmt.Errorf("cannot type check pair %v %v", left, right)
+	case ast.NegAtom:
+		atom := t.Atom
+		var (
+			alternatives []ast.BaseTerm
+			err          error
+		)
+		if declared, ok := bc.relTypeMap[atom.Predicate]; ok {
+			alternatives, err = bc.feasibleAlternatives(declared, atom.Args, state.asMap())
+		} else {
+			alternatives, err = bc.getOrInferRelTypes(atom.Predicate, atom.Args, state.asMap())
 		}
-
-		for _, premise := range clause.Premises {
-			switch subgoal := premise.(type) {
-			case ast.Atom:
-				if err := handleAtom(subgoal, true); err != nil {
-					return nil, err
+		if err != nil {
+			return nil, fmt.Errorf("type mismatch %v : %v ", premise, err)
+		}
+		for _, alternative := range alternatives {
+			relTypeArgs, err := symbols.RelTypeArgs(alternative)
+			if err != nil {
+				return nil, err // This cannot happen.
+			}
+			nextState := state.makeNext()
+			for i, a := range atom.Args {
+				if v, ok := a.(ast.Variable); ok {
+					// No error-check needed - alternative is feasible.
+					nextState.addOrRefine(v, relTypeArgs[i])
 				}
+			}
+			nextStates = append(nextStates, nextState)
+		}
+		return nextStates, nil
 
-			case ast.NegAtom:
-				if err := handleAtom(subgoal.Atom, false); err != nil {
-					return nil, err
-				}
-
-			case ast.Eq:
-				if err := handlePair(subgoal.Left, subgoal.Right, true); err != nil {
-					return nil, err
-				}
-
-			case ast.Ineq:
-				if err := handlePair(subgoal.Left, subgoal.Right, false); err != nil {
-					return nil, err
-				}
+	case ast.Eq:
+		nextState := state.makeNext()
+		varRanges := nextState.asMap()
+		if leftVar, ok := t.Left.(ast.Variable); ok {
+			tpe := boundOfArg(t.Right, varRanges, bc.nameTrie)
+			if err := nextState.addOrRefine(leftVar, tpe); err != nil {
+				return nil, err
 			}
 		}
+		if rightVar, ok := t.Right.(ast.Variable); ok {
+			tpe := boundOfArg(t.Left, varRanges, bc.nameTrie)
+			if err := nextState.addOrRefine(rightVar, tpe); err != nil {
+				return nil, err
+			}
+		}
+		return []*inferState{nextState}, nil
+
+	case ast.Ineq:
+		nextState := state.makeNext()
+		leftTpe := boundOfArg(t.Left, state.asMap(), bc.nameTrie)
+		rightTpe := boundOfArg(t.Right, state.asMap(), bc.nameTrie)
+
+		tpe := symbols.LowerBound([]ast.BaseTerm{leftTpe, rightTpe})
+		if tpe.Equals(symbols.EmptyType) {
+			return nil, fmt.Errorf("type mismatch %v : left type %v right type %v", premise, leftTpe, rightTpe)
+		}
+		if leftVar, ok := t.Left.(ast.Variable); ok {
+			if err := nextState.addOrRefine(leftVar, tpe); err != nil {
+				return nil, err
+			}
+		}
+		if rightVar, ok := t.Right.(ast.Variable); ok {
+			if err := nextState.addOrRefine(rightVar, tpe); err != nil {
+				return nil, err
+			}
+		}
+		return []*inferState{nextState}, nil
+	}
+	return nil, fmt.Errorf("unexpected state %v", premise)
+}
+
+// inferRelTypesFromClause infers possible relation types for the head predicate of a single clause.
+func (bc *BoundsAnalyzer) inferRelTypesFromClause(clause ast.Clause) (ast.BaseTerm, error) {
+	usedVars := VarList{}
+	state := &inferState{0, usedVars, []ast.BaseTerm{}}
+
+	levels := make([][]*inferState, len(clause.Premises)+1)
+	levels[0] = []*inferState{state}
+	for i := range clause.Premises {
+		for _, state := range levels[i] {
+			nextStates, err := bc.inferRelTypesFromPremise(clause.Premises, state)
+			if err != nil {
+				continue
+			}
+			levels[i+1] = append(levels[i+1], nextStates...)
+		}
+		if len(levels[i+1]) == 0 {
+			return nil, fmt.Errorf("type mismatch: cannot find assignment that works for premise %v", clause.Premises[i])
+		}
+	}
+	var relTypes []ast.BaseTerm
+	for _, state := range levels[len(clause.Premises)] {
+		s := state.makeNext()
 		if clause.Transform != nil {
 			for _, tr := range clause.Transform.Statements {
 				if tr.Var != nil {
-					varRanges[*tr.Var] = typeOfFn(tr.Fn, varRanges, bc.nameTrie)
+					s.addOrRefine(*tr.Var, typeOfFn(tr.Fn, s.asMap(), bc.nameTrie))
 				}
 			}
 		}
+
+		headTuple := make([]ast.BaseTerm, len(clause.Head.Args))
 		for i, arg := range clause.Head.Args {
-			v, ok := arg.(ast.Variable)
-			if !ok {
-				res[i] = append(res[i], boundOfArg(arg, varRanges, bc.nameTrie))
-				continue
-			}
-			res[i] = append(res[i], varRanges[v])
+			headTuple[i] = boundOfArg(arg, s.asMap(), bc.nameTrie)
 		}
+		relTypes = append(relTypes, symbols.NewRelType(headTuple...))
 	}
-	argRanges := make([]ast.BaseTerm, pred.Arity)
-	initialFactTypes, hasInitial := bc.initialFactMap[pred]
-	for i := range res {
-		if hasInitial {
-			res[i] = append(res[i], initialFactTypes[i])
-		}
-		argRanges[i] = symbols.UpperBound(res[i])
-	}
-	bc.relTypeMap[pred] = symbols.NewRelType(argRanges...)
-	return argRanges, nil
+	return symbols.RelTypeFromAlternatives(relTypes), nil
 }
 
 func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTrie nametrie) ast.BaseTerm {
 	switch z := x.(type) {
+	case ast.Variable:
+		if bound, ok := varRanges[z]; ok {
+			return bound
+		}
+		return ast.AnyBound
+
 	case ast.Constant:
 		switch z.Type {
 		case ast.NumberType:

@@ -17,6 +17,7 @@ package symbols
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/mangle/ast"
 )
 
@@ -127,6 +128,57 @@ func TestCheckTypeExpressionNegative(t *testing.T) {
 	}
 }
 
+func TestRelTypeExprFromDecl(t *testing.T) {
+	relTypeExpr, err := RelTypeExprFromDecl(ast.Decl{
+		ast.NewAtom("foo", ast.Variable{"X"}, ast.Variable{"Y"}),
+		nil,
+		[]ast.BoundDecl{
+			ast.NewBoundDecl(ast.StringBound, ast.NumberBound),
+			ast.NewBoundDecl(ast.NumberBound, ast.StringBound),
+		},
+		nil,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := NewUnionType(
+		NewRelType(ast.StringBound, ast.NumberBound),
+		NewRelType(ast.NumberBound, ast.StringBound))
+	if !relTypeExpr.Equals(want) {
+		t.Errorf("%v.Equals(%v)=false want true", relTypeExpr, want)
+	}
+}
+
+func TestRelTypeMethods(t *testing.T) {
+	tests := []struct {
+		alternatives []ast.BaseTerm
+		want         ast.BaseTerm
+	}{
+		{
+			alternatives: []ast.BaseTerm{
+				NewRelType(ast.StringBound, ast.NumberBound)},
+			want: NewRelType(ast.StringBound, ast.NumberBound),
+		},
+		{
+			alternatives: []ast.BaseTerm{
+				NewRelType(ast.StringBound, ast.NumberBound), NewRelType(ast.NumberBound, ast.NumberBound)},
+			want: NewUnionType(
+				NewRelType(ast.StringBound, ast.NumberBound), NewRelType(ast.NumberBound, ast.NumberBound)),
+		},
+	}
+	for _, test := range tests {
+		got := RelTypeFromAlternatives(test.alternatives)
+		if !got.Equals(test.want) {
+			t.Errorf("RelTypeFromAlternatives(%v)=%v want %v", test.alternatives, got, test.want)
+		}
+
+		alts := RelTypeAlternatives(got)
+		if diff := cmp.Diff(test.alternatives, alts, cmp.AllowUnexported(ast.Constant{})); diff != "" {
+			t.Errorf("RelTypeAlternatives(RelTypeFromAlternatives(%v))=%v want %v", test.alternatives, alts, test.alternatives)
+		}
+	}
+}
+
 func TestTypeConforms(t *testing.T) {
 	tests := []struct {
 		left  ast.BaseTerm
@@ -170,11 +222,36 @@ func TestTypeConforms(t *testing.T) {
 			NewStructType(),
 			true,
 		},
-		//{
-		//	NewFunType(name("/animal"), name("/genus_species")),
-		//	NewFunType(name("/animal/bird"), ast.NameBound),
-		//	true,
-		//},
+		{
+			NewRelType(ast.StringBound, ast.NumberBound),
+			NewRelType(ast.StringBound, ast.NumberBound),
+			true,
+		},
+		{
+			NewRelType(ast.StringBound, ast.NumberBound),
+			NewRelType(ast.NumberBound, ast.NumberBound),
+			false,
+		},
+		{
+			NewRelType(ast.StringBound, ast.NumberBound),
+			NewRelType(ast.AnyBound, ast.NumberBound),
+			true,
+		},
+		{
+			NewRelType(ast.StringBound, ast.NumberBound),
+			NewUnionType(NewRelType(ast.StringBound, ast.NumberBound), NewRelType(ast.NumberBound, ast.NumberBound)),
+			true,
+		},
+		{
+			NewUnionType(NewRelType(ast.StringBound, ast.NumberBound), NewRelType(ast.NumberBound, ast.NumberBound)),
+			NewUnionType(NewRelType(ast.StringBound, ast.NumberBound), NewRelType(ast.NumberBound, ast.NumberBound)),
+			true,
+		},
+		{
+			NewUnionType(NewRelType(ast.StringBound, ast.NumberBound), NewRelType(ast.NumberBound, ast.NumberBound)),
+			NewUnionType(NewRelType(ast.AnyBound, ast.StringBound), NewRelType(ast.NumberBound, ast.NumberBound)),
+			false,
+		},
 	}
 	for _, test := range tests {
 		if got := TypeConforms(test.left, test.right); got != test.want {

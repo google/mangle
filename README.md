@@ -122,7 +122,7 @@ one_or_two_leg_trip(Codes, Start, Destination, Price) :-
 graph LR
     /zurich -->|/code/ZL <br /> 60 CHF| /lausanne
     /zurich -->|/code/ZB <br /> 30 CHF| /bern
-    /bern -->|/code/ZL <br /> 30 CHF| /lausanne
+    /bern -->|/code/BL <br /> 30 CHF| /lausanne
 ```
 
 ## Building

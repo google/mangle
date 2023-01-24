@@ -208,9 +208,14 @@ func TestTypeConforms(t *testing.T) {
 			true,
 		},
 		{
-			NewStructType(name("/foo"), ast.AnyBound, name("/bar"), ast.NumberBound),
+			NewStructType(name("/foo"), ast.AnyBound, NewOpt(name("/bar"), ast.NumberBound)),
 			NewStructType(name("/foo"), ast.StringBound),
 			false,
+		},
+		{
+			NewStructType(name("/foo"), ast.AnyBound, name("/bar"), ast.NumberBound),
+			NewStructType(name("/foo"), ast.AnyBound, NewOpt(name("/bar"), ast.NumberBound)),
+			true,
 		},
 		{
 			NewStructType(name("/foo"), ast.AnyBound, name("/bar"), ast.NumberBound),
@@ -220,6 +225,11 @@ func TestTypeConforms(t *testing.T) {
 		{
 			NewStructType(),
 			NewStructType(),
+			true,
+		},
+		{
+			NewStructType(),
+			NewStructType(NewOpt(name("/bar"), ast.NumberBound)),
 			true,
 		},
 		{
@@ -257,6 +267,66 @@ func TestTypeConforms(t *testing.T) {
 		if got := TypeConforms(test.left, test.right); got != test.want {
 			t.Errorf("TypeConforms(%v, %v)=%v want %v", test.left, test.right, got, test.want)
 		}
+	}
+}
+
+func TestAccess(t *testing.T) {
+	tpe := NewListType(ast.AnyBound)
+	if !IsListTypeExpression(tpe) {
+		t.Errorf("IsListTypeExpression(%v)=false want true", tpe)
+	}
+	arg, err := ListTypeArg(tpe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if arg != ast.AnyBound {
+		t.Errorf("ListTypeArg(%v)=%v want %v", tpe, arg, ast.AnyBound)
+	}
+	tpe = NewMapType(ast.StringBound, ast.NumberBound)
+	if !IsMapTypeExpression(tpe) {
+		t.Errorf("IsListTypeExpression(%v)=false want true", tpe)
+	}
+	key, val, err := MapTypeArgs(tpe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if key != ast.StringBound {
+		t.Errorf("MapTypeArgs(%v)=[%v],%v want %v", tpe, key, val, ast.StringBound)
+	}
+	if val != ast.NumberBound {
+		t.Errorf("MapTypeArgs(%v)=%v,[%v] want %v", tpe, key, val, ast.NumberBound)
+	}
+	tpe = NewStructType(name("/foo"), ast.StringBound, NewOpt(name("/bar"), ast.NumberBound))
+	if !IsStructTypeExpression(tpe) {
+		t.Errorf("IsStructTypeExpression(%v)=false want true", tpe)
+	}
+	requiredArgs, err := StructTypeRequiredArgs(tpe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cmp.Equal(requiredArgs, []ast.BaseTerm{name("/foo"), ast.StringBound}, cmp.AllowUnexported(ast.Constant{})) {
+		t.Errorf("StructTypeRequiredArgs(%v)=%v want [/foo, /string]", tpe, requiredArgs)
+	}
+	optArgs, err := StructTypeOptionaArgs(tpe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cmp.Equal(optArgs, []ast.BaseTerm{NewOpt(name("/bar"), ast.NumberBound)}, cmp.AllowUnexported(ast.Constant{})) {
+		t.Errorf("StructTypeOptionaArgs(%v)=%v want fn:opt(/bar, /number)", tpe, optArgs)
+	}
+	fooTpe, err := StructTypeField(tpe, name("/foo"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fooTpe.Equals(ast.StringBound) {
+		t.Errorf("StructTypeField(%v,%v)=%v want /string", tpe, name("foo"), fooTpe)
+	}
+	barTpe, err := StructTypeField(tpe, name("/bar"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !barTpe.Equals(ast.NumberBound) {
+		t.Errorf("StructTypeField(%v,%v)=%v want /number", tpe, name("bar"), barTpe)
 	}
 }
 

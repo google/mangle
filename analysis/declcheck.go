@@ -113,20 +113,16 @@ func (c *declChecker) checkBound(p ast.Atom, boundDecl ast.BoundDecl) {
 }
 
 func checkBoundExpression(b ast.BaseTerm) error {
-	if err := symbols.CheckTypeExpression(b); err == nil { // if NO error
-		// Any type expression is a bound expression.
-		// TODO: In the future, we may have type expressions that are
-		// not proper bound expressions (e.g. function type). This needs
-		// to be updated then.
-		return nil
-	}
-	predicateBound, ok := b.(ast.Constant)
-	if !ok || predicateBound.Type != ast.StringType {
-		return fmt.Errorf("not a bound expression %v %T", b, b)
-	}
-	name := predicateBound.Symbol[1 : len(predicateBound.Symbol)-1]
-	if _, err := parse.PredicateName(name); err != nil {
-		return err
+	if err := symbols.CheckTypeExpression(b); err != nil {
+		// Not a type expression.
+		predicateBound, ok := b.(ast.Constant)
+		if !ok || predicateBound.Type != ast.StringType {
+			return fmt.Errorf("not a bound expression %v %T %v", b, b, err)
+		}
+		name := predicateBound.Symbol[1 : len(predicateBound.Symbol)-1]
+		if _, err := parse.PredicateName(name); err != nil {
+			return fmt.Errorf("could not parse predicate name %q", name)
+		}
 	}
 	return nil
 }

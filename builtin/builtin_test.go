@@ -877,7 +877,7 @@ func TestTypeCheck(t *testing.T) {
 		ast.NewAtom("foo", ast.Variable{"SomeNum"}, ast.Variable{"SomeStr"}, ast.Variable{"SomeName"}),
 		nil,
 		[]ast.BoundDecl{
-			ast.NewBoundDecl(ast.NumberBound, ast.StringBound, ast.NameBound)}, nil)
+			ast.NewBoundDecl(ast.NumberBound, symbols.NewStructType(name("/bar"), symbols.NewListType(ast.StringBound)), ast.NameBound)}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -888,11 +888,11 @@ func TestTypeCheck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bad test setup, cannot construct type checker: %v", err)
 	}
-	okFact := atom("foo(12, 'aaa', /bar)")
+	okFact := evAtom("foo(12, {/bar: ['aaa']}, /bar)")
 	if err := checker.CheckTypeBounds(okFact); err != nil {
 		t.Errorf("CheckTypeBounds(%v) failed %v", okFact, err)
 	}
-	badFact := atom("foo('aaa', 12, /bar)")
+	badFact := evAtom("foo('aaa', {/bar: ['b12']}, /bar)")
 	if err := checker.CheckTypeBounds(badFact); err == nil { // if NO error
 		t.Errorf("CheckTypeBounds(%v) succeeded expected error", badFact)
 	}

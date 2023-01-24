@@ -528,7 +528,7 @@ func TestBoundsAnalyzer(t *testing.T) {
 		}),
 		newBoundsTestCase([]ast.Clause{
 			clause("foo(1)."),
-			clause("foo('a')."),
+			clause("foo(['a'])."),
 			clause("foo(X) :- bar(X)."),
 			clause("bar(X) :- foo(X)."),
 		}, []ast.Decl{
@@ -536,16 +536,34 @@ func TestBoundsAnalyzer(t *testing.T) {
 				DeclaredAtom: atom("foo(X)"),
 				Bounds: []ast.BoundDecl{
 					ast.NewBoundDecl(ast.NumberBound),
-					ast.NewBoundDecl(ast.StringBound),
+					ast.NewBoundDecl(symbols.NewListType(ast.StringBound)),
 				},
 			},
 			ast.Decl{
 				DeclaredAtom: atom("bar(X)"),
 				Bounds: []ast.BoundDecl{
 					ast.NewBoundDecl(ast.NumberBound),
-					ast.NewBoundDecl(ast.StringBound),
+					ast.NewBoundDecl(symbols.NewListType(ast.StringBound)),
 				},
 			},
+		}),
+		newBoundsTestCase([]ast.Clause{
+			clause("foo(X) :- bar(Y), :match_entry(Y, 'a', X)."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("foo(X)"), ast.NumberBound),
+			makeSimpleDecl(atom("bar(Y)"), symbols.NewMapType(ast.StringBound, ast.NumberBound)),
+		}),
+		newBoundsTestCase([]ast.Clause{
+			clause("foo(X) :- bar(Y), :match_field(Y, /value, X)."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("foo(X)"), ast.NumberBound),
+			makeSimpleDecl(atom("bar(Y)"), symbols.NewStructType(name("/value"), ast.NumberBound)),
+		}),
+		newBoundsTestCase([]ast.Clause{
+			clause("foo(X) :- bar(Y), :list:member(X, Y)."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("foo(X)"), ast.NumberBound),
+			makeSimpleDecl(atom("bar(Y)"), symbols.NewListType(ast.NumberBound)),
 		}),
 	}
 	for _, test := range tests {
@@ -606,11 +624,11 @@ func TestBoundsAnalyzerNegative(t *testing.T) {
 			makeSimpleDecl(atom("baz(A)"), ast.NumberBound),
 		}),
 		newBoundsTestCase([]ast.Clause{
-			clause("foo(X) :- bar(X, Y), baz('hello')."),
+			clause("foo(X) :- bar(X, Y), baz(['hello'])."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X)"), ast.NumberBound),
 			makeSimpleDecl(atom("bar(A, B)"), ast.StringBound, ast.StringBound),
-			makeSimpleDecl(atom("baz(A)"), ast.NumberBound),
+			makeSimpleDecl(atom("baz(A)"), symbols.NewListType(ast.NumberBound)),
 		}),
 	}
 	for _, test := range tests {

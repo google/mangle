@@ -134,6 +134,9 @@ var (
 	// UnionType is a constructor for a union type.
 	UnionType = ast.FunctionSym{"fn:Union", -1}
 
+	// Optional may appear inside StructType to indicate optional fields.
+	Optional = ast.FunctionSym{"fn:opt", -1}
+
 	// Package is an improper symbol, used to represent package declaration.
 	Package = ast.PredicateSym{"Package", 0}
 	// Use is an improper symbol, used to represent use declaration.
@@ -165,6 +168,10 @@ var (
 			NewListType(ast.Variable{"X"}), ast.Variable{"X"}, NewListType(ast.Variable{"X"})),
 		MatchPair: NewRelType(
 			NewPairType(ast.Variable{"X"}, ast.Variable{"Y"}), ast.Variable{"X"}, ast.Variable{"Y"}),
+		MatchEntry: NewRelType(
+			NewMapType(ast.AnyBound, ast.AnyBound), ast.AnyBound),
+		MatchField: NewRelType(
+			ast.AnyBound, ast.NameBound, ast.AnyBound),
 		ListMember: NewRelType(ast.Variable{"X"}, NewListType(ast.Variable{"X"})),
 	}
 
@@ -189,6 +196,11 @@ func NewListType(elem ast.BaseTerm) ast.ApplyFn {
 // NewMapType returns a new MapType.
 func NewMapType(left, right ast.BaseTerm) ast.ApplyFn {
 	return ast.ApplyFn{MapType, []ast.BaseTerm{left, right}}
+}
+
+// NewOpt wraps a label-type pair inside a StructType.
+func NewOpt(label, tpe ast.BaseTerm) ast.ApplyFn {
+	return ast.ApplyFn{Optional, []ast.BaseTerm{label, tpe}}
 }
 
 // NewStructType returns a new StructType.
@@ -227,10 +239,28 @@ func IsBaseTypeExpression(c ast.Constant) bool {
 	}
 }
 
+// IsListTypeExpression returns true if tpe is a ListType.
+func IsListTypeExpression(tpe ast.BaseTerm) bool {
+	listType, ok := tpe.(ast.ApplyFn)
+	return ok && listType.Function == ListType
+}
+
+// IsMapTypeExpression returns true if tpe is a MapType.
+func IsMapTypeExpression(tpe ast.BaseTerm) bool {
+	structType, ok := tpe.(ast.ApplyFn)
+	return ok && structType.Function.Symbol == MapType.Symbol
+}
+
+// IsStructTypeExpression returns true if tpe is a StructType.
+func IsStructTypeExpression(tpe ast.BaseTerm) bool {
+	structType, ok := tpe.(ast.ApplyFn)
+	return ok && structType.Function.Symbol == StructType.Symbol
+}
+
 // IsUnionTypeExpression returns true if tpe is a UnionType.
 func IsUnionTypeExpression(tpe ast.BaseTerm) bool {
 	unionType, ok := tpe.(ast.ApplyFn)
-	return ok && unionType.Function == UnionType
+	return ok && unionType.Function.Symbol == UnionType.Symbol
 }
 
 // IsRelTypeExpression returns true if tpe is a RelType.
@@ -239,10 +269,104 @@ func IsRelTypeExpression(tpe ast.BaseTerm) bool {
 	return ok && relType.Function == RelType
 }
 
+// ListTypeArg returns the type argument of a ListType.
+func ListTypeArg(tpe ast.BaseTerm) (ast.BaseTerm, error) {
+	listType, ok := tpe.(ast.ApplyFn)
+	if !ok || listType.Function != ListType {
+		return nil, fmt.Errorf("not a list type expression: %v", tpe)
+	}
+	if len(listType.Args) != 1 {
+		return nil, fmt.Errorf("wrong number of arguments: %v", tpe)
+	}
+	return listType.Args[0], nil
+}
+
+// MapTypeArgs returns the type arguments of a MapType.
+func MapTypeArgs(tpe ast.BaseTerm) (ast.BaseTerm, ast.BaseTerm, error) {
+	mapType, ok := tpe.(ast.ApplyFn)
+	if !ok || mapType.Function != MapType {
+		return nil, nil, fmt.Errorf("not a map type expression: %v", tpe)
+	}
+	if len(mapType.Args) != 2 {
+		return nil, nil, fmt.Errorf("wrong number of arguments: %v", tpe)
+	}
+	return mapType.Args[0], mapType.Args[1], nil
+}
+
+// StructTypeArgs returns type arguments of a StructType.
+func StructTypeArgs(tpe ast.BaseTerm) ([]ast.BaseTerm, error) {
+	structType, ok := tpe.(ast.ApplyFn)
+	if !ok || structType.Function.Symbol != StructType.Symbol {
+		return nil, fmt.Errorf("not a struct type expression: %v", tpe)
+	}
+	return structType.Args, nil
+}
+
+// IsOptional returns true if an argument of fn:Struct is an optional field.
+func IsOptional(structElem ast.BaseTerm) bool {
+	opt, ok := structElem.(ast.ApplyFn)
+	return ok && opt.Function.Symbol == Optional.Symbol
+}
+
+// StructTypeRequiredArgs returns type arguments of a StructType.
+func StructTypeRequiredArgs(tpe ast.BaseTerm) ([]ast.BaseTerm, error) {
+	structType, ok := tpe.(ast.ApplyFn)
+	if !ok || structType.Function.Symbol != StructType.Symbol {
+		return nil, fmt.Errorf("not a struct type expression: %v", tpe)
+	}
+	var required []ast.BaseTerm
+	for _, arg := range structType.Args {
+		if !IsOptional(arg) {
+			required = append(required, arg)
+		}
+	}
+	return required, nil
+}
+
+// StructTypeOptionaArgs returns type arguments of a StructType.
+func StructTypeOptionaArgs(tpe ast.BaseTerm) ([]ast.BaseTerm, error) {
+	structType, ok := tpe.(ast.ApplyFn)
+	if !ok || structType.Function.Symbol != StructType.Symbol {
+		return nil, fmt.Errorf("not a struct type expression: %v", tpe)
+	}
+	var optional []ast.BaseTerm
+	for _, arg := range structType.Args {
+		if IsOptional(arg) {
+			optional = append(optional, arg)
+		}
+	}
+	return optional, nil
+}
+
+// StructTypeField returns field type for given field.
+func StructTypeField(tpe ast.BaseTerm, field ast.Constant) (ast.BaseTerm, error) {
+	elems, err := StructTypeArgs(tpe)
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < len(elems); i++ {
+		var key ast.BaseTerm
+		arg := elems[i]
+		if IsOptional(arg) {
+			key = arg.(ast.ApplyFn).Args[0]
+		} else {
+			key = arg
+		}
+		if key.Equals(field) {
+			if IsOptional(arg) {
+				return arg.(ast.ApplyFn).Args[1], nil
+			}
+			i++
+			return elems[i], err
+		}
+	}
+	return nil, fmt.Errorf("no field %v in %v", field, tpe)
+}
+
 // UnionTypeArgs returns type arguments of a UnionType.
 func UnionTypeArgs(tpe ast.BaseTerm) ([]ast.BaseTerm, error) {
 	unionType, ok := tpe.(ast.ApplyFn)
-	if !ok || unionType.Function != UnionType {
+	if !ok || unionType.Function.Symbol != UnionType.Symbol {
 		return nil, fmt.Errorf("not a union type expression: %v", tpe)
 	}
 	return unionType.Args, nil
@@ -372,11 +496,23 @@ func (t TypeHandle) HasType(c ast.Constant) bool {
 			return len(tpe.Args) == 0
 		}
 		fieldTpeMap := make(map[ast.Constant]TypeHandle)
-		for i := 0; i < len(tpe.Args); i++ {
-			key := tpe.Args[i].(ast.Constant)
+		requiredArgs, err := StructTypeRequiredArgs(tpe)
+		if err != nil {
+			return false
+		}
+		for i := 0; i < len(requiredArgs); i++ {
+			key := requiredArgs[i].(ast.Constant)
 			i++
-			tpe := tpe.Args[i]
-			fieldTpeMap[key] = TypeHandle{tpe}
+			val := requiredArgs[i]
+			fieldTpeMap[key] = TypeHandle{val}
+		}
+		optArgs, err := StructTypeOptionaArgs(tpe)
+		if err != nil {
+			return false
+		}
+		for _, optArg := range optArgs {
+			f := optArg.(ast.ApplyFn)
+			fieldTpeMap[f.Args[0].(ast.Constant)] = TypeHandle{f.Args[1]}
 		}
 		seen := make(map[ast.Constant]bool)
 		e, err := c.StructValues(func(key ast.Constant, val ast.Constant) error {
@@ -451,16 +587,20 @@ func CheckTypeExpression(expr ast.BaseTerm) error {
 			return fmt.Errorf("tuple type must have more than 2 args %v ", expr)
 		}
 		if fn == StructType {
-			if len(args)%2 != 0 {
-				return fmt.Errorf("struct type must have even number of arguments %v ", expr)
+			requiredArgs, err := StructTypeRequiredArgs(expr)
+			if err != nil {
+				return err
 			}
-			for i := 0; i < len(args); i++ {
-				key := args[i]
+			if len(requiredArgs)%2 != 0 {
+				return fmt.Errorf("struct type must have even number of required arguments %v ", expr)
+			}
+			for i := 0; i < len(requiredArgs); i++ {
+				key := requiredArgs[i]
 				if c, ok := key.(ast.Constant); !ok || c.Type != ast.NameType {
 					return fmt.Errorf("in a struct type expression, odd arguments must be name constants, argument %d (%v) is not %v ", i, key, expr)
 				}
 				i++
-				tpe := args[i]
+				tpe := requiredArgs[i]
 				if err := CheckTypeExpression(tpe); err != nil {
 					return fmt.Errorf("in a struct type expression %v : %w", expr, err)
 				}
@@ -545,23 +685,65 @@ func TypeConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
 	}
 	if leftApplyOk && leftApply.Function.Symbol == StructType.Symbol {
 		if rightApplyOk && rightApply.Function.Symbol == StructType.Symbol {
-			if len(leftApply.Args) < len(rightApply.Args) {
+			leftRequired, err := StructTypeRequiredArgs(left)
+			if err != nil {
+				return false
+			}
+			rightRequired, err := StructTypeRequiredArgs(right)
+			if err != nil {
+				return false
+			}
+			if len(leftRequired) < len(rightRequired) {
 				return false
 			}
 			leftMap := make(map[string]ast.BaseTerm)
-			for i := 0; i < len(leftApply.Args); i++ {
-				leftKey, _ := leftApply.Args[i].(ast.Constant)
+			for i := 0; i < len(leftRequired); i++ {
+				leftKey, _ := leftRequired[i].(ast.Constant)
 				i++
-				leftMap[leftKey.Symbol] = leftApply.Args[i]
+				leftMap[leftKey.Symbol] = leftRequired[i]
 			}
 
-			for j := 0; j < len(rightApply.Args); j++ {
-				rightKey, _ := rightApply.Args[j].(ast.Constant)
+			for j := 0; j < len(rightRequired); j++ {
+				rightKey, _ := rightRequired[j].(ast.Constant)
 				j++
-				rightTpe := rightApply.Args[j]
+				rightTpe := rightRequired[j]
 				leftTpe, ok := leftMap[rightKey.Symbol]
 				if !ok || !TypeConforms(leftTpe, rightTpe) {
 					return false
+				}
+			}
+			leftOpt, err := StructTypeOptionaArgs(left)
+			if err != nil {
+				return false
+			}
+			rightOpt, err := StructTypeOptionaArgs(right)
+			if err != nil {
+				return false
+			}
+			leftOptMap := make(map[string]ast.BaseTerm)
+			for _, opt := range leftOpt {
+				optApply, ok := opt.(ast.ApplyFn)
+				if !ok {
+					return false
+				}
+				leftOptMap[optApply.Args[0].(ast.Constant).Symbol] = optApply.Args[1]
+			}
+			for _, opt := range rightOpt {
+				optApply, ok := opt.(ast.ApplyFn)
+				if !ok {
+					return false
+				}
+				key := optApply.Args[0].(ast.Constant).Symbol
+				rightTpe := optApply.Args[1]
+				leftTpe, ok := leftMap[key]
+				if ok && !TypeConforms(leftTpe, rightTpe) {
+					return false
+				}
+				if !ok {
+					leftTpe, ok := leftOptMap[key]
+					if ok && !TypeConforms(leftTpe, rightTpe) {
+						return false
+					}
 				}
 			}
 			return true

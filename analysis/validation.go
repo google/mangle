@@ -759,11 +759,13 @@ func (a *Analyzer) checkFunctions(clause ast.Clause) error {
 
 // BoundsCheck checks whether the rules respect the bounds.
 func (bc *BoundsAnalyzer) BoundsCheck() error {
-	preds := make([]ast.PredicateSym, len(bc.programInfo.IdbPredicates))
-	i := 0
+	var preds []ast.PredicateSym
+
 	for pred := range bc.programInfo.IdbPredicates {
-		preds[i] = pred
-		i++
+		preds = append(preds, pred)
+	}
+	for pred := range bc.initialFactMap {
+		preds = append(preds, pred)
 	}
 	// Fix the order in which we do our checks.
 	sort.Slice(preds, func(i, j int) bool { return preds[i].Symbol < preds[j].Symbol })
@@ -772,6 +774,7 @@ func (bc *BoundsAnalyzer) BoundsCheck() error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -828,7 +831,100 @@ func (bc *BoundsAnalyzer) checkClauses(decl *ast.Decl) error {
 
 // feasibleAlternatives returns those alternatives from a relation type expression that
 // make sense for a given list of arguments and type assignments.
-func (bc *BoundsAnalyzer) feasibleAlternatives(relTypeExpr ast.BaseTerm, args []ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm) ([]ast.BaseTerm, error) {
+func (bc *BoundsAnalyzer) feasibleAlternatives(
+	pred ast.PredicateSym, relTypeExpr ast.BaseTerm, args []ast.BaseTerm,
+	varRanges map[ast.Variable]ast.BaseTerm) ([]ast.BaseTerm, error) {
+
+	if pred.Symbol == symbols.ListMember.Symbol {
+		tpe := boundOfArg(args[1], varRanges, bc.nameTrie)
+		if symbols.IsListTypeExpression(tpe) {
+			elemTpe, err := symbols.ListTypeArg(tpe)
+			if err != nil {
+				return nil, err
+			}
+			var bound ast.BaseTerm
+			if v, ok := args[0].(ast.Variable); ok {
+				if _, ok := varRanges[v]; ok {
+					bound = varRanges[v]
+				} else {
+					bound = elemTpe // a new variable binding
+				}
+			} else {
+				bound = boundOfArg(args[0], varRanges, bc.nameTrie)
+			}
+			meet := symbols.LowerBound([]ast.BaseTerm{bound, elemTpe})
+			if !meet.Equals(symbols.EmptyType) {
+				return []ast.BaseTerm{symbols.NewRelType(meet, tpe)}, nil
+			}
+			return nil, fmt.Errorf("pred %v on args %v cannot succeed var ranges %v", pred, args, varRanges)
+		}
+	}
+	if pred.Symbol == symbols.MatchEntry.Symbol {
+		tpe := boundOfArg(args[0], varRanges, bc.nameTrie)
+		if symbols.IsMapTypeExpression(tpe) {
+			keyType, valTpe, err := symbols.MapTypeArgs(tpe)
+			if err != nil {
+				return nil, err
+			}
+			var bound ast.BaseTerm
+			if v, ok := args[1].(ast.Variable); ok {
+				if _, ok := varRanges[v]; ok {
+					bound = varRanges[v]
+				} else {
+					bound = tpe // a new variable binding
+				}
+			} else {
+				bound = boundOfArg(args[1], varRanges, bc.nameTrie)
+			}
+
+			meet := symbols.LowerBound([]ast.BaseTerm{bound, keyType})
+			if !meet.Equals(symbols.EmptyType) {
+				var valbound ast.BaseTerm
+				if v, ok := args[2].(ast.Variable); ok {
+					if _, ok := varRanges[v]; ok {
+						valbound = varRanges[v]
+					} else {
+						valbound = valTpe // a new variable binding
+					}
+				} else {
+					valbound = boundOfArg(args[2], varRanges, bc.nameTrie)
+				}
+
+				valmeet := symbols.LowerBound([]ast.BaseTerm{valbound, valTpe})
+				if !valmeet.Equals(symbols.EmptyType) {
+					return []ast.BaseTerm{symbols.NewRelType(tpe, keyType, valmeet)}, nil
+				}
+				return nil, fmt.Errorf("pred %v on args %v val type mismatch got %v want %v", pred, args, valbound, valTpe)
+			}
+			return nil, fmt.Errorf("pred %v on args %v key type mismatch got %v want %v", pred, args, bound, keyType)
+		}
+	}
+	if pred.Symbol == symbols.MatchField.Symbol {
+		tpe := boundOfArg(args[0], varRanges, bc.nameTrie)
+		if symbols.IsStructTypeExpression(tpe) {
+			fieldTpe, err := symbols.StructTypeField(tpe, args[1].(ast.Constant))
+			if err != nil {
+				return nil, err
+			}
+
+			var bound ast.BaseTerm
+			if v, ok := args[2].(ast.Variable); ok {
+				if _, ok := varRanges[v]; ok {
+					bound = varRanges[v]
+				} else {
+					bound = fieldTpe // a new variable binding
+				}
+			} else {
+				bound = boundOfArg(args[2], varRanges, bc.nameTrie)
+			}
+
+			meet := symbols.LowerBound([]ast.BaseTerm{bound, fieldTpe})
+			if !meet.Equals(symbols.EmptyType) {
+				return []ast.BaseTerm{symbols.NewRelType(ast.AnyBound, ast.NameBound, meet)}, nil
+			}
+			return nil, fmt.Errorf("pred %v on args %v cannot succeed var ranges %v", pred, args, varRanges)
+		}
+	}
 	alternatives := symbols.RelTypeAlternatives(relTypeExpr)
 
 	// Construct a relation type from what we know.
@@ -875,16 +971,13 @@ func (bc *BoundsAnalyzer) getOrInferRelTypes(
 	pred ast.PredicateSym,
 	args []ast.BaseTerm,
 	varRanges map[ast.Variable]ast.BaseTerm) ([]ast.BaseTerm, error) {
-	if pred.IsBuiltin() {
-		return bc.feasibleAlternatives(bc.relTypeMap[pred], args, varRanges)
-	}
 
 	if relType, ok := bc.relTypeMap[pred]; ok {
-		return bc.feasibleAlternatives(relType, args, varRanges)
+		return bc.feasibleAlternatives(pred, relType, args, varRanges)
 	}
 
 	if relType, ok := bc.inferred[pred]; ok {
-		return bc.feasibleAlternatives(relType, args, varRanges)
+		return bc.feasibleAlternatives(pred, relType, args, varRanges)
 	}
 
 	if bc.visiting[pred] {
@@ -904,7 +997,7 @@ func (bc *BoundsAnalyzer) getOrInferRelTypes(
 		return nil, err
 	}
 	bc.inferred[pred] = relTypeExpr
-	return bc.feasibleAlternatives(relTypeExpr, args, varRanges)
+	return bc.feasibleAlternatives(pred, relTypeExpr, args, varRanges)
 }
 
 // inferRelType infers a relation type from rules when no decl is available.
@@ -1002,7 +1095,7 @@ func (bc *BoundsAnalyzer) inferRelTypesFromPremise(premises []ast.Term, state *i
 			err          error
 		)
 		if declared, ok := bc.relTypeMap[atom.Predicate]; ok {
-			alternatives, err = bc.feasibleAlternatives(declared, atom.Args, state.asMap())
+			alternatives, err = bc.feasibleAlternatives(atom.Predicate, declared, atom.Args, state.asMap())
 		} else {
 			alternatives, err = bc.getOrInferRelTypes(atom.Predicate, atom.Args, state.asMap())
 		}
@@ -1032,7 +1125,7 @@ func (bc *BoundsAnalyzer) inferRelTypesFromPremise(premises []ast.Term, state *i
 			err          error
 		)
 		if declared, ok := bc.relTypeMap[atom.Predicate]; ok {
-			alternatives, err = bc.feasibleAlternatives(declared, atom.Args, state.asMap())
+			alternatives, err = bc.feasibleAlternatives(atom.Predicate, declared, atom.Args, state.asMap())
 		} else {
 			alternatives, err = bc.getOrInferRelTypes(atom.Predicate, atom.Args, state.asMap())
 		}
@@ -1154,6 +1247,37 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 				return z
 			}
 			return prefixType(nameTrie, z.Symbol)
+		case ast.ListShape:
+			var args []ast.BaseTerm
+			z.ListValues(func(arg ast.Constant) error {
+				args = append(args, arg)
+				return nil
+			}, func() error {
+				return nil
+			})
+
+			return boundOfArg(ast.ApplyFn{symbols.List, args}, varRanges, nameTrie)
+		case ast.MapShape:
+			var args []ast.BaseTerm
+			z.MapValues(func(keyArg, valArg ast.Constant) error {
+				args = append(args, keyArg)
+				args = append(args, valArg)
+				return nil
+			}, func() error {
+				return nil
+			})
+			return boundOfArg(ast.ApplyFn{symbols.Map, args}, varRanges, nameTrie)
+		case ast.StructShape:
+			var args []ast.BaseTerm
+			z.StructValues(func(fieldArg, valArg ast.Constant) error {
+				args = append(args, fieldArg)
+				args = append(args, valArg)
+				return nil
+			}, func() error {
+				return nil
+			})
+			return boundOfArg(ast.ApplyFn{symbols.Struct, args}, varRanges, nameTrie)
+
 		default:
 			return ast.AnyBound // This cannot happen
 		}
@@ -1172,7 +1296,28 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 			for _, arg := range z.Args {
 				argTypes = append(argTypes, boundOfArg(arg, varRanges, nameTrie))
 			}
-			return ast.ApplyFn{symbols.ListType, []ast.BaseTerm{symbols.UpperBound(argTypes)}}
+			return symbols.NewListType(symbols.UpperBound(argTypes))
+
+		case symbols.Map:
+			var keyTpes []ast.BaseTerm
+			var valTpes []ast.BaseTerm
+			for i := 0; i < len(z.Args); i++ {
+				keyTpes = append(keyTpes, boundOfArg(z.Args[i], varRanges, nameTrie))
+				i++
+				valTpes = append(valTpes, boundOfArg(z.Args[i], varRanges, nameTrie))
+			}
+			return symbols.NewMapType(symbols.UpperBound(keyTpes), symbols.UpperBound(valTpes))
+
+		case symbols.Struct:
+			var fields []ast.BaseTerm
+			for i := 0; i < len(z.Args); i++ {
+				fields = append(fields, z.Args[i])
+				i++
+				fields = append(fields, boundOfArg(z.Args[i], varRanges, nameTrie))
+			}
+
+			return symbols.NewStructType(fields...)
+
 		case symbols.Pair:
 			leftTpe := boundOfArg(z.Args[0], varRanges, nameTrie)
 			rightTpe := boundOfArg(z.Args[1], varRanges, nameTrie)

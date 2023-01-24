@@ -183,7 +183,7 @@ func (i *Interpreter) Load(pathset string) error {
 }
 
 func (i *Interpreter) pushLoadedFragment(pathset string, units []parse.SourceUnit) error {
-	programInfo, err := analysis.Analyze(units, i.knownPredicates)
+	programInfo, err := analysis.AnalyzeAndCheckBounds(units, i.knownPredicates, analysis.ErrorForBoundsMismatch)
 	if err != nil {
 		return err
 	}

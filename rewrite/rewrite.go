@@ -17,6 +17,7 @@ package rewrite
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/google/mangle/analysis"
 	"github.com/google/mangle/ast"
@@ -68,11 +69,16 @@ func (gen nameGen) freshPredicateName(sym ast.PredicateSym, arity int) ast.Predi
 }
 
 func makeHead(sym ast.PredicateSym, vars map[ast.Variable]bool) ast.Atom {
-	var args []ast.BaseTerm
+	var orderedVars []ast.BaseTerm
 	for v := range vars {
-		args = append(args, v)
+		orderedVars = append(orderedVars, v)
 	}
-	return ast.Atom{sym, args}
+	// Make the order deterministic. This makes tmp relations reusable between
+	// multiple evaluation runs, e.g. for incremental evaluation.
+	sort.Slice(orderedVars, func(i int, j int) bool {
+		return orderedVars[i].Hash() < orderedVars[j].Hash()
+	})
+	return ast.Atom{sym, orderedVars}
 }
 
 // Get the variables. It is enough to consider those terms where variables

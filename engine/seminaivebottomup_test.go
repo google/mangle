@@ -96,6 +96,41 @@ func TestSingleDeltaRule(t *testing.T) {
 	}
 }
 
+func TestRewriteIdempotency(t *testing.T) {
+	store := factstore.NewSimpleInMemoryStore()
+	store.Add(atom(`attr("node", "name", 1, "description")`))
+	program := []ast.Clause{
+		clause(`
+	attrs(Node, Attrs) :- attr(Node, Name, Value, Description),
+		Attr = fn:tuple(Name, Value, Description)
+		|> do fn:group_by(Node), let Attrs=fn:collect(Attr).
+	`),
+	}
+
+	programInfo, err := analysis.AnalyzeOneUnit(parse.SourceUnit{Clauses: program}, asMap(store.ListPredicates()))
+	if err != nil {
+		t.Fatalf("analysis: %v", err)
+	}
+	for _, f := range programInfo.InitialFacts {
+		store.Add(f)
+	}
+
+	if err := EvalProgram(programInfo, store); err != nil {
+		t.Fatalf("Program evaluation failed %v program %v", err, program)
+	}
+	facts := store.EstimateFactCount()
+
+	for i := 0; i < 10; i++ {
+		if err := EvalProgram(programInfo, store); err != nil {
+			t.Fatalf("Program evaluation failed %v program %v", err, program)
+		}
+	}
+
+	if store.EstimateFactCount() != facts {
+		t.Fatalf("Unexpected number of facts %v, expected: %v.", store.EstimateFactCount(), facts+1)
+	}
+}
+
 func TestNegation(t *testing.T) {
 	store := factstore.NewSimpleInMemoryStore()
 	negationProgram := []ast.Clause{

@@ -29,6 +29,7 @@ import (
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/builtin"
 	"github.com/google/mangle/factstore"
+	"github.com/google/mangle/functional"
 	"github.com/google/mangle/rewrite"
 	"github.com/google/mangle/unionfind"
 )
@@ -123,7 +124,7 @@ func EvalProgramWithStats(programInfo *analysis.ProgramInfo, store factstore.Fac
 
 func (e *engine) evalStrata() error {
 	for _, fact := range e.programInfo.InitialFacts {
-		f, err := builtin.EvalAtom(fact, nil)
+		f, err := functional.EvalAtom(fact, nil)
 		if err != nil {
 			return err
 		}
@@ -303,7 +304,7 @@ func (e *engine) eval() error {
 		})
 		var merr error
 		EvalTransform(clause.Head, *clause.Transform, substs, func(a ast.Atom) bool {
-			a, err := builtin.EvalAtom(a, ast.ConstSubstList{})
+			a, err := functional.EvalAtom(a, ast.ConstSubstList{})
 			if err != nil {
 				merr = multierr.Append(merr, err)
 				return false
@@ -339,7 +340,7 @@ func (e *engine) oneStepEvalClause(clause ast.Clause) ([]ast.Atom, error) {
 
 	var facts []ast.Atom
 	for _, sol := range solutions {
-		head, err := builtin.EvalAtom(clause.Head, sol)
+		head, err := functional.EvalAtom(clause.Head, sol)
 		if err != nil {
 			return nil, err
 		}
@@ -364,7 +365,7 @@ func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind)
 	var solutions []unionfind.UnionFind
 	switch p := premise.(type) {
 	case ast.Atom:
-		p, err := builtin.EvalAtom(p, subst)
+		p, err := functional.EvalAtom(p, subst)
 		if err != nil {
 			return nil, err
 		}
@@ -399,7 +400,7 @@ func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind)
 		return solutions, nil
 
 	case ast.NegAtom:
-		n, err := builtin.EvalAtom(p.Atom, subst)
+		n, err := functional.EvalAtom(p.Atom, subst)
 		if err != nil {
 			return nil, err
 		}
@@ -416,7 +417,7 @@ func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind)
 			return []unionfind.UnionFind{subst}, nil
 		}
 	case ast.Eq:
-		left, right, err := builtin.EvalBaseTermPair(p.Left, p.Right, subst)
+		left, right, err := functional.EvalBaseTermPair(p.Left, p.Right, subst)
 		if err != nil {
 			return nil, err
 		}
@@ -428,7 +429,7 @@ func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind)
 		return []unionfind.UnionFind{nsubst}, nil
 
 	case ast.Ineq:
-		left, right, err := builtin.EvalBaseTermPair(p.Left, p.Right, subst)
+		left, right, err := functional.EvalBaseTermPair(p.Left, p.Right, subst)
 		if err != nil {
 			return nil, err
 		}

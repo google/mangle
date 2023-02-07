@@ -21,6 +21,7 @@ import (
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/builtin"
 	"github.com/google/mangle/factstore"
+	"github.com/google/mangle/functional"
 	"github.com/google/mangle/parse"
 	"github.com/google/mangle/unionfind"
 )
@@ -147,7 +148,7 @@ func (e naiveEngine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionF
 	var solutions []unionfind.UnionFind
 	switch p := premise.(type) {
 	case ast.Atom:
-		p, err := builtin.EvalAtom(p, subst)
+		p, err := functional.EvalAtom(p, subst)
 		if err != nil {
 			return nil
 		}
@@ -175,7 +176,7 @@ func (e naiveEngine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionF
 			return nil
 		})
 	case ast.NegAtom:
-		a, err := builtin.EvalAtom(p.Atom, subst)
+		a, err := functional.EvalAtom(p.Atom, subst)
 		if err != nil {
 			return nil
 		}

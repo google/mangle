@@ -20,7 +20,7 @@ import (
 
 	"bitbucket.org/creachadair/stringset"
 	"github.com/google/mangle/ast"
-	"github.com/google/mangle/builtin"
+	"github.com/google/mangle/functional"
 	"github.com/google/mangle/parse"
 )
 
@@ -37,7 +37,7 @@ func evalAtom(s string) ast.Atom {
 	if err != nil {
 		panic(err)
 	}
-	eval, err := builtin.EvalAtom(term.(ast.Atom), nil)
+	eval, err := functional.EvalAtom(term.(ast.Atom), nil)
 	if err != nil {
 		panic(err)
 	}

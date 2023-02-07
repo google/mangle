@@ -21,8 +21,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/mangle/analysis"
 	"github.com/google/mangle/ast"
-	"github.com/google/mangle/builtin"
 	"github.com/google/mangle/factstore"
+	"github.com/google/mangle/functional"
 	"github.com/google/mangle/parse"
 	"github.com/google/mangle/unionfind"
 )
@@ -362,7 +362,7 @@ func TestTransform(t *testing.T) {
 		return
 	}
 
-	wantAtom, err := builtin.EvalAtom(atom("max_inner(50, fn:pair(1,2))"), ast.ConstSubstList{})
+	wantAtom, err := functional.EvalAtom(atom("max_inner(50, fn:pair(1,2))"), ast.ConstSubstList{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -460,7 +460,7 @@ func TestTransformPartsExplosion(t *testing.T) {
 		t.Errorf("Program evaluation failed %v program %v", err, program)
 		return
 	}
-	transitiveAtom, err := builtin.EvalAtom(atom("transitive(2,7,12,[6])"), ast.ConstSubstList{})
+	transitiveAtom, err := functional.EvalAtom(atom("transitive(2,7,12,[6])"), ast.ConstSubstList{})
 	if err != nil {
 		t.Fatal(err)
 	}

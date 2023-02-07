@@ -18,10 +18,10 @@ package builtin
 import (
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 
 	"github.com/google/mangle/ast"
+	"github.com/google/mangle/functional"
 	"github.com/google/mangle/symbols"
 	"github.com/google/mangle/unionfind"
 )
@@ -68,9 +68,6 @@ var (
 		symbols.Sum:             {},
 		symbols.Count:           {},
 	}
-
-	// ErrDivisionByZero indicates a division by zero runtime error.
-	ErrDivisionByZero = errors.New("div by zero")
 
 	// errFound is used for exiting a loop
 	errFound = errors.New("found")
@@ -147,7 +144,7 @@ func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, []*unionfind.Union
 		return nums[0] <= nums[1], []*unionfind.UnionFind{subst}, nil
 
 	case symbols.ListMember.Symbol: // :list:member(Member, List)
-		evaluatedArg, err := EvalExpr(atom.Args[1], subst)
+		evaluatedArg, err := functional.EvalExpr(atom.Args[1], subst)
 		if err != nil {
 			return false, nil, err
 		}
@@ -162,19 +159,18 @@ func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, []*unionfind.Union
 			_, memberIsVar = evaluatedMember.(ast.Variable)
 		}
 		if !memberIsVar { // We are looking for a member
-			res, err := EvalExpr(
+			res, err := functional.EvalExpr(
 				ast.ApplyFn{symbols.ListContains, []ast.BaseTerm{evaluatedArg, evaluatedMember}}, nil)
 			if err != nil {
 				return false, nil, err
 			}
 			return res.Equals(ast.TrueConstant), []*unionfind.UnionFind{subst}, nil
 		}
-		list, err := getListValue(c)
-		if err != nil {
+		if c.Type != ast.ListShape {
 			return false, nil, nil // If expanding fails, this is not an error.
 		}
 		var values []ast.Constant
-		list.ListValues(func(elem ast.Constant) error {
+		c.ListValues(func(elem ast.Constant) error {
 			values = append(values, elem)
 			return nil
 		}, func() error { return nil })
@@ -206,7 +202,7 @@ func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, []*unionfind.Union
 }
 
 func match(pattern ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.UnionFind, error) {
-	evaluatedArg, err := EvalExpr(pattern.Args[0], subst)
+	evaluatedArg, err := functional.EvalExpr(pattern.Args[0], subst)
 	if err != nil {
 		return false, nil, err
 	}
@@ -330,292 +326,6 @@ func match(pattern ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.Union
 	}
 }
 
-// EvalApplyFn evaluates a built-in function application.
-func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
-	evaluatedArgs, err := EvalExprs(applyFn.Args, subst)
-	if err != nil {
-		return ast.Constant{}, err
-	}
-	switch applyFn.Function.Symbol {
-	case symbols.Append.Symbol:
-		list, err := getListValue(evaluatedArgs[0])
-		if err != nil {
-			return ast.Constant{}, fmt.Errorf("expected list got %v (%v) in %v (subst %v)", evaluatedArgs[0], evaluatedArgs[0].Type, applyFn, subst)
-		}
-		elem := evaluatedArgs[1]
-		var res []ast.Constant
-		list.ListValues(func(c ast.Constant) error {
-			res = append(res, c)
-			return nil
-		}, func() error { return nil })
-		res = append(res, elem)
-		return ast.List(res), nil
-
-	case symbols.ListContains.Symbol: // fn:list:contains(List, Member)
-		list, err := getListValue(evaluatedArgs[0])
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		elem := evaluatedArgs[1]
-		_, loopErr := list.ListValues(func(c ast.Constant) error {
-			if c.Equals(elem) {
-				return errFound
-			}
-			return nil
-		}, func() error { return nil })
-		if errors.Is(loopErr, errFound) {
-			return ast.TrueConstant, nil
-		}
-		if loopErr != nil {
-			return ast.Constant{}, loopErr
-		}
-		return ast.FalseConstant, nil
-
-	case symbols.Cons.Symbol:
-		fst := evaluatedArgs[0]
-		snd, err := getListValue(evaluatedArgs[1])
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return ast.ListCons(&fst, &snd), nil
-
-	case symbols.Pair.Symbol:
-		fst := evaluatedArgs[0]
-		snd := evaluatedArgs[1]
-		return ast.Pair(&fst, &snd), nil
-
-	case symbols.Len.Symbol:
-		list := evaluatedArgs[0]
-		var length int64
-		err, _ := list.ListValues(func(c ast.Constant) error {
-			length++
-			return nil
-		}, func() error { return nil })
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return ast.Number(length), nil
-
-	case symbols.List.Symbol:
-		list := &ast.ListNil
-		for i := len(evaluatedArgs) - 1; i >= 0; i-- {
-			elem := evaluatedArgs[i]
-			next := ast.ListCons(&elem, list)
-			list = &next
-		}
-		return *list, nil
-
-	case symbols.Map.Symbol:
-		kvMap := make(map[*ast.Constant]*ast.Constant)
-		for i := 0; i < len(evaluatedArgs); i++ {
-			label := &evaluatedArgs[i]
-			i++
-			value := &evaluatedArgs[i]
-			kvMap[label] = value
-		}
-		return *ast.Map(kvMap), nil
-
-	case symbols.Struct.Symbol:
-		kvMap := make(map[*ast.Constant]*ast.Constant)
-		for i := 0; i < len(evaluatedArgs); i++ {
-			label := &evaluatedArgs[i]
-			i++
-			value := &evaluatedArgs[i]
-			kvMap[label] = value
-		}
-		return *ast.Struct(kvMap), nil
-
-	case symbols.Tuple.Symbol:
-		if len(evaluatedArgs) == 1 {
-			return evaluatedArgs[0], nil
-		}
-		width := len(evaluatedArgs)
-		pair, err := EvalApplyFn(ast.ApplyFn{symbols.Pair, applyFn.Args[width-2:]}, subst)
-		if err != nil {
-			return ast.Constant{}, fmt.Errorf("could not eval args %v (subst %v)", applyFn, subst)
-		}
-		tuple := &pair
-		for i := width - 3; i >= 0; i-- {
-			arg := evaluatedArgs[i]
-			next := ast.Pair(&arg, tuple)
-			tuple = &next
-		}
-		return *tuple, nil
-
-	case symbols.Max.Symbol:
-		list, err := getListValue(evaluatedArgs[0])
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return evalMax(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if _, err = list.ListValues(cbNext, cbNil); err != nil {
-				return err
-			}
-			return nil
-		})
-
-	case symbols.FloatMax.Symbol:
-		list, err := getListValue(evaluatedArgs[0])
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return evalFloatMax(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if _, err = list.ListValues(cbNext, cbNil); err != nil {
-				return err
-			}
-			return nil
-		})
-
-	case symbols.Min.Symbol:
-		list, err := getListValue(evaluatedArgs[0])
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return evalMin(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if _, err = list.ListValues(cbNext, cbNil); err != nil {
-				return err
-			}
-			return nil
-		})
-
-	case symbols.FloatMin.Symbol:
-		list, err := getListValue(evaluatedArgs[0])
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return evalFloatMin(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if _, err = list.ListValues(cbNext, cbNil); err != nil {
-				return err
-			}
-			return nil
-		})
-
-	case symbols.Sum.Symbol:
-		list, err := getListValue(evaluatedArgs[0])
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return evalSum(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if _, err = list.ListValues(cbNext, cbNil); err != nil {
-				return err
-			}
-			return nil
-		})
-
-	case symbols.FloatSum.Symbol:
-		list, err := getListValue(evaluatedArgs[0])
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return evalFloatSum(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if _, err = list.ListValues(cbNext, cbNil); err != nil {
-				return err
-			}
-			return nil
-		})
-
-	case symbols.ListGet.Symbol:
-		arg, err := getListValue(evaluatedArgs[0])
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		indexConstant := evaluatedArgs[1]
-		index, err := getNumberValue(indexConstant)
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		i := 0
-		var res *ast.Constant
-		_, loopErr := arg.ListValues(func(c ast.Constant) error {
-			if i == int(index) {
-				res = &c
-				return errFound
-			}
-			i++
-			return nil
-		}, func() error {
-			return nil
-		})
-		if errors.Is(loopErr, errFound) {
-			return *res, nil
-		}
-		return ast.Constant{}, fmt.Errorf("index out of bounds: %d", index)
-
-	case symbols.MapGet.Symbol:
-		arg, err := getMapValue(evaluatedArgs[0])
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		lookupKey := evaluatedArgs[1]
-		var res *ast.Constant
-		_, loopErr := arg.MapValues(func(key ast.Constant, val ast.Constant) error {
-			if key.Equals(lookupKey) {
-				res = &val
-				return errFound
-			}
-			return nil
-		}, func() error {
-			return nil
-		})
-		if errors.Is(loopErr, errFound) {
-			return *res, nil
-		}
-		return ast.Constant{}, fmt.Errorf("key does not exist: %v", lookupKey)
-
-	case symbols.StructGet.Symbol:
-		arg, err := getStructValue(evaluatedArgs[0])
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		lookupField := evaluatedArgs[1]
-		var res *ast.Constant
-		_, loopErr := arg.StructValues(func(field ast.Constant, val ast.Constant) error {
-			if field.Equals(lookupField) {
-				res = &val
-				return errFound
-			}
-			return nil
-		}, func() error {
-			return nil
-		})
-		if errors.Is(loopErr, errFound) {
-			return *res, nil
-		}
-		return ast.Constant{}, fmt.Errorf("key does not exist: %v", lookupField)
-
-	default:
-		return EvalNumericApplyFn(applyFn, subst)
-	}
-}
-
-// EvalNumericApplyFn evaluates a numeric built-in function application.
-func EvalNumericApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
-	evaluatedArgs, err := EvalExprs(applyFn.Args, subst)
-	if err != nil {
-		return ast.Constant{}, err
-	}
-	args, err := getNumberValues(evaluatedArgs)
-	if err != nil {
-		return ast.Constant{}, err
-	}
-	switch applyFn.Function.Symbol {
-	case symbols.Div.Symbol:
-		res, err := evalDiv(args)
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return ast.Number(res), nil
-	case symbols.Mult.Symbol:
-		return ast.Number(evalMult(args)), nil
-	case symbols.Plus.Symbol:
-		return ast.Number(evalPlus(args)), nil
-	case symbols.Minus.Symbol:
-		return ast.Number(evalMinus(args)), nil
-	default:
-		return ast.Constant{}, fmt.Errorf("unknown function %s in %s", applyFn, applyFn.Function)
-	}
-}
-
 func getStringValue(baseTerm ast.BaseTerm) (string, error) {
 	constant, ok := baseTerm.(ast.Constant)
 	if !ok || constant.Type != ast.StringType {
@@ -687,251 +397,6 @@ func abs(x int64) int64 {
 	return x
 }
 
-func evalDiv(args []int64) (int64, error) {
-	if len(args) == 1 {
-		switch args[0] {
-		case 0:
-			return 0, ErrDivisionByZero
-		case 1:
-			return 1, nil
-		default:
-			return 0, nil // integer division 1 / arg[0]
-		}
-	}
-	res := args[0]
-	for _, divisor := range args[1:] {
-		if divisor == 0 {
-			return 0, ErrDivisionByZero
-		}
-		res = res / divisor
-		if res == 0 {
-			return 0, nil
-		}
-	}
-	return res, nil
-}
-
-func evalMult(args []int64) int64 {
-	var product int64 = 1
-	for _, factor := range args {
-		product = product * factor
-	}
-	return product
-}
-
-func evalPlus(args []int64) int64 {
-	var sum int64 = 0
-	for _, num := range args {
-		sum += num
-	}
-	return sum
-}
-
-func evalMinus(args []int64) int64 {
-	if len(args) == 1 {
-		return -args[0]
-	}
-	var diff int64 = args[0]
-	for _, num := range args[1:] {
-		diff -= num
-	}
-	return diff
-}
-
-// EvalReduceFn evaluates a combiner (reduce) function.
-func EvalReduceFn(reduceFn ast.ApplyFn, rows []ast.ConstSubstList) (ast.Constant, error) {
-	distinct := false
-	switch reduceFn.Function.Symbol {
-	case symbols.CollectDistinct.Symbol:
-		distinct = true
-		fallthrough
-	case symbols.Collect.Symbol:
-		tuples := &ast.ListNil
-		seen := make(map[uint64][]ast.Constant)
-	rowloop:
-		for i := len(rows) - 1; i >= 0; i-- {
-			subst := rows[i]
-			tuple := make([]ast.BaseTerm, 0, len(reduceFn.Args))
-			for _, v := range reduceFn.Args {
-				v, err := EvalExpr(v, subst)
-				if err != nil {
-					continue rowloop
-				}
-				constant, ok := v.(ast.Constant)
-				if !ok {
-					continue rowloop
-				}
-				tuple = append(tuple, constant)
-			}
-			head, err := EvalApplyFn(ast.ApplyFn{symbols.Tuple, tuple}, subst)
-			if err != nil {
-				continue rowloop
-			}
-			if !distinct {
-				next := ast.ListCons(&head, tuples)
-				tuples = &next
-				continue
-			}
-
-			previousConstants, ok := seen[head.Hash()]
-			if ok {
-				for _, prev := range previousConstants {
-					if prev.Equals(head) {
-						continue rowloop
-					}
-				}
-				seen[head.Hash()] = append(seen[head.Hash()], head)
-			} else {
-				seen[head.Hash()] = []ast.Constant{head}
-			}
-			next := ast.ListCons(&head, tuples)
-			tuples = &next
-		}
-		return *tuples, nil
-	case symbols.Count.Symbol:
-		return ast.Number(int64(len(rows))), nil
-	case symbols.Max.Symbol:
-		v := reduceFn.Args[0].(ast.Variable)
-		return evalMax(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			for _, subst := range rows {
-				if num, ok := subst.Get(v).(ast.Constant); ok {
-					if err := cbNext(num); err != nil {
-						return err
-					}
-				}
-			}
-			if err := cbNil(); err != nil {
-				return err
-			}
-			return nil
-		})
-	case symbols.FloatMax.Symbol:
-		v := reduceFn.Args[0].(ast.Variable)
-		return evalFloatMax(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			for _, subst := range rows {
-				if num, ok := subst.Get(v).(ast.Constant); ok {
-					if err := cbNext(num); err != nil {
-						return err
-					}
-				}
-			}
-			return cbNil()
-		})
-	case symbols.Min.Symbol:
-		v := reduceFn.Args[0].(ast.Variable)
-		return evalMin(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			for _, subst := range rows {
-				if num, ok := subst.Get(v).(ast.Constant); ok {
-					if err := cbNext(num); err != nil {
-						return err
-					}
-				}
-			}
-			return cbNil()
-		})
-	case symbols.FloatMin.Symbol:
-		v := reduceFn.Args[0].(ast.Variable)
-		return evalFloatMin(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			for _, subst := range rows {
-				if num, ok := subst.Get(v).(ast.Constant); ok {
-					if err := cbNext(num); err != nil {
-						return err
-					}
-				}
-			}
-			return cbNil()
-		})
-	case symbols.Sum.Symbol:
-		v := reduceFn.Args[0].(ast.Variable)
-		return evalSum(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			for _, subst := range rows {
-				if num, ok := subst.Get(v).(ast.Constant); ok {
-					if err := cbNext(num); err != nil {
-						return err
-					}
-				}
-			}
-			return cbNil()
-		})
-	case symbols.FloatSum.Symbol:
-		v := reduceFn.Args[0].(ast.Variable)
-		return evalFloatSum(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			for _, subst := range rows {
-				if num, ok := subst.Get(v).(ast.Constant); ok {
-					if err := cbNext(num); err != nil {
-						return err
-					}
-				}
-			}
-			return cbNil()
-		})
-	default:
-		return ast.Constant{}, fmt.Errorf("unknown reducer %v", reduceFn.Function)
-	}
-}
-
-// EvalAtom returns an atom with any apply-expressions evaluated.
-func EvalAtom(a ast.Atom, subst ast.Subst) (ast.Atom, error) {
-	args, err := EvalExprsBase(a.Args, subst)
-	if err != nil {
-		return ast.Atom{}, err
-	}
-	return ast.Atom{a.Predicate, args}, nil
-}
-
-// EvalBaseTermPair evaluates a pair of base terms.
-func EvalBaseTermPair(left, right ast.BaseTerm, subst ast.Subst) (ast.BaseTerm, ast.BaseTerm, error) {
-	var err error
-	left, err = EvalExpr(left, subst)
-	if err != nil {
-		return nil, nil, err
-	}
-	right, err = EvalExpr(right, subst)
-	if err != nil {
-		return nil, nil, err
-	}
-	return left, right, nil
-}
-
-// EvalExpr evaluates any apply-expression in b and applies subst.
-func EvalExpr(b ast.BaseTerm, subst ast.Subst) (ast.BaseTerm, error) {
-	expr, ok := b.(ast.ApplyFn)
-	if !ok {
-		return b.ApplySubstBase(subst), nil
-	}
-	return EvalApplyFn(expr, subst)
-}
-
-// EvalExprsBase evaluates any apply-expressions in args and applies subst.
-func EvalExprsBase(args []ast.BaseTerm, subst ast.Subst) ([]ast.BaseTerm, error) {
-	res := make([]ast.BaseTerm, len(args))
-	for i, expr := range args {
-		r, err := EvalExpr(expr, subst)
-		if err != nil {
-			return nil, err
-		}
-		res[i] = r
-	}
-	return res, nil
-}
-
-// EvalExprs evaluates any apply-expressions in args and applies subst.
-func EvalExprs(args []ast.BaseTerm, subst ast.Subst) ([]ast.Constant, error) {
-	res := make([]ast.Constant, len(args))
-	for i, expr := range args {
-		r, err := EvalExpr(expr, subst)
-		if err != nil {
-			return nil, err
-		}
-		c, ok := r.(ast.Constant)
-		if !ok {
-			return nil, fmt.Errorf("evaluation produced something that is not a value: %v %T", r, r)
-		}
-		res[i] = c
-	}
-	return res, nil
-}
-
 // TypeChecker checks the type of constant (run-time type).
 type TypeChecker struct {
 	decls map[ast.PredicateSym]*ast.Decl
@@ -986,102 +451,4 @@ func (t TypeChecker) CheckOneBoundDecl(fact ast.Atom, boundDecl ast.BoundDecl) e
 		}
 	}
 	return nil
-}
-
-func evalMax(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
-	max := int64(math.MinInt64)
-	if err := iter(func(c ast.Constant) error {
-		num, err := getNumberValue(c)
-		if err != nil {
-			return err
-		}
-		if num > max {
-			max = num
-		}
-		return nil
-	}, func() error { return nil }); err != nil {
-		return ast.Constant{}, err
-	}
-	return ast.Number(max), nil
-}
-
-func evalFloatMax(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
-	max := -1 * math.MaxFloat64
-	if err := iter(func(c ast.Constant) error {
-		num, err := getFloatValue(c)
-		if err != nil {
-			return err
-		}
-		if num > max {
-			max = num
-		}
-		return nil
-	}, func() error { return nil }); err != nil {
-		return ast.Constant{}, err
-	}
-	return ast.Float64(max), nil
-}
-
-func evalMin(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
-	min := int64(math.MaxInt64)
-	if err := iter(func(c ast.Constant) error {
-		num, err := getNumberValue(c)
-		if err != nil {
-			return err
-		}
-		if num < min {
-			min = num
-		}
-		return nil
-	}, func() error { return nil }); err != nil {
-		return ast.Constant{}, err
-	}
-	return ast.Number(min), nil
-}
-
-func evalFloatMin(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
-	min := math.MaxFloat64
-	if err := iter(func(c ast.Constant) error {
-		floatNum, err := getFloatValue(c)
-		if err != nil {
-			return err
-		}
-		if floatNum < min {
-			min = floatNum
-		}
-		return nil
-	}, func() error { return nil }); err != nil {
-		return ast.Constant{}, err
-	}
-	return ast.Float64(min), nil
-}
-
-func evalSum(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
-	var sum int64
-	if err := iter(func(c ast.Constant) error {
-		num, err := getNumberValue(c)
-		if err != nil {
-			return err
-		}
-		sum += num
-		return nil
-	}, func() error { return nil }); err != nil {
-		return ast.Constant{}, err
-	}
-	return ast.Number(sum), nil
-}
-
-func evalFloatSum(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
-	var sum float64
-	if err := iter(func(c ast.Constant) error {
-		num, err := getFloatValue(c)
-		if err != nil {
-			return err
-		}
-		sum += num
-		return nil
-	}, func() error { return nil }); err != nil {
-		return ast.Constant{}, err
-	}
-	return ast.Float64(sum), nil
 }

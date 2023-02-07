@@ -18,7 +18,7 @@ import (
 	"encoding/binary"
 
 	"github.com/google/mangle/ast"
-	"github.com/google/mangle/builtin"
+	"github.com/google/mangle/functional"
 	"github.com/google/mangle/symbols"
 
 	"hash/fnv"
@@ -49,7 +49,7 @@ FactLoop:
 	for _, init := range rows {
 		subst := init
 		for _, stmt := range transform.Statements {
-			con, err := builtin.EvalApplyFn(stmt.Fn, subst)
+			con, err := functional.EvalApplyFn(stmt.Fn, subst)
 			if err != nil {
 				// If there is an error, we silently skip the row.
 				// TODO: bubble up the error.
@@ -106,7 +106,7 @@ func evalDo(
 				subst = subst.Extend(doStmt.Fn.Args[i].(ast.Variable), v)
 			}
 			for _, stmt := range transform.Statements[1:] {
-				con, err := builtin.EvalReduceFn(stmt.Fn, group.values)
+				con, err := functional.EvalReduceFn(stmt.Fn, group.values)
 				if err != nil {
 					// If arguments are not numbers, we skip the row.
 					continue GroupLoop

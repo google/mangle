@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/builtin"
+	"github.com/google/mangle/functional"
 	"github.com/google/mangle/packages"
 	"github.com/google/mangle/parse"
 	"github.com/google/mangle/symbols"
@@ -247,7 +248,7 @@ func (a *Analyzer) Analyze(program []ast.Clause) (*ProgramInfo, error) {
 		}
 		// Is it an extensional or intensional predicate?
 		if clause.Premises == nil {
-			head, err := builtin.EvalAtom(clause.Head, ast.ConstSubstList{})
+			head, err := functional.EvalAtom(clause.Head, ast.ConstSubstList{})
 			if err != nil {
 				return nil, err
 			}

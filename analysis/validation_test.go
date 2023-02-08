@@ -88,9 +88,11 @@ func TestCheckRulePositive(t *testing.T) {
 		clause("foo(X) :- Y = 2, X = fn:list(Y)."),
 		clause("foo(X) :- bar(X), 0 < X."),
 		clause("foo(Y) :- bar(X) |> let Y = fn:plus(X, X)."),
+		clause("foo(Y) :- bar(X) |> let Y = fn:list:get(X, 1)."),
 		clause("foo(Y) :- bar(X) |> let Y = fn:plus(X, X), let _ = fn:ring_the_alarm()."),
 		clause("foo(Y) :- bar(X) |> do fn:group_by(X), let Y = fn:sum(X)."),
 		clause("c(R,S,T) :- bar(R), bar(S), bar(T), fn:plus(fn:mul(R, R), fn:mul(S,S)) = fn:mul(T,T)."),
+		clause("foo(X) :- bar(Y), bar(Z) |> do fn:group_by(Y), let X = fn:collect(Z)."),
 	}
 	for _, clause := range tests {
 		analyzer, _ := New(map[ast.PredicateSym]ast.Decl{
@@ -129,10 +131,14 @@ func TestCheckRuleNegative(t *testing.T) {
 		clause("foo(Y) :- bar(X) |> let Y = fn:plus(X, X), let Z = fn:ring_the_alarm(_)."),
 		// A transform may not redefine a variable from body.
 		clause("foo(X) :- bar(X) |> let X = fn:plus(X, X)."),
-		// TODO: fn:collect() needs at least one argument.
-		// clause("foo(X) :- bar(Y) |> do fn:group_by(), let X = fn:collect()."),
-		// TODO: fn:collect_distinct() needs at least one argument.
-		// clause("foo(X) :- bar(Y) |> do fn:group_by(), let X = fn:collect_distinct()."),
+		// Wrong arity
+		clause("foo(Y) :- bar(X) |> let Y = fn:list:get(1)."),
+		// fn:collect() needs at least one argument.
+		clause("foo(X) :- bar(Y) |> do fn:group_by(), let X = fn:collect()."),
+		// fn:collect_distinct() needs at least one argument.
+		clause("foo(X) :- bar(Y) |> do fn:group_by(), let X = fn:collect_distinct()."),
+		// In a reducer, need to refer to variables from body.
+		clause("foo(X) :- bar(Y), baz(Z) |> do fn:group_by(Y), let X = fn:collect(X)."),
 	}
 	for _, clause := range tests {
 		analyzer, _ := New(map[ast.PredicateSym]ast.Decl{

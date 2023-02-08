@@ -745,6 +745,11 @@ func (a *Analyzer) checkFunctions(clause ast.Clause) error {
 	for _, stmt := range clause.Transform.Statements {
 		sym := stmt.Fn.Function
 		if _, ok := a.builtInFunctions[ast.FunctionSym{sym.Symbol, -1}]; ok {
+			// Variable number of arguments.
+			// For var-arity reducer functions (e.g. fn:collect), check we have at least one argument.
+			if _, ok := builtin.ReducerFunctions[ast.FunctionSym{sym.Symbol, -1}]; ok && len(stmt.Fn.Args) == 0 {
+				return fmt.Errorf("reducer function %v expects at least one argument", sym.Symbol)
+			}
 			continue
 		}
 		if _, ok := a.builtInFunctions[sym]; ok {

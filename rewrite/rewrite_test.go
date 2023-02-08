@@ -70,6 +70,37 @@ ExpectedLoop:
 	}
 }
 
+func TestRewriteOdd(t *testing.T) {
+	got := Rewrite(analysis.Program{
+		Rules: []ast.Clause{
+			clause("count(A) :- X = 3 |> do fn:group_by(X), let A = fn:count()."),
+		},
+	})
+
+	want := []struct {
+		headSym     ast.PredicateSym
+		premiseSyms []ast.PredicateSym
+	}{
+		{
+			headSym: ast.PredicateSym{"count1__tmp", 1},
+		},
+		{
+			headSym:     ast.PredicateSym{"count", 1},
+			premiseSyms: []ast.PredicateSym{{"count1__tmp", 1}},
+		},
+	}
+
+ExpectedLoop:
+	for _, expected := range want {
+		for _, actual := range got.Rules {
+			if actual.Head.Predicate == expected.headSym && samePremiseSyms(actual.Premises, expected.premiseSyms) {
+				continue ExpectedLoop
+			}
+		}
+		t.Errorf("expected to find %v actual clauses %v", expected, got.Rules)
+	}
+}
+
 // Returns true if the predicates of the premises are as expected.
 // This is necessary since we cannot predict the order of predicates.
 func samePremiseSyms(premises []ast.Term, expectedSyms []ast.PredicateSym) bool {

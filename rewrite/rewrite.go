@@ -23,6 +23,14 @@ import (
 	"github.com/google/mangle/ast"
 )
 
+func isSingleAtomPremise(premises []ast.Term) bool {
+	if len(premises) != 1 {
+		return false
+	}
+	_, ok := premises[0].(ast.Atom)
+	return ok
+}
+
 // Rewrite transforms each clause of a given layer (stratum) of a program to another one where
 // transforms only appear on clauses with a single atom that defines all variables.
 func Rewrite(stratum analysis.Program) analysis.Program {
@@ -30,7 +38,7 @@ func Rewrite(stratum analysis.Program) analysis.Program {
 
 	var newRules []ast.Clause
 	for _, clause := range stratum.Rules {
-		if (clause.Transform == nil) || clause.Transform.IsLetTransform() || len(clause.Premises) == 1 {
+		if (clause.Transform == nil) || clause.Transform.IsLetTransform() || isSingleAtomPremise(clause.Premises) {
 			newRules = append(newRules, clause)
 			continue
 		}

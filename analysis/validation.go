@@ -397,6 +397,7 @@ func newBoundsAnalyzer(programInfo *ProgramInfo, nameTrie nametrie, initialFacts
 // CheckRule checks that every variable is either "bound" or defined by a transform.
 // A variable in a rule is bound when it appears in a positive atom, or is unified
 // (via an equality) with a constant or another variable that is bound.
+// Also checks that every function application expression has the right number of arguments.
 func (a *Analyzer) CheckRule(clause ast.Clause) error {
 	clause = clause.ReplaceWildcards()
 	var (
@@ -545,7 +546,7 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 		}
 	}
 
-	// Every variable that we saw in head or body has to be bound somewhere.
+	// Every variable encountered in the head or body has to be bound somewhere.
 	for v := range seenVars {
 		if headVars[v] && transformVarDefs[v] {
 			// Head variable is defined in transform.
@@ -738,27 +739,85 @@ func (a *Analyzer) checkVisibility(clause ast.Clause) error {
 	}, clause)
 }
 
+func (a *Analyzer) checkExprArity(arg ast.BaseTerm) error {
+	switch x := arg.(type) {
+	case ast.Constant:
+		return nil
+	case ast.Variable:
+		return nil
+	case ast.ApplyFn:
+		for _, arg := range x.Args {
+			if err := a.checkExprArity(arg); err != nil {
+				return err
+			}
+		}
+		sym := x.Function
+		if _, ok := a.builtInFunctions[ast.FunctionSym{sym.Symbol, -1}]; ok {
+			// Variable number of arguments.
+			// For var-arity reducer functions (e.g. fn:collect), check we have at least one argument.
+			if _, ok := builtin.ReducerFunctions[ast.FunctionSym{sym.Symbol, -1}]; ok && len(x.Args) == 0 {
+				return fmt.Errorf("reducer function %v expects at least one argument", sym.Symbol)
+			}
+			return nil
+		}
+		if _, ok := a.builtInFunctions[sym]; ok {
+			if sym.Arity == len(x.Args) {
+				return nil
+			}
+			return fmt.Errorf("function %v expects %d arguments, provided: %v", sym.Symbol, sym.Arity, x.Args)
+		}
+		// Arity mismatch
+		for fn := range a.builtInFunctions {
+			if fn.Symbol == sym.Symbol {
+				return fmt.Errorf("wrong arity for function %v got %v (%d args) want %d args", fn, x.Args, len(x.Args), fn.Arity)
+			}
+		}
+		return fmt.Errorf("unknown function %v", sym)
+	default:
+		return fmt.Errorf("unexpected: %v", arg)
+	}
+}
+
 func (a *Analyzer) checkFunctions(clause ast.Clause) error {
+	// Just check arity. Types left for later.
+	for _, p := range clause.Premises {
+		switch x := p.(type) {
+		case ast.Atom:
+			for _, arg := range x.Args {
+				if err := a.checkExprArity(arg); err != nil {
+					return err
+				}
+			}
+		case ast.NegAtom:
+			for _, arg := range x.Atom.Args {
+				if err := a.checkExprArity(arg); err != nil {
+					return err
+				}
+			}
+		case ast.Eq:
+			if err := a.checkExprArity(x.Left); err != nil {
+				return err
+			}
+			if err := a.checkExprArity(x.Right); err != nil {
+				return err
+			}
+		case ast.Ineq:
+			if err := a.checkExprArity(x.Left); err != nil {
+				return err
+			}
+			if err := a.checkExprArity(x.Right); err != nil {
+				return err
+			}
+		}
+	}
+
 	if clause.Transform == nil {
 		return nil
 	}
 	for _, stmt := range clause.Transform.Statements {
-		sym := stmt.Fn.Function
-		if _, ok := a.builtInFunctions[ast.FunctionSym{sym.Symbol, -1}]; ok {
-			// Variable number of arguments.
-			// For var-arity reducer functions (e.g. fn:collect), check we have at least one argument.
-			if _, ok := builtin.ReducerFunctions[ast.FunctionSym{sym.Symbol, -1}]; ok && len(stmt.Fn.Args) == 0 {
-				return fmt.Errorf("reducer function %v expects at least one argument", sym.Symbol)
-			}
-			continue
+		if err := a.checkExprArity(stmt.Fn); err != nil {
+			return err
 		}
-		if _, ok := a.builtInFunctions[sym]; ok {
-			if sym.Arity == len(stmt.Fn.Args) {
-				continue
-			}
-			return fmt.Errorf("function %v expects %d arguments, provided: %v", sym.Symbol, sym.Arity, stmt.Fn.Args)
-		}
-		return fmt.Errorf("clause %v could not find function %v", clause, sym)
 	}
 	return nil
 }

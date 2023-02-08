@@ -79,6 +79,7 @@ func TestCheckRulePositive(t *testing.T) {
 		clause("foo(X) :- X = Y, bar(Y)."),
 		clause("foo(X) :- X = Y, Y = /bar ."),
 		clause("foo(X) :- Z = 2, bar(X), X < Z."),
+		clause("foo(X) :- X = fn:list:cons(fn:list:get([1], 1), [])."),
 		clause("foo([])."),
 		clause("foo([23])."),
 		clause("foo(fn:cons(1, [23]))."),
@@ -91,7 +92,7 @@ func TestCheckRulePositive(t *testing.T) {
 		clause("foo(Y) :- bar(X) |> let Y = fn:list:get(X, 1)."),
 		clause("foo(Y) :- bar(X) |> let Y = fn:plus(X, X), let _ = fn:ring_the_alarm()."),
 		clause("foo(Y) :- bar(X) |> do fn:group_by(X), let Y = fn:sum(X)."),
-		clause("c(R,S,T) :- bar(R), bar(S), bar(T), fn:plus(fn:mul(R, R), fn:mul(S,S)) = fn:mul(T,T)."),
+		clause("c(R,S,T) :- bar(R), bar(S), bar(T), fn:plus(fn:mult(R, R), fn:mult(S,S)) = fn:mult(T,T)."),
 		clause("foo(X) :- bar(Y), bar(Z) |> do fn:group_by(Y), let X = fn:collect(Z)."),
 	}
 	for _, clause := range tests {
@@ -118,6 +119,8 @@ func TestCheckRuleNegative(t *testing.T) {
 		clause("foo(X) :- X < Y, foo(Y)."),
 		clause("foo(X) :- X = [Y]."),
 		clause("foo(X) :- X = fn:list(Y)."),
+		clause("foo(X) :- X = fn:list:get(1)."),
+		clause("foo(X) :- X = fn:list(fn:list:get(1))."),
 		clause("foo(X) :- X = fn:list(_)."),
 		// Head variable neither defined by body nor transform.
 		clause("foo(A) :- bar(X) |> let Y = fn:plus(X, X)."),

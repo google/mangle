@@ -103,9 +103,8 @@ type Term interface {
 	ApplySubst(s Subst) Term
 }
 
-// BaseTerm represents a subset of terms: constant or variables.
+// BaseTerm represents a subset of terms: constant, variables or ApplyFn.
 // Every BaseTerm will implement Term.
-// TODO: Rename to Expr.
 type BaseTerm interface {
 	Term
 
@@ -119,6 +118,7 @@ type BaseTerm interface {
 }
 
 // Subst is the interface for substitutions.
+// This interface provides mapping from a variable to BaseTerm.
 type Subst interface {
 	// Returns the term the given variable maps to, or nil if the variable is not in domain.
 	Get(Variable) BaseTerm
@@ -182,18 +182,18 @@ const (
 
 var number = regexp.MustCompile(`-?\d+`)
 
-// Constant represents a constant symbol.
+// Constant represents a constant symbol and other structures (e.g. pair, list map, struct).
 type Constant struct {
 	// The (runtime) type of this constant.
 	Type ConstantType
 
 	// String representation of the symbol.
-	// For a structured name "/foo/bar", for a string `/"content"`, for a number "/[123]",
+	// For a structured name "/foo/bar", for a string `/"content"`.
 	// For a struct (proto), the deterministically marshalled bytes.
 	Symbol string
 
-	// For NumberType, the number value. For PairShape and
-	// ListShape, it contains a hash code.
+	// For NumberType, the number value (int64 or the bytes of a float64).
+	// For PairShape and ListShape, it contains a hash code of the value.
 	NumValue int64
 
 	// For a pair constant, the first component.
@@ -664,7 +664,7 @@ func (p PredicateSym) IsBuiltin() bool {
 	return strings.HasPrefix(p.Symbol, ":")
 }
 
-// Variable represents a variable.
+// Variable represents a variable by the name.
 type Variable struct {
 	Symbol string
 }
@@ -706,7 +706,7 @@ func (v Variable) ApplySubstBase(s Subst) BaseTerm {
 	return v
 }
 
-// Atom represents an atom (a predicate symbol applied to base term arguments).
+// Atom represents an atom (a predicate symbol applied to base term arguments). e.g: parent(A, B)
 type Atom struct {
 	Predicate PredicateSym
 	Args      []BaseTerm
@@ -868,7 +868,7 @@ func (f FunctionSym) String() string {
 	return fmt.Sprintf("%s(%s)", f.Symbol, strings.Join(args, ", "))
 }
 
-// Transform represents a transformation of the relation of a rule.
+// Transform represents a transformation of the relation of a clause. e.g. fn:max or fn:group_by
 type Transform struct {
 	Statements []TransformStmt
 }

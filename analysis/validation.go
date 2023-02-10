@@ -43,6 +43,7 @@ const (
 )
 
 // ProgramInfo represents the result of program analysis.
+// EdbPredicates and IdbPredicates are disjoint.
 type ProgramInfo struct {
 	// Extensional predicate symbols; those that do not appear in the head of a clause with a body.
 	EdbPredicates map[ast.PredicateSym]struct{}

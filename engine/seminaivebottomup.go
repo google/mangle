@@ -122,6 +122,7 @@ func EvalProgramWithStats(programInfo *analysis.ProgramInfo, store factstore.Fac
 	return e.stats, nil
 }
 
+// evalStrata runs the evaluation for the layers.
 func (e *engine) evalStrata() error {
 	for _, fact := range e.programInfo.InitialFacts {
 		f, err := functional.EvalAtom(fact, nil)
@@ -318,7 +319,7 @@ func (e *engine) eval() error {
 	return nil
 }
 
-// Evaluates clause, by scanning known facts for each premise and producing
+// Evaluates clause (a rule), by scanning known facts for each premise and producing
 // a solution (conjunctive query, similar to a join).
 func (e *engine) oneStepEvalClause(clause ast.Clause) ([]ast.Atom, error) {
 	var solutions = []unionfind.UnionFind{unionfind.New()}

@@ -289,7 +289,10 @@ func (e *engine) eval() error {
 		if clause.Transform == nil {
 			continue
 		}
-		internalPremise := clause.Premises[0].(ast.Atom)
+		internalPremise, ok := clause.Premises[0].(ast.Atom)
+		if !ok {
+			return fmt.Errorf("expected first premise of clause: %v to be an atom %v", clause, clause.Premises[0])
+		}
 		var substs []ast.ConstSubstList
 		e.store.GetFacts(internalPremise, func(fact ast.Atom) error {
 			var subst ast.ConstSubstList

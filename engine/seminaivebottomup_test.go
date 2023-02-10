@@ -16,6 +16,7 @@ package engine
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -41,6 +42,14 @@ func clause(str string) ast.Clause {
 		panic(fmt.Errorf("bad syntax in test case: %s got %w", str, err))
 	}
 	return clause
+}
+
+func unit(str string) parse.SourceUnit {
+	unit, err := parse.Unit(strings.NewReader(str))
+	if err != nil {
+		panic(fmt.Errorf("bad syntax in test case: %s got %w", str, err))
+	}
+	return unit
 }
 
 var program []ast.Clause
@@ -531,6 +540,68 @@ func TestEmptyArrayProgram(t *testing.T) {
 	}
 	if got, want := len(facts), 1; got != want {
 		t.Errorf("GetFacts: %d!=%d got: %v", got, want, facts)
+	}
+}
+
+func TestTransformMax(t *testing.T) {
+	for _, tt := range []struct {
+		program string
+		want    ast.Atom
+	}{
+		{
+			program: `bar([0,1,2]).
+			  baz(Y) :- bar(X), |> let Y = fn:max(X).`,
+			want: atom("baz(2)"),
+		},
+		{
+			program: ` baz(Y) :- X = [0,1,2], Y = fn:max(X).`,
+			want:    atom("baz(2)"),
+		},
+	} {
+		store := factstore.NewSimpleInMemoryStore()
+		u := unit(tt.program)
+		if err := analyzeAndEvalProgram(t, u.Clauses, store); err != nil {
+			t.Errorf("analyzeAndEvalProgram(%s) = %v unexpected error", tt.program, err)
+		}
+		if !store.Contains(tt.want) {
+			t.Errorf("expected fact %v in store %v", tt.want, store)
+		}
+	}
+}
+
+func TestTransformErrors(t *testing.T) {
+	for _, tt := range []struct {
+		program string
+		wantErr string
+	}{
+		{
+			program: "baz(Y) :- X = [0,1,2], Y = fn:list:get(1).",
+			wantErr: "wrong arity",
+		},
+		{
+			program: "baz(Y) :- X = [0,1,2], Y = fn:collect(1).",
+			wantErr: "unknown function fn:collect",
+		},
+		{
+			// This is not supported yet.
+			program: "baz(Y) :- X = [0,1,2], |> let Y = fn:max(X).",
+			wantErr: "be an atom",
+		},
+		{
+			program: `num(1).
+				num(2).
+				fib(I, O) :- fib(fn:minus(I, 1), M), fib(fn:minus(I, 2), N), num(I) |> let O = fn:plus(M, N).`,
+			wantErr: "evaluation produced something that is not a value",
+		},
+	} {
+		u := unit(tt.program)
+		store := factstore.NewSimpleInMemoryStore()
+		err := analyzeAndEvalProgram(t, u.Clauses, store)
+		if err == nil {
+			t.Fatalf("analyzeAndEvalProgram(%s) expected to fail, but it didn't", tt.program)
+		} else if !strings.Contains(err.Error(), tt.wantErr) {
+			t.Fatalf("analyzeAndEvalProgram(%s) = %v want err contain %q", tt.program, err, tt.wantErr)
+		}
 	}
 }
 

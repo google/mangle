@@ -180,23 +180,15 @@ func (d *desugar) desugarOneDecl(sym ast.PredicateSym) error {
 			}
 		}
 	}
-	var existingAtoms []ast.Atom
+	var existingInclusionAtoms []ast.Atom
 	if decl.Constraints != nil {
-		existingAtoms = decl.Constraints.Consequences
+		existingInclusionAtoms = decl.Constraints.Consequences
 	}
 	newBoundDecls := make([]ast.BoundDecl, len(boundInfos))
-	alternatives := make([]ast.And, len(boundInfos))
+	alternatives := make([][]ast.Atom, len(boundInfos))
 	for i, boundInfo := range boundInfos {
 		newBoundDecls[i] = ast.NewBoundDecl(boundInfo.bounds...)
-		if len(boundInfo.inclusionAtoms) == 0 {
-			if len(existingAtoms) == 0 {
-				alternatives[i] = ast.TrueAnd
-			} else {
-				alternatives[i] = ast.And{existingAtoms}
-			}
-		} else {
-			alternatives[i] = ast.And{unique(existingAtoms, boundInfo.inclusionAtoms)}
-		}
+		alternatives[i] = unique(existingInclusionAtoms, boundInfo.inclusionAtoms)
 	}
 
 	d.desugared[decl.DeclaredAtom.Predicate] = &ast.Decl{

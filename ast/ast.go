@@ -48,9 +48,6 @@ var TruePredicate = PredicateSym{"true", 0}
 // "unconditionally false" proposition.
 var FalsePredicate = PredicateSym{"false", 0}
 
-// TrueAnd represents true() in empty conjunction form.
-var TrueAnd = And{}
-
 // TrueConstant is the "/true" name constant.
 var TrueConstant Constant
 
@@ -298,7 +295,6 @@ func canonicalOrder(left *Constant, right *Constant) {
 }
 
 // Map constructs a map constant. Parts can only be accessed in transforms.
-// Keys and values must come in the order.
 func Map(kvMap map[*Constant]*Constant) *Constant {
 	m := &MapNil
 	if len(kvMap) == 0 {
@@ -785,41 +781,6 @@ func NewQuery(predicate PredicateSym) Atom {
 	return Atom{predicate, vars}
 }
 
-// And represents a conjunction of atoms.
-type And struct {
-	Atoms []Atom
-}
-
-func (a And) isTerm() {}
-
-// String returns a string representation for this atom.
-func (a And) String() string {
-	return fmt.Sprintf("And(%v)", a.Atoms)
-}
-
-// Equals returns true if u is syntactically (structurally) the same conjunction.
-func (a And) Equals(u Term) bool {
-	z, ok := u.(And)
-	if !ok || len(a.Atoms) != len(z.Atoms) {
-		return false
-	}
-	for i, atom := range a.Atoms {
-		if !atom.Equals(z.Atoms[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-// ApplySubst returns the result of applying given substitution to this atom.
-func (a And) ApplySubst(s Subst) Term {
-	os := make([]Atom, len(a.Atoms))
-	for i, atom := range a.Atoms {
-		os[i] = atom.ApplySubst(s).(Atom)
-	}
-	return And{os}
-}
-
 // NegAtom represents a negated atom.
 type NegAtom struct {
 	Atom Atom
@@ -1217,7 +1178,7 @@ type InclusionConstraint struct {
 	// All of these must hold.
 	Consequences []Atom
 	// In addition to Consequences, at least one of these must hold.
-	Alternatives []And
+	Alternatives [][]Atom
 }
 
 // NewInclusionConstraint returns a new InclusionConstraint.

@@ -70,7 +70,7 @@ disjunctions:
 			continue
 		}
 
-		for _, c := range alternative.Atoms {
+		for _, c := range alternative {
 			want := c.ApplySubst(subst)
 			extraVars := make(map[ast.Variable]bool)
 			ast.AddVars(want, extraVars)

@@ -71,7 +71,11 @@ func TestDesugarPropagate(t *testing.T) {
 			ast.NewAtom("bar", ast.Variable{"X"}),
 			nil,
 			[]ast.BoundDecl{ast.NewBoundDecl(ast.String("foo"))},
-			nil,
+			&ast.InclusionConstraint{[]ast.Atom{
+				ast.NewAtom("foo", ast.Variable{"X"}),
+			}, [][]ast.Atom{
+				nil,
+			}},
 		},
 		ast.PredicateSym{"baz", 2}: {
 			ast.NewAtom("baz", ast.Variable{"X"}, ast.Variable{"Y"}),
@@ -79,8 +83,8 @@ func TestDesugarPropagate(t *testing.T) {
 			[]ast.BoundDecl{ast.NewBoundDecl(ast.String("foo"), ast.String("bar"))},
 			&ast.InclusionConstraint{[]ast.Atom{
 				ast.NewAtom("foo", ast.Variable{"X"}),
-			}, []ast.And{
-				ast.TrueAnd,
+			}, [][]ast.Atom{
+				nil,
 			}},
 		},
 	}
@@ -94,10 +98,11 @@ func TestDesugarPropagate(t *testing.T) {
 				ast.NewBoundDecl(fooPrefixType),
 			},
 			incl: ast.InclusionConstraint{nil,
-				[]ast.And{
-					ast.TrueAnd,
-					ast.TrueAnd,
-				}},
+				[][]ast.Atom{
+					nil,
+					nil,
+				},
+			},
 		},
 		ast.PredicateSym{"bar", 1}: {
 			bounds: []ast.BoundDecl{
@@ -106,8 +111,8 @@ func TestDesugarPropagate(t *testing.T) {
 					fooPrefixType}})},
 			incl: ast.InclusionConstraint{
 				nil,
-				[]ast.And{
-					{[]ast.Atom{ast.NewAtom("foo", ast.Variable{"X"})}},
+				[][]ast.Atom{
+					[]ast.Atom{ast.NewAtom("foo", ast.Variable{"X"})},
 				}},
 		},
 		ast.PredicateSym{"baz", 2}: {
@@ -122,11 +127,11 @@ func TestDesugarPropagate(t *testing.T) {
 			},
 			incl: ast.InclusionConstraint{
 				nil,
-				[]ast.And{
-					{[]ast.Atom{
+				[][]ast.Atom{
+					[]ast.Atom{
 						ast.NewAtom("foo", ast.Variable{"X"}),
 						ast.NewAtom("bar", ast.Variable{"Y"}),
-					}},
+					},
 				}},
 		},
 	}

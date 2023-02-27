@@ -61,6 +61,8 @@ type engine struct {
 type EvalOptions struct {
 	createdFactLimit int
 	totalFactLimit   int
+	// if non-nil, only predicates in this allowlist get evaluated.
+	predicateAllowList *func(ast.PredicateSym) bool
 }
 
 // EvalOption affects the way the evaluation is performed.
@@ -79,6 +81,10 @@ func EvalProgram(programInfo *analysis.ProgramInfo, store factstore.FactStore, o
 
 func newEvalOptions(options ...EvalOption) EvalOptions {
 	ops := EvalOptions{}
+	allPredicates := func(ast.PredicateSym) bool {
+		return true
+	}
+	ops.predicateAllowList = &allPredicates
 	for _, o := range options {
 		o(&ops)
 	}
@@ -124,7 +130,11 @@ func EvalProgramWithStats(programInfo *analysis.ProgramInfo, store factstore.Fac
 
 // evalStrata runs the evaluation for the layers.
 func (e *engine) evalStrata() error {
+	predicateAllowList := *e.options.predicateAllowList
 	for _, fact := range e.programInfo.InitialFacts {
+		if !predicateAllowList(fact.Predicate) {
+			continue
+		}
 		f, err := functional.EvalAtom(fact, nil)
 		if err != nil {
 			return err
@@ -237,8 +247,12 @@ func makeDeltaRules(decls map[ast.PredicateSym]*ast.Decl, predToRules map[ast.Pr
 }
 
 func (e *engine) eval() error {
+	predicateAllowList := *e.options.predicateAllowList
 	// First round.
 	for _, clause := range e.programInfo.Rules {
+		if !predicateAllowList(clause.Head.Predicate) {
+			continue
+		}
 		if clause.Transform != nil && !clause.Transform.IsLetTransform() {
 			// clauses with do-transforms assume a single subgoal as body.
 			continue
@@ -259,6 +273,9 @@ func (e *engine) eval() error {
 			var incrementalFactAdded bool
 			for _, predDeltaRule := range deltaRules {
 				for _, deltaRule := range predDeltaRule {
+					if !predicateAllowList(deltaRule.Head.Predicate) {
+						continue
+					}
 					facts, err := e.oneStepEvalClause(deltaRule)
 					if err != nil {
 						return err
@@ -284,7 +301,7 @@ func (e *engine) eval() error {
 			}
 		}
 	}
-	// We reached the fixed point can now apply "do-transforms".
+	// We reached the fixed point and can now apply "do-transforms".
 	for _, clause := range e.programInfo.Rules {
 		if clause.Transform == nil {
 			continue

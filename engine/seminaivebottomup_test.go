@@ -243,6 +243,48 @@ func TestSimpleEval(t *testing.T) {
 	}
 }
 
+func TestSimpleEvalDefer(t *testing.T) {
+	store := factstore.NewSimpleInMemoryStore()
+	store.Add(atom("node(/a)"))
+	store.Add(atom("node(/b)"))
+	store.Add(atom("node(/c)"))
+	store.Add(atom("edge(/a,/b)"))
+	store.Add(atom("edge(/b,/c)"))
+	store.Add(atom("label(/a, 100)"))
+
+	if err := analyzeAndEvalProgram(t, program, store, func(opt *EvalOptions) {
+		// Evaluate only this particular predicate and nothing else.
+		predicateAllowList := func(sym ast.PredicateSym) bool {
+			return sym == ast.PredicateSym{"path", 2}
+		}
+		opt.predicateAllowList = &predicateAllowList
+	}); err != nil {
+		t.Errorf("Program evaluation failed %v program %v", err, program)
+		return
+	}
+
+	expected := []ast.Atom{
+		atom("node(/a)"),
+		atom("node(/b)"),
+		atom("node(/c)"),
+		atom("edge(/a,/b)"),
+		atom("edge(/b,/c)"),
+		atom("label(/a, 100)"),
+		atom("path(/a,/b)"),
+		atom("path(/a,/c)"),
+		atom("path(/b,/c)"),
+	}
+
+	for _, fact := range expected {
+		if !store.Contains(fact) {
+			t.Errorf("expected fact %v in store %v", fact, store)
+		}
+	}
+	if store.EstimateFactCount() > len(expected) {
+		t.Errorf("extra facts: %v", store)
+	}
+}
+
 func TestManyPaths(t *testing.T) {
 	store := factstore.NewSimpleInMemoryStore()
 	store.Add(atom("node(/a)"))

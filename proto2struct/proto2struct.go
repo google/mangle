@@ -26,7 +26,7 @@ import (
 // The resulting struct only contains that are considered populated by the
 // go protobuf runtime, i.e. proto fields set to default values will be missing.
 func ProtoToStruct(msg protoreflect.Message) (ast.Constant, error) {
-	r := &ast.StructNil
+	structEntries := map[*ast.Constant]*ast.Constant{}
 	var err error
 	msg.Range(func(fd protoreflect.FieldDescriptor, val protoreflect.Value) bool {
 		fieldName, errLocal := ast.Name("/" + fd.TextName())
@@ -56,8 +56,7 @@ func ProtoToStruct(msg protoreflect.Message) (ast.Constant, error) {
 				err = fmt.Errorf("Could not convert map %v: %v", val, err)
 				return false
 			}
-			fields := ast.StructCons(&fieldName, ast.Map(entries), r)
-			r = &fields
+			structEntries[&fieldName] = ast.Map(entries)
 			return true
 		}
 
@@ -72,8 +71,7 @@ func ProtoToStruct(msg protoreflect.Message) (ast.Constant, error) {
 				elem := ast.ListCons(&value, l)
 				l = &elem
 			}
-			fields := ast.StructCons(&fieldName, l, r)
-			r = &fields
+			structEntries[&fieldName] = l
 			return true
 		}
 		value, errLocal := ProtoValueToConstant(fd, val)
@@ -81,14 +79,13 @@ func ProtoToStruct(msg protoreflect.Message) (ast.Constant, error) {
 			err = errLocal
 			return false
 		}
-		fields := ast.StructCons(&fieldName, &value, r)
-		r = &fields
+		structEntries[&fieldName] = &value
 		return true
 	})
 	if err != nil {
 		return ast.Constant{}, err
 	}
-	return *r, nil
+	return *ast.Struct(structEntries), nil
 }
 
 // ProtoValueToConstant uses reflection to convert a proto field value to a Mangle value.

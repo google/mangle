@@ -54,7 +54,7 @@ func (c *declChecker) check() []error {
 	for _, descrAtom := range c.decl.Descr {
 		sym := descrAtom.Predicate.Symbol
 		switch sym {
-		case "doc":
+		case ast.DescrDoc:
 			if seenDocAtom {
 				c.errs = append(c.errs, fmt.Errorf("descr[] can only have one doc atom"))
 			}
@@ -66,7 +66,7 @@ func (c *declChecker) check() []error {
 			for _, docArg := range descrAtom.Args {
 				c.checkStringConstant(docArg)
 			}
-		case "arg":
+		case ast.DescrArg:
 			if len(descrAtom.Args) < 2 {
 				c.errs = append(c.errs, fmt.Errorf("arg atom must have at least 2 args"))
 				continue

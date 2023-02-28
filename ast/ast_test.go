@@ -509,6 +509,23 @@ func TestReplaceWildcards(t *testing.T) {
 	}
 }
 
+func TestSyntheticDecl(t *testing.T) {
+	decl := makeSyntheticDecl(t, NewQuery(PredicateSym{"foo", 1}))
+
+	if !decl.IsSynthetic() {
+		t.Fatalf("(%v).IsSynthetic() = false want true", decl)
+	}
+
+	modes := decl.Modes()
+	if len(modes) != 1 {
+		t.Fatalf("(%v).Modes() = %v want one mode", decl, modes)
+	}
+	want := Mode{ArgModeInputOutput}
+	if diff := cmp.Diff(want, modes[0]); diff != "" {
+		t.Fatalf("(%v).Modes() got diff (-want, +got) %s", decl, diff)
+	}
+}
+
 func TestDeclPackage(t *testing.T) {
 	tests := []struct {
 		predicate string
@@ -523,6 +540,10 @@ func TestDeclPackage(t *testing.T) {
 
 		if got := decl.PackageID(); got != test.want {
 			t.Fatalf("PackageID(%v)=%v want %v", decl, got, test.want)
+		}
+
+		if !decl.IsSynthetic() {
+			t.Fatalf("(%v).IsSynthetic() = false want true", decl)
 		}
 	}
 }
@@ -568,6 +589,41 @@ func TestDeclVisible(t *testing.T) {
 	for _, test := range tests {
 		if got := test.decl.Visible(); got != test.want {
 			t.Fatalf("Visible(%v)=%v want %v", test.decl, got, test.want)
+		}
+	}
+}
+
+func TestModeCheck(t *testing.T) {
+	mode := Mode{ArgModeInput, ArgModeOutput, ArgModeInputOutput}
+	tests := []struct {
+		goal      Atom
+		boundVars map[Variable]bool
+		want      bool
+	}{
+		{
+			goal:      NewAtom("foo", Variable{"X"}, Number(2), Number(3)),
+			boundVars: nil,
+			want:      false,
+		},
+		{
+			goal:      NewAtom("foo", Number(2), Variable{"X"}, Number(3)),
+			boundVars: nil,
+			want:      true,
+		},
+		{
+			goal:      NewAtom("foo", Variable{"X"}, Number(2), Number(3)),
+			boundVars: map[Variable]bool{Variable{"X"}: true},
+			want:      false,
+		},
+	}
+	for _, test := range tests {
+		err := mode.Check(test.goal, test.boundVars)
+		if (err == nil) != test.want {
+			if test.want {
+				t.Errorf("Check(%v)=%v want no errors", test.goal, err)
+			} else {
+				t.Errorf("Check(%v)=%v want error", test.goal, err)
+			}
 		}
 	}
 }

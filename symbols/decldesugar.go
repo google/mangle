@@ -56,17 +56,8 @@ func (d *desugar) saveError(err error) {
 }
 
 func (d *desugar) Desugar() {
-	isDesugared := func(d ast.Decl) bool {
-		for _, a := range d.Descr {
-			if a.Predicate.Symbol == "desugared" {
-				return true
-			}
-		}
-		return false
-	}
-
 	for sym, decl := range d.decls {
-		if isDesugared(decl) {
+		if decl.IsDesugared() {
 			d.seen[sym] = true
 			d.desugared[sym] = &decl
 		}

@@ -169,15 +169,6 @@ func New(knownPredicates map[ast.PredicateSym]ast.Decl, decls []ast.Decl, bounds
 	return &Analyzer{builtin.Predicates, builtin.Functions, knownPredicates, declMap, boundsChecking}, nil
 }
 
-func isExtensional(decl ast.Decl) bool {
-	for _, a := range decl.Descr {
-		if a.Predicate.Symbol == "extensional" {
-			return true
-		}
-	}
-	return false
-}
-
 // EnsureDecl will ensure there is a declaration for each head of a rule,
 // creating one if necessary.
 func (a *Analyzer) EnsureDecl(clauses []ast.Clause) error {
@@ -189,7 +180,7 @@ func (a *Analyzer) EnsureDecl(clauses []ast.Clause) error {
 		// Check that the name was not defined previously (in a separate source).
 		// We may permit "distributing" definitions over source files later.
 		if decl, ok := a.knownPredicates[pred]; ok {
-			if isExtensional(decl) && len(c.Premises) == 0 {
+			if decl.IsExtensional() && len(c.Premises) == 0 {
 				continue
 			}
 			return fmt.Errorf("predicate %v was defined previously %v", decl.DeclaredAtom.Predicate, decl)
@@ -370,7 +361,7 @@ func newBoundsAnalyzer(programInfo *ProgramInfo, nameTrie nametrie, initialFacts
 	}
 
 	for _, decl := range programInfo.Decls {
-		if decl.IsSynthetic() && !isExtensional(*decl) {
+		if decl.IsSynthetic() && !decl.IsExtensional() {
 			continue
 		}
 		// Populate relTypes with type info from declarations.

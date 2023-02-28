@@ -157,7 +157,7 @@ func (d *desugar) desugarOneDecl(sym ast.PredicateSym) error {
 					case circularDepError: // Give up and show dependency cyle.
 						return err.extend(sym)
 					default:
-						d.saveError(err)
+						d.saveError(fmt.Errorf("while desugaring decl %v bound %v: %v", predicate, b, err))
 						boundInfo.bounds[j] = ast.AnyBound
 						continue
 					}

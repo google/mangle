@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package analysis
+package symbols
 
 import (
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/mangle/ast"
 )
 
 func TestTrie(t *testing.T) {
@@ -52,7 +55,7 @@ func TestTrie(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		n := newNameTrie()
+		n := NewNameTrie()
 		for _, parts := range test.allparts {
 			n.Add(parts)
 			if !n.Contains(parts) {
@@ -66,6 +69,46 @@ func TestTrie(t *testing.T) {
 		got := n.LongestPrefix(test.query)
 		if got != test.want {
 			t.Errorf("Trie(%v).LongestPrefix(%v)=%d want %d", test.allparts, test.query, got, test.want)
+		}
+	}
+}
+
+func TestPrefixTrie(t *testing.T) {
+	tests := []struct {
+		nameTrie NameTrie
+		query    string
+		want     ast.Constant
+	}{
+		{
+			nameTrie: NewNameTrie().Add([]string{"foo"}).Add([]string{"foo", "bar"}),
+			query:    "/foo",
+			want:     ast.NameBound,
+		},
+		{
+			nameTrie: NewNameTrie().Add([]string{"foo"}).Add([]string{"foo", "bar"}),
+			query:    "/foo/bar",
+			want:     name("/foo"),
+		},
+		{
+			nameTrie: NewNameTrie().Add([]string{"foo"}).Add([]string{"foo", "bar"}),
+			query:    "/foo/baz",
+			want:     name("/foo"),
+		},
+		{
+			nameTrie: NewNameTrie().Add([]string{"foo"}).Add([]string{"foo", "bar"}),
+			query:    "",
+			want:     ast.NameBound,
+		},
+		{
+			nameTrie: NewNameTrie().Add([]string{"foo"}).Add([]string{"foo", "bar"}),
+			query:    "/foo/bar/baz",
+			want:     name("/foo/bar"),
+		},
+	}
+	for _, test := range tests {
+		got := test.nameTrie.PrefixName(test.query)
+		if !cmp.Equal(got, test.want, cmp.AllowUnexported(ast.Constant{})) {
+			t.Errorf("prefixType(%v, %v) = %v, want %v", test.nameTrie, test.query, got, test.want)
 		}
 	}
 }

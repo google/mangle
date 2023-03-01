@@ -76,7 +76,7 @@ type Analyzer struct {
 type BoundsAnalyzer struct {
 	programInfo *ProgramInfo
 	// Trie of name constants from declarations different from /any,/name,/number,/string.
-	nameTrie nametrie
+	nameTrie symbols.NameTrie
 	RulesMap map[ast.PredicateSym][]ast.Clause
 	// maps `foo`` to either RelType[...] or fn:Union(RelType[...]...RelType[...])
 	relTypeMap map[ast.PredicateSym]ast.BaseTerm
@@ -273,10 +273,7 @@ func (a *Analyzer) Analyze(program []ast.Clause) (*ProgramInfo, error) {
 
 	programInfo := ProgramInfo{edbSymbols, idbSymbols, initialFacts, rules, desugaredDecls}
 	if a.boundsCheckingMode != NoBoundsChecking {
-		nameTrie, err := collectNamePrefixes(programInfo)
-		if err != nil {
-			return nil, err
-		}
+		nameTrie := collectNames(a.extraPredicates, programInfo.Decls)
 		bc, err := newBoundsAnalyzer(&programInfo, nameTrie, initialFacts, rulesMap)
 		if err != nil {
 			return nil, err
@@ -291,44 +288,28 @@ func (a *Analyzer) Analyze(program []ast.Clause) (*ProgramInfo, error) {
 	return &programInfo, nil
 }
 
-func addNamesToTrie(b ast.BaseTerm, nameTrie nametrie) {
-	if b == ast.AnyBound || b == ast.NameBound || b == ast.NumberBound || b == ast.StringBound {
-		return
-	}
-	if apply, ok := b.(ast.ApplyFn); ok {
-		for _, arg := range apply.Args {
-			addNamesToTrie(arg, nameTrie)
-		}
-		return
-	}
-	c, ok := b.(ast.Constant)
-	if !ok || c.Type != ast.NameType {
-		// At this point, string constants "predicate" have been replaced
-		// with the appropriate type expression. So this should not happen.
-		return
-	}
-	parts := strings.Split(c.Symbol, "/")
-	nameTrie.Add(parts[1:])
-}
-
-// Extracts name constants from declarations. We build a trie of names used as type expressions.
-// so we can later map a name to the the most precise (longest prefix). Note that the trie for
-// {"/foo", "/foo/bar"} is different from {"/foo/bar"}: the former would map a constant "/foo/baz"
-// to the type "/foo", whereas the latter would map it to type "/name".
-func collectNamePrefixes(programInfo ProgramInfo) (nametrie, error) {
-	nameTrie := newNameTrie()
-
-	for _, d := range programInfo.Decls {
+// We extract name constants from declarations. We build a trie of names
+// that play the role of type expressions. so we can later map name constants to their
+// corresponding, most precise (longest prefix) type expression.
+func collectNames(extraPredicates map[ast.PredicateSym]ast.Decl, decls map[ast.PredicateSym]*ast.Decl) symbols.NameTrie {
+	nameTrie := symbols.NewNameTrie()
+	handleDecl := func(d ast.Decl) {
 		for _, bs := range d.Bounds {
-			for _, b := range bs.Bounds {
-				addNamesToTrie(b, nameTrie)
+			for _, typeExpr := range bs.Bounds {
+				nameTrie.Collect(typeExpr)
 			}
 		}
 	}
-	return nameTrie, nil
+	for _, d := range extraPredicates {
+		handleDecl(d)
+	}
+	for _, d := range decls {
+		handleDecl(*d)
+	}
+	return nameTrie
 }
 
-func newBoundsAnalyzer(programInfo *ProgramInfo, nameTrie nametrie, initialFacts []ast.Atom, rulesMap map[ast.PredicateSym][]ast.Clause) (*BoundsAnalyzer, error) {
+func newBoundsAnalyzer(programInfo *ProgramInfo, nameTrie symbols.NameTrie, initialFacts []ast.Atom, rulesMap map[ast.PredicateSym][]ast.Clause) (*BoundsAnalyzer, error) {
 	var err error
 	relTypeMap := make(map[ast.PredicateSym]ast.BaseTerm)
 
@@ -1280,7 +1261,7 @@ func (bc *BoundsAnalyzer) inferRelTypesFromClause(clause ast.Clause) (ast.BaseTe
 	return symbols.RelTypeFromAlternatives(relTypes), nil
 }
 
-func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTrie nametrie) ast.BaseTerm {
+func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTrie symbols.NameTrie) ast.BaseTerm {
 	switch z := x.(type) {
 	case ast.Variable:
 		if bound, ok := varRanges[z]; ok {
@@ -1298,7 +1279,7 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 			if z == ast.AnyBound || z == ast.StringBound || z == ast.NumberBound || z == ast.NameBound {
 				return z
 			}
-			return prefixType(nameTrie, z.Symbol)
+			return nameTrie.PrefixName(z.Symbol)
 		case ast.ListShape:
 			var args []ast.BaseTerm
 			z.ListValues(func(arg ast.Constant) error {
@@ -1386,7 +1367,7 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 	return ast.AnyBound
 }
 
-func typeOfFn(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie nametrie) ast.BaseTerm {
+func typeOfFn(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie symbols.NameTrie) ast.BaseTerm {
 	switch x.Function.Symbol {
 	case symbols.Max.Symbol:
 		fallthrough
@@ -1408,24 +1389,4 @@ func typeOfFn(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie n
 		return ast.ApplyFn{symbols.ListType, []ast.BaseTerm{elemTpe}}
 	}
 	return ast.AnyBound
-}
-
-func prefixType(nameTrie nametrie, sym string) ast.Constant {
-	parts := strings.Split(sym, "/")
-	if len(parts) == 1 {
-		return ast.NameBound
-	}
-	index := nameTrie.LongestPrefix(parts[1:])
-	if index == -1 {
-		return ast.NameBound
-	}
-	prefixstrlen := index + 1 // number of "/" separators
-	for i := 0; i <= index; i++ {
-		prefixstrlen += len(parts[i+1])
-	}
-	n, err := ast.Name(sym[:prefixstrlen])
-	if err != nil {
-		return ast.NameBound // This cannot happen
-	}
-	return n
 }

@@ -473,26 +473,30 @@ func makeRulesMap(clauses []ast.Clause) map[ast.PredicateSym][]ast.Clause {
 type boundsTestCase struct {
 	programInfo ProgramInfo
 	rulesMap    map[ast.PredicateSym][]ast.Clause
-	nameTrie    nametrie
+	nameTrie    symbols.NameTrie
+}
+
+func makeDesugaredDecls(decls ...ast.Decl) map[ast.PredicateSym]*ast.Decl {
+	declMap := make(map[ast.PredicateSym]ast.Decl)
+	for _, decl := range decls {
+		declMap[decl.DeclaredAtom.Predicate] = decl
+	}
+	desugaredDecls, _ := symbols.CheckAndDesugar(declMap)
+	return desugaredDecls
 }
 
 func newBoundsTestCase(clauses []ast.Clause, decls []ast.Decl) boundsTestCase {
 	return newBoundsTestCaseWithNameTrie(clauses, decls, nil)
 }
 
-func newBoundsTestCaseWithNameTrie(clauses []ast.Clause, decls []ast.Decl, nameTrie nametrie) boundsTestCase {
+func newBoundsTestCaseWithNameTrie(clauses []ast.Clause, decls []ast.Decl, nameTrie symbols.NameTrie) boundsTestCase {
 	idbSymbols := make(map[ast.PredicateSym]struct{})
 	for _, clause := range clauses {
 		idbSymbols[clause.Head.Predicate] = struct{}{}
 	}
-	declMap := make(map[ast.PredicateSym]ast.Decl)
-	for _, decl := range decls {
-		declMap[decl.DeclaredAtom.Predicate] = decl
-	}
-	desugaredDecls, _ := symbols.CheckAndDesugar(declMap)
 
 	return boundsTestCase{
-		programInfo: ProgramInfo{nil, idbSymbols, nil, clauses, desugaredDecls},
+		programInfo: ProgramInfo{nil, idbSymbols, nil, clauses, makeDesugaredDecls(decls...)},
 		rulesMap:    makeRulesMap(clauses),
 		nameTrie:    nameTrie,
 	}
@@ -591,7 +595,7 @@ func TestBoundsAnalyzer(t *testing.T) {
 		}),
 	}
 	for _, test := range tests {
-		bc, err := newBoundsAnalyzer(&test.programInfo, newNameTrie(), nil, test.rulesMap)
+		bc, err := newBoundsAnalyzer(&test.programInfo, symbols.NewNameTrie(), nil, test.rulesMap)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -656,7 +660,7 @@ func TestBoundsAnalyzerNegative(t *testing.T) {
 		}),
 	}
 	for _, test := range tests {
-		bc, err := newBoundsAnalyzer(&test.programInfo, newNameTrie(), nil, test.rulesMap)
+		bc, err := newBoundsAnalyzer(&test.programInfo, symbols.NewNameTrie(), nil, test.rulesMap)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -667,70 +671,32 @@ func TestBoundsAnalyzerNegative(t *testing.T) {
 }
 
 func TestCollectNames(t *testing.T) {
-	tests := []boundsTestCase{
-		newBoundsTestCaseWithNameTrie(nil,
-			[]ast.Decl{
+	extraPredicates := map[ast.PredicateSym]ast.Decl{
+		ast.PredicateSym{"z", 1}: makeSimpleDecl(atom("z(X)"), name("/foo/bar")),
+	}
+	tests := []struct {
+		decls map[ast.PredicateSym]*ast.Decl
+		want  symbols.NameTrie
+	}{
+		{
+			decls: makeDesugaredDecls(
 				makeSimpleDecl(atom("a(X)"), name("/foo")),
 				makeSimpleDecl(atom("b(X)"), name("/foo")),
 				makeSimpleDecl(atom("c(X)"), name("/foo/bar")),
-			},
-			newNameTrie().Add([]string{"foo"}).Add([]string{"foo", "bar"}),
-		),
-		newBoundsTestCaseWithNameTrie(nil,
-			[]ast.Decl{
+			),
+			want: symbols.NewNameTrie().Add([]string{"foo"}).Add([]string{"foo", "bar"}),
+		},
+		{
+			decls: makeDesugaredDecls(
 				makeSimpleDecl(atom("b(X)"), name("/foo/baz")),
-				makeSimpleDecl(atom("c(X)"), name("/foo/bar")),
-			},
-			newNameTrie().Add([]string{"foo", "bar"}).Add([]string{"foo", "baz"}),
-		),
-	}
-	for _, test := range tests {
-		got, err := collectNamePrefixes(test.programInfo)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !cmp.Equal(got, test.nameTrie, cmp.AllowUnexported(nametrienode{})) {
-			t.Errorf("collectNamePrefixes(%v) = %v, want %v", test.programInfo, got, test.nameTrie)
-		}
-	}
-}
-
-func TestPrefixTrie(t *testing.T) {
-	tests := []struct {
-		nameTrie nametrie
-		query    string
-		want     ast.Constant
-	}{
-		{
-			nameTrie: newNameTrie().Add([]string{"foo"}).Add([]string{"foo", "bar"}),
-			query:    "/foo",
-			want:     ast.NameBound,
-		},
-		{
-			nameTrie: newNameTrie().Add([]string{"foo"}).Add([]string{"foo", "bar"}),
-			query:    "/foo/bar",
-			want:     name("/foo"),
-		},
-		{
-			nameTrie: newNameTrie().Add([]string{"foo"}).Add([]string{"foo", "bar"}),
-			query:    "/foo/baz",
-			want:     name("/foo"),
-		},
-		{
-			nameTrie: newNameTrie().Add([]string{"foo"}).Add([]string{"foo", "bar"}),
-			query:    "/foo/bar",
-			want:     name("/foo"),
-		},
-		{
-			nameTrie: newNameTrie().Add([]string{"foo"}).Add([]string{"foo", "bar"}),
-			query:    "/foo/bar/baz",
-			want:     name("/foo/bar"),
+			),
+			want: symbols.NewNameTrie().Add([]string{"foo", "bar"}).Add([]string{"foo", "baz"}),
 		},
 	}
 	for _, test := range tests {
-		got := prefixType(test.nameTrie, test.query)
-		if !cmp.Equal(got, test.want, cmp.AllowUnexported(ast.Constant{})) {
-			t.Errorf("prefixType(%v, %v) = %v, want %v", test.nameTrie, test.query, got, test.want)
+		got := collectNames(extraPredicates, test.decls)
+		if !cmp.Equal(got, test.want, cmp.AllowUnexported(symbols.NameTrieNode{})) {
+			t.Errorf("collectNames(%v) = %v, want %v", test.decls, got, test.want)
 		}
 	}
 }
@@ -742,7 +708,7 @@ func TestBoundsAnalyzerWithNames(t *testing.T) {
 		makeSimpleDecl(atom("a(X)"), name("/foo")),
 		makeSimpleDecl(atom("b(X)"), name("/foo")),
 	},
-		newNameTrie().Add([]string{"foo"}),
+		symbols.NewNameTrie().Add([]string{"foo"}),
 	)
 	bc, err := newBoundsAnalyzer(&test.programInfo, test.nameTrie, []ast.Atom{atom("b(/foo/bar)")}, test.rulesMap)
 	if err != nil {
@@ -760,7 +726,7 @@ func TestBoundsAnalyzerWithManyInitialFacts(t *testing.T) {
 		makeSimpleDecl(atom("a(X)"), name("/foo")),
 		makeSimpleDecl(atom("b(X)"), name("/foo")),
 	},
-		newNameTrie().Add([]string{"foo"}),
+		symbols.NewNameTrie().Add([]string{"foo"}),
 	)
 	var facts []ast.Atom
 	for i := 0; i < 100000; i++ {
@@ -781,7 +747,7 @@ func TestBoundsAnalyzerWithNamesNegative(t *testing.T) {
 	}, []ast.Decl{
 		makeSimpleDecl(atom("a(X)"), name("/foo")),
 	},
-		newNameTrie().Add([]string{"foo"}),
+		symbols.NewNameTrie().Add([]string{"foo"}),
 	)
 	bc, err := newBoundsAnalyzer(&test.programInfo, test.nameTrie, nil, test.rulesMap)
 	if err != nil {

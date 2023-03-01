@@ -615,6 +615,16 @@ func TestModeCheck(t *testing.T) {
 			boundVars: map[Variable]bool{Variable{"X"}: true},
 			want:      false,
 		},
+		{
+			goal:      NewAtom("foo", Variable{"X"}, Variable{"Y"}, Number(3)),
+			boundVars: map[Variable]bool{Variable{"X"}: true},
+			want:      true,
+		},
+		{
+			goal:      NewAtom("foo", Variable{"X"}, Variable{"Y"}, Variable{"Z"}),
+			boundVars: map[Variable]bool{Variable{"X"}: true},
+			want:      true,
+		},
 	}
 	for _, test := range tests {
 		err := mode.Check(test.goal, test.boundVars)

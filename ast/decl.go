@@ -131,7 +131,7 @@ type Mode []ArgMode
 // Check checks a goal against this mode and returns an error if it is incompatible.
 func (m Mode) Check(goal Atom, boundVars map[Variable]bool) error {
 	isFree := func(v Variable) bool {
-		return boundVars == nil && !boundVars[v]
+		return boundVars == nil || !boundVars[v]
 	}
 	if len(m) != len(goal.Args) {
 		return fmt.Errorf("number of arguments, %v, does not match the mode %v", goal.Args, m)

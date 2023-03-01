@@ -59,13 +59,14 @@ type ProgramInfo struct {
 
 // Analyzer is a struct providing built-in predicates and functions for name analysis.
 type Analyzer struct {
-	// Predicates that are provided by this datalog implementation.
-	builtInPredicates map[ast.PredicateSym]struct{}
-	// Functions (only used in transforms) provided by this datalog implementation.
-	builtInFunctions map[ast.FunctionSym]struct{}
-	// Predicates that are defined previously and can safely be referenced by rules.
-	knownPredicates map[ast.PredicateSym]ast.Decl
-	// Declaration of predicates to be analyzed. Must not overlap with knownPredicates.
+	// Predicates that can be referenced by rules though we do not have declarations in source.
+	// Keys are disjoint from builtin.Predicates.
+	extraPredicates map[ast.PredicateSym]ast.Decl
+	// Additional functions.
+	// Keys are disjoint from builtin functions.
+	extraFunctions map[ast.FunctionSym]struct{}
+	// Declaration of predicates to be analyzed.
+	// Keys are disjoint from extraPredicates and builtin.Predicates.
 	decl map[ast.PredicateSym]ast.Decl
 	// Whether mismatch in bounds leads to an error
 	boundsCheckingMode BoundsCheckingMode
@@ -87,17 +88,17 @@ type BoundsAnalyzer struct {
 }
 
 // AnalyzeOneUnit is a convenience method to analyze a program consisting of a single source unit.
-func AnalyzeOneUnit(unit parse.SourceUnit, knownPredicates map[ast.PredicateSym]ast.Decl) (*ProgramInfo, error) {
-	return Analyze([]parse.SourceUnit{unit}, knownPredicates)
+func AnalyzeOneUnit(unit parse.SourceUnit, extraPredicates map[ast.PredicateSym]ast.Decl) (*ProgramInfo, error) {
+	return Analyze([]parse.SourceUnit{unit}, extraPredicates)
 }
 
 // Analyze identifies the extensional and intensional predicates of a program and checks every rule.
-func Analyze(program []parse.SourceUnit, knownPredicates map[ast.PredicateSym]ast.Decl) (*ProgramInfo, error) {
-	return AnalyzeAndCheckBounds(program, knownPredicates, NoBoundsChecking)
+func Analyze(program []parse.SourceUnit, extraPredicates map[ast.PredicateSym]ast.Decl) (*ProgramInfo, error) {
+	return AnalyzeAndCheckBounds(program, extraPredicates, NoBoundsChecking)
 }
 
 // AnalyzeAndCheckBounds checks every rule, including bounds.
-func AnalyzeAndCheckBounds(program []parse.SourceUnit, knownPredicates map[ast.PredicateSym]ast.Decl, boundsChecking BoundsCheckingMode) (*ProgramInfo, error) {
+func AnalyzeAndCheckBounds(program []parse.SourceUnit, extraPredicates map[ast.PredicateSym]ast.Decl, boundsChecking BoundsCheckingMode) (*ProgramInfo, error) {
 	pkgs := map[string]*packages.Package{}
 	var clauses []ast.Clause
 	var decls []ast.Decl
@@ -126,7 +127,7 @@ func AnalyzeAndCheckBounds(program []parse.SourceUnit, knownPredicates map[ast.P
 		clauses = append(clauses, cs...)
 	}
 
-	analyzer, err := New(knownPredicates, decls, boundsChecking)
+	analyzer, err := New(extraPredicates, decls, boundsChecking)
 	if err != nil {
 		return nil, err
 	}
@@ -144,48 +145,50 @@ func byName(decls map[ast.PredicateSym]ast.Decl) map[string]ast.Decl {
 	return byName
 }
 
-// New creates a new analyzer that uses builtin predicates and functions.
-func New(knownPredicates map[ast.PredicateSym]ast.Decl, decls []ast.Decl, boundsChecking BoundsCheckingMode) (*Analyzer, error) {
-	knownByName := byName(knownPredicates)
+// New creates a new analyzer based on declarations and extra predicates.
+func New(extraPredicates map[ast.PredicateSym]ast.Decl, decls []ast.Decl, boundsChecking BoundsCheckingMode) (*Analyzer, error) {
+	extraByName := byName(extraPredicates)
 	declMap := make(map[ast.PredicateSym]ast.Decl)
 	for _, decl := range decls {
 		pred := decl.DeclaredAtom.Predicate
 		if pred == symbols.Package || pred == symbols.Use {
 			continue
 		}
-		if knownDecl, ok := knownByName[pred.Symbol]; ok {
-			if !knownDecl.IsSynthetic() {
-				return nil, fmt.Errorf("cannot redeclare %v, previous Decl %v", decl, knownDecl)
+		declMap[pred] = decl
+
+		if extraDecl, ok := extraByName[pred.Symbol]; ok {
+			// We have a user declaration for a symbol that is also known via extraPredicates.
+			if !extraDecl.IsSynthetic() {
+				return nil, fmt.Errorf("cannot redeclare %v, previous Decl %v", decl, extraDecl)
 			}
 			// We can override a synthetic decl, but arity should still match.
-			if knownDecl.DeclaredAtom.Predicate.Arity != pred.Arity {
-				return nil, fmt.Errorf("declared arity %v conflicts with known decl %v", decl, knownDecl)
+			if extraDecl.DeclaredAtom.Predicate.Arity != pred.Arity {
+				return nil, fmt.Errorf("declared arity %v conflicts with extra decl %v", decl, extraDecl)
 			}
 			// Override the synthetic decl with the one we were requested to use.
-			delete(knownPredicates, pred)
+			delete(extraPredicates, pred)
 		}
-		declMap[pred] = decl
 	}
-	return &Analyzer{builtin.Predicates, builtin.Functions, knownPredicates, declMap, boundsChecking}, nil
+	return &Analyzer{extraPredicates, nil /* extraFunctions */, declMap, boundsChecking}, nil
 }
 
 // EnsureDecl will ensure there is a declaration for each head of a rule,
 // creating one if necessary.
 func (a *Analyzer) EnsureDecl(clauses []ast.Clause) error {
-	knownByName := byName(a.knownPredicates)
+	extraByName := byName(a.extraPredicates)
 	declByName := byName(a.decl)
 	for _, c := range clauses {
 		pred := c.Head.Predicate
 		name := pred.Symbol
 		// Check that the name was not defined previously (in a separate source).
 		// We may permit "distributing" definitions over source files later.
-		if decl, ok := a.knownPredicates[pred]; ok {
+		if decl, ok := a.extraPredicates[pred]; ok {
 			if decl.IsExtensional() && len(c.Premises) == 0 {
 				continue
 			}
 			return fmt.Errorf("predicate %v was defined previously %v", decl.DeclaredAtom.Predicate, decl)
 		}
-		if decl, ok := knownByName[name]; ok { // different arity
+		if decl, ok := extraByName[name]; ok { // different arity
 			return fmt.Errorf(
 				"predicate %v was defined previously", decl.DeclaredAtom.Predicate)
 		}
@@ -218,7 +221,7 @@ func (a *Analyzer) EnsureDecl(clauses []ast.Clause) error {
 // all references to built-in predicates and functions used in transforms are valid.
 func (a *Analyzer) Analyze(program []ast.Clause) (*ProgramInfo, error) {
 	globalDecls := make(map[ast.PredicateSym]ast.Decl)
-	for p, d := range a.knownPredicates {
+	for p, d := range a.extraPredicates {
 		globalDecls[p] = d
 	}
 	for p, d := range a.decl {
@@ -410,6 +413,7 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 				}
 				if !p.Predicate.IsBuiltin() {
 					ast.AddVars(p, boundVars)
+					continue
 				}
 				// Since evaluation will proceed from left to right, we need to ensure that the variables
 				// are already assigned values by some earlier subgoal. A more sophisticated way would be
@@ -417,51 +421,16 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 				// where we are sure that variables have been assigned values.
 				var builtinVars = make(map[ast.Variable]bool)
 				ast.AddVars(p, builtinVars)
-				if p.Predicate == symbols.MatchPair || p.Predicate == symbols.MatchCons {
-					if fstVar, fstOk := p.Args[1].(ast.Variable); fstOk {
-						boundVars[fstVar] = true
-
-						if scrutinee, ok := p.Args[0].(ast.Variable); ok && scrutinee == fstVar {
-							return fmt.Errorf("a variable that is matched cannot be used for binding %v", p)
-						}
-					} else if _, constOk := p.Args[1].(ast.Constant); !constOk {
-						return fmt.Errorf("expected variable or constant as second argument to %v", p)
-					}
-
-					if sndVar, sndOk := p.Args[2].(ast.Variable); sndOk {
-						boundVars[sndVar] = true
-
-						if scrutinee, ok := p.Args[0].(ast.Variable); ok && scrutinee == sndVar {
-							return fmt.Errorf("a variable that is matched cannot be used for binding %v", p)
-						}
-					} else if _, constOk := p.Args[2].(ast.Constant); !constOk {
-						return fmt.Errorf("expected variable or constant as second argument to %v", p)
-					}
+				mode := builtin.Predicates[p.Predicate]
+				if err := mode.Check(p, boundVars); err != nil {
+					return err
 				}
-				if p.Predicate == symbols.MatchEntry || p.Predicate == symbols.MatchField {
-					if _, keyOk := p.Args[1].(ast.Constant); !keyOk {
-						return fmt.Errorf("expected constant as second argument to %v", p)
+				for i, m := range mode {
+					if m == ast.ArgModeInput {
+						continue
 					}
-					if valVar, valOk := p.Args[2].(ast.Variable); valOk {
-						boundVars[valVar] = true
-
-						if scrutinee, ok := p.Args[0].(ast.Variable); ok && scrutinee == valVar {
-							return fmt.Errorf("a variable that is matched cannot be used for binding %v", p)
-						}
-					} else if _, constOk := p.Args[2].(ast.Constant); !constOk {
-						return fmt.Errorf("expected variable or constant as third argument to %v", p)
-					}
-				}
-
-				if p.Predicate == symbols.ListMember { // :list:member(Member, List)
-					if memberVar, memberOk := p.Args[0].(ast.Variable); memberOk {
-						boundVars[memberVar] = true
-
-						if listArg, ok := p.Args[1].(ast.Variable); ok && listArg == memberVar {
-							return fmt.Errorf("a variable whose value is expanded cannot be used for binding %v", p)
-						}
-					} else if _, constOk := p.Args[0].(ast.Constant); !constOk {
-						return fmt.Errorf("expected variable or constant as 2nd argument to %v", p)
+					if v, ok := p.Args[i].(ast.Variable); ok {
+						boundVars[v] = true
 					}
 				}
 
@@ -695,13 +664,16 @@ func (a *Analyzer) checkPredicates(clause ast.Clause) error {
 		if _, ok := a.decl[sym]; ok {
 			return nil
 		}
-		if _, ok := a.knownPredicates[sym]; ok {
+		if _, ok := builtin.Predicates[sym]; ok {
 			return nil
 		}
-		if _, ok := a.builtInPredicates[sym]; ok {
-			return nil
+		if len(a.extraPredicates) > 0 {
+			if _, ok := a.extraPredicates[sym]; ok {
+				return nil
+			}
 		}
-		return fmt.Errorf("clause %v could not find predicate %v", clause, sym)
+
+		return fmt.Errorf("in clause %v could not find predicate %v", clause, sym)
 	}, clause)
 }
 
@@ -744,26 +716,49 @@ func (a *Analyzer) checkExprArity(arg ast.BaseTerm) error {
 			}
 		}
 		sym := x.Function
-		if _, ok := a.builtInFunctions[ast.FunctionSym{sym.Symbol, -1}]; ok {
-			// Variable number of arguments.
+		lookup := func(sym ast.FunctionSym) (bool, bool) {
+			_, builtinFun := builtin.Functions[sym]
+			if builtinFun {
+				return true, false
+			}
+			var extra bool
+			if a.extraFunctions != nil {
+				_, extra = a.extraFunctions[sym]
+			}
+			return false, extra
+		}
+		// Variable number of arguments.
+		isBuiltinVar, isExtraVar := lookup(ast.FunctionSym{sym.Symbol, -1})
+		if isExtraVar {
+			return nil
+		}
+		if isBuiltinVar {
 			// For var-arity reducer functions (e.g. fn:collect), check we have at least one argument.
 			if _, ok := builtin.ReducerFunctions[ast.FunctionSym{sym.Symbol, -1}]; ok && len(x.Args) == 0 {
 				return fmt.Errorf("reducer function %v expects at least one argument", sym.Symbol)
 			}
 			return nil
 		}
-		if _, ok := a.builtInFunctions[sym]; ok {
+		if isBuiltin, isExtra := lookup(sym); isBuiltin || isExtra {
 			if sym.Arity == len(x.Args) {
 				return nil
 			}
 			return fmt.Errorf("function %v expects %d arguments, provided: %v", sym.Symbol, sym.Arity, x.Args)
 		}
-		// Arity mismatch
-		for fn := range a.builtInFunctions {
+		// Arity mismatch. Look for a symbol with the same name.
+		for fn := range builtin.Functions {
 			if fn.Symbol == sym.Symbol {
 				return fmt.Errorf("wrong arity for function %v got %v (%d args) want %d args", fn, x.Args, len(x.Args), fn.Arity)
 			}
 		}
+		if len(a.extraFunctions) > 0 {
+			for fn := range a.extraFunctions {
+				if fn.Symbol == sym.Symbol {
+					return fmt.Errorf("wrong arity for function %v got %v (%d args) want %d args", fn, x.Args, len(x.Args), fn.Arity)
+				}
+			}
+		}
+
 		return fmt.Errorf("unknown function %v", sym)
 	default:
 		return fmt.Errorf("unexpected: %v", arg)

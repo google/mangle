@@ -27,17 +27,17 @@ import (
 )
 
 var (
-	// Predicates built-in predicates.
-	Predicates = map[ast.PredicateSym]struct{}{
-		symbols.Lt:             {},
-		symbols.Le:             {},
-		symbols.ListMember:     {},
-		symbols.WithinDistance: {},
-		symbols.MatchPair:      {},
-		symbols.MatchCons:      {},
-		symbols.MatchNil:       {},
-		symbols.MatchField:     {},
-		symbols.MatchEntry:     {},
+	// Predicates has all built-in predicates.
+	Predicates = map[ast.PredicateSym]ast.Mode{
+		symbols.Lt:             {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.Le:             {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.ListMember:     {ast.ArgModeOutput, ast.ArgModeInput},
+		symbols.WithinDistance: {ast.ArgModeInput, ast.ArgModeInput, ast.ArgModeInput},
+		symbols.MatchPair:      {ast.ArgModeInput, ast.ArgModeOutput, ast.ArgModeOutput},
+		symbols.MatchCons:      {ast.ArgModeInput, ast.ArgModeOutput, ast.ArgModeOutput},
+		symbols.MatchNil:       {ast.ArgModeInput},
+		symbols.MatchField:     {ast.ArgModeInput, ast.ArgModeInput, ast.ArgModeOutput},
+		symbols.MatchEntry:     {ast.ArgModeInput, ast.ArgModeInput, ast.ArgModeOutput},
 	}
 
 	// Functions has all built-in functions except reducers.

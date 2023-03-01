@@ -90,7 +90,6 @@ func TestCheckRulePositive(t *testing.T) {
 		clause("foo(X) :- bar(X), 0 < X."),
 		clause("foo(Y) :- bar(X) |> let Y = fn:plus(X, X)."),
 		clause("foo(Y) :- bar(X) |> let Y = fn:list:get(X, 1)."),
-		clause("foo(Y) :- bar(X) |> let Y = fn:plus(X, X), let _ = fn:ring_the_alarm()."),
 		clause("foo(Y) :- bar(X) |> do fn:group_by(X), let Y = fn:sum(X)."),
 		clause("c(R,S,T) :- bar(R), bar(S), bar(T), fn:plus(fn:mult(R, R), fn:mult(S,S)) = fn:mult(T,T)."),
 		clause("foo(X) :- bar(Y), bar(Z) |> do fn:group_by(Y), let X = fn:collect(Z)."),
@@ -99,7 +98,23 @@ func TestCheckRulePositive(t *testing.T) {
 		analyzer, _ := New(map[ast.PredicateSym]ast.Decl{
 			ast.PredicateSym{"bar", 1}: makeSyntheticDecl(t, atom("bar(X)")),
 		}, nil, ErrorForBoundsMismatch)
-		analyzer.builtInFunctions[ast.FunctionSym{"fn:ring_the_alarm", 0}] = struct{}{}
+		if err := analyzer.CheckRule(clause); err != nil {
+			t.Errorf("Expected rule %v to be valid, got %v", clause, err)
+		}
+	}
+}
+
+func TestCheckRulePositiveExtraFun(t *testing.T) {
+	tests := []ast.Clause{
+		clause("foo(Y) :- bar(X) |> let Y = fn:plus(X, X), let _ = fn:ring_the_alarm()."),
+	}
+	for _, clause := range tests {
+		analyzer, _ := New(map[ast.PredicateSym]ast.Decl{
+			ast.PredicateSym{"bar", 1}: makeSyntheticDecl(t, atom("bar(X)")),
+		}, nil, ErrorForBoundsMismatch)
+		analyzer.extraFunctions = map[ast.FunctionSym]struct{}{
+			ast.FunctionSym{"fn:ring_the_alarm", 0}: {},
+		}
 		err := analyzer.CheckRule(clause)
 		if err != nil {
 			t.Errorf("Expected rule %v to be valid, got %v", clause, err)

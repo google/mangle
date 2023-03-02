@@ -551,3 +551,39 @@ func TestRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func TestStringConcatenate(t *testing.T) {
+	tests := []struct {
+		input []ast.BaseTerm
+		want  ast.Constant
+	}{
+		{[]ast.BaseTerm{}, ast.String("")},
+		{[]ast.BaseTerm{ast.String("abc")}, ast.String("abc")},
+		{[]ast.BaseTerm{ast.String("abc"), ast.String("123")}, ast.String("abc123")},
+	}
+	for _, test := range tests {
+		term := ast.ApplyFn{symbols.StringConcatenate, test.input}
+		got, err := EvalExpr(term, ast.ConstSubstMap{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("EvalExpr(%v)=%v want %v.", term, got, test.want)
+		}
+	}
+}
+
+func TestStringConcatenateFailure(t *testing.T) {
+	tests := [][]ast.BaseTerm{
+		[]ast.BaseTerm{ast.Float64(3.14)},
+		[]ast.BaseTerm{ast.Number(42)},
+		[]ast.BaseTerm{ast.String("abc"), ast.ListNil},
+	}
+	for _, test := range tests {
+		term := ast.ApplyFn{symbols.StringConcatenate, test}
+		got, err := EvalExpr(term, ast.ConstSubstMap{})
+		if err == nil {
+			t.Errorf("EvalExpr(%v)=%v want error.", term, got)
+		}
+	}
+}

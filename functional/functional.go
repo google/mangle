@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/symbols"
@@ -218,6 +219,16 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 			}
 			return nil
 		})
+
+	case symbols.StringConcatenate.Symbol:
+		var values []string
+		for i, val := range evaluatedArgs {
+			if val.Type != ast.StringType {
+				return ast.Constant{}, fmt.Errorf("cannot string concatenate: value at position %v cannot be converted to string", i)
+			}
+			values = append(values, val.Symbol)
+		}
+		return ast.String(strings.Join(values, "")), nil
 
 	case symbols.Sum.Symbol:
 		list := evaluatedArgs[0]

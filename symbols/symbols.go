@@ -121,6 +121,9 @@ var (
 	// RelType is a constructor for a relation type.
 	RelType = ast.FunctionSym{"fn:Rel", -1}
 
+	// StringConcatenate concatenates the arguments into a single string constant.
+	StringConcatenate = ast.FunctionSym{"fn:string:concat", -1}
+
 	// PairType is a constructor for a pair type.
 	PairType = ast.FunctionSym{"fn:Pair", 2}
 	// TupleType is a type-level function that returns a tuple type out of pair types.

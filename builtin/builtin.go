@@ -50,13 +50,14 @@ var (
 		// This is only used to start a "do-transform".
 		symbols.GroupBy: {},
 
-		symbols.ListGet: {},
-		symbols.Append:  {},
-		symbols.Cons:    {},
-		symbols.Len:     {},
-		symbols.List:    {},
-		symbols.Pair:    {},
-		symbols.Tuple:   {},
+		symbols.ListGet:           {},
+		symbols.Append:            {},
+		symbols.Cons:              {},
+		symbols.Len:               {},
+		symbols.List:              {},
+		symbols.Pair:              {},
+		symbols.Tuple:             {},
+		symbols.StringConcatenate: {},
 	}
 
 	// ReducerFunctions has those built-in functions with are reducers.

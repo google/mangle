@@ -57,6 +57,7 @@ var (
 		symbols.List:              {},
 		symbols.Pair:              {},
 		symbols.Tuple:             {},
+		symbols.NumberToString:    {},
 		symbols.StringConcatenate: {},
 	}
 

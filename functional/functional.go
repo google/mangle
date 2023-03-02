@@ -220,6 +220,14 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 			return nil
 		})
 
+	case symbols.NumberToString.Symbol:
+		val := evaluatedArgs[0]
+		if val.Type != ast.NumberType {
+			return ast.Constant{}, fmt.Errorf("cannot convert to string: fn:number:to_string() only converts ast.NumberType type")
+		}
+
+		return ast.String(ast.FormatNumber(val.NumValue)), nil
+
 	case symbols.StringConcatenate.Symbol:
 		var values []string
 		for i, val := range evaluatedArgs {

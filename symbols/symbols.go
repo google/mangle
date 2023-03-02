@@ -121,6 +121,9 @@ var (
 	// RelType is a constructor for a relation type.
 	RelType = ast.FunctionSym{"fn:Rel", -1}
 
+	// NumberToString converts from ast.NumberType to ast.StringType
+	NumberToString = ast.FunctionSym{"fn:number:to_string", 1}
+
 	// StringConcatenate concatenates the arguments into a single string constant.
 	StringConcatenate = ast.FunctionSym{"fn:string:concat", -1}
 

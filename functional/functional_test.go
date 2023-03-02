@@ -552,6 +552,41 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
+func TestNumberToString(t *testing.T) {
+	tests := []struct {
+		input []ast.BaseTerm
+		want  ast.Constant
+	}{
+		{[]ast.BaseTerm{ast.Number(123)}, ast.String("123")},
+		{[]ast.BaseTerm{ast.Number(-42)}, ast.String("-42")},
+	}
+
+	for _, test := range tests {
+		term := ast.ApplyFn{symbols.NumberToString, test.input}
+		got, err := EvalExpr(term, ast.ConstSubstMap{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("EvalExpr(%v)=%v want %v.", term, got, test.want)
+		}
+	}
+}
+
+func TestNumberToStringFailure(t *testing.T) {
+	tests := [][]ast.BaseTerm{
+		[]ast.BaseTerm{ast.Float64(3.14)},
+		[]ast.BaseTerm{ast.String("abc")},
+	}
+	for _, test := range tests {
+		term := ast.ApplyFn{symbols.NumberToString, test}
+		got, err := EvalExpr(term, ast.ConstSubstMap{})
+		if err == nil {
+			t.Errorf("EvalExpr(%v)=%v want error.", term, got)
+		}
+	}
+}
+
 func TestStringConcatenate(t *testing.T) {
 	tests := []struct {
 		input []ast.BaseTerm

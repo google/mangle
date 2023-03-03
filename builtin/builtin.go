@@ -58,6 +58,8 @@ var (
 		symbols.Pair:              {},
 		symbols.Tuple:             {},
 		symbols.NumberToString:    {},
+		symbols.Float64ToString:   {},
+		symbols.NameToString:      {},
 		symbols.StringConcatenate: {},
 	}
 

@@ -124,6 +124,12 @@ var (
 	// NumberToString converts from ast.NumberType to ast.StringType
 	NumberToString = ast.FunctionSym{"fn:number:to_string", 1}
 
+	// Float64ToString converts from ast.Float64Type to ast.StringType
+	Float64ToString = ast.FunctionSym{"fn:float64:to_string", 1}
+
+	// NameToString converts from ast.NameType to ast.StringType
+	NameToString = ast.FunctionSym{"fn:name:to_string", 1}
+
 	// StringConcatenate concatenates the arguments into a single string constant.
 	StringConcatenate = ast.FunctionSym{"fn:string:concat", -1}
 

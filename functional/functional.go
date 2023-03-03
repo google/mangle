@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/google/mangle/ast"
@@ -227,6 +228,27 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		}
 
 		return ast.String(ast.FormatNumber(val.NumValue)), nil
+
+	case symbols.Float64ToString.Symbol:
+		val := evaluatedArgs[0]
+		if val.Type != ast.Float64Type {
+			return ast.Constant{}, fmt.Errorf("cannot convert to string: fn:float64:to_string() only converts ast.Float64Type type")
+		}
+
+		f, err := val.Float64Value()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+
+		return ast.String(strconv.FormatFloat(f, 'f', -1, 64)), nil
+
+	case symbols.NameToString.Symbol:
+		val := evaluatedArgs[0]
+		if val.Type != ast.NameType {
+			return ast.Constant{}, fmt.Errorf("cannot convert to string: fn:name:to_string() only converts ast.NameType type")
+		}
+
+		return ast.String(val.Symbol), nil
 
 	case symbols.StringConcatenate.Symbol:
 		var values []string

@@ -587,6 +587,75 @@ func TestNumberToStringFailure(t *testing.T) {
 	}
 }
 
+func TestFloat64ToString(t *testing.T) {
+	tests := []struct {
+		input []ast.BaseTerm
+		want  ast.Constant
+	}{
+		{[]ast.BaseTerm{ast.Float64(123)}, ast.String("123")},
+		{[]ast.BaseTerm{ast.Float64(-3.14)}, ast.String("-3.14")},
+		{[]ast.BaseTerm{ast.Float64(1000000)}, ast.String("1000000")},
+		{[]ast.BaseTerm{ast.Float64(1000001)}, ast.String("1000001")},
+		{[]ast.BaseTerm{ast.Float64(0.123456789)}, ast.String("0.123456789")},
+		{[]ast.BaseTerm{ast.Float64(0.999999999)}, ast.String("0.999999999")},
+	}
+
+	for _, test := range tests {
+		term := ast.ApplyFn{symbols.Float64ToString, test.input}
+		got, err := EvalExpr(term, ast.ConstSubstMap{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("EvalExpr(%v)=%v want %v.", term, got, test.want)
+		}
+	}
+}
+
+func TestFloat64ToStringFailure(t *testing.T) {
+	tests := [][]ast.BaseTerm{
+		[]ast.BaseTerm{ast.Number(42)},
+		[]ast.BaseTerm{ast.String("abc")},
+	}
+	for _, test := range tests {
+		term := ast.ApplyFn{symbols.Float64ToString, test}
+		got, err := EvalExpr(term, ast.ConstSubstMap{})
+		if err == nil {
+			t.Errorf("EvalExpr(%v)=%v want error.", term, got)
+		}
+	}
+}
+
+func TestNameToString(t *testing.T) {
+	name, err := ast.Name("/named/constant")
+	if err != nil {
+		t.Fatal("failed to create name constant: ", err)
+	}
+	term := ast.ApplyFn{symbols.NameToString, []ast.BaseTerm{name}}
+	got, err := EvalExpr(term, ast.ConstSubstMap{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := ast.String("/named/constant")
+	if got != want {
+		t.Errorf("EvalExpr(%v)=%v want %v.", term, got, want)
+	}
+}
+
+func TestNameToStringFailure(t *testing.T) {
+	tests := [][]ast.BaseTerm{
+		[]ast.BaseTerm{ast.Float64(3.14)},
+		[]ast.BaseTerm{ast.String("abc")},
+	}
+	for _, test := range tests {
+		term := ast.ApplyFn{symbols.NameToString, test}
+		got, err := EvalExpr(term, ast.ConstSubstMap{})
+		if err == nil {
+			t.Errorf("EvalExpr(%v)=%v want error.", term, got)
+		}
+	}
+}
+
 func TestStringConcatenate(t *testing.T) {
 	tests := []struct {
 		input []ast.BaseTerm

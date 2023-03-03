@@ -69,12 +69,12 @@ type SimpleColumn struct {
 	// according to order determined by fact hashes.
 	// If a fact store implementation returns facts in a deterministic order,
 	// then it is not necessary to enable this.
-	deterministic bool
+	Deterministic bool
 }
 
 // SimpleColumnStore is a read-only fact store backed by a simple column file.
 type SimpleColumnStore struct {
-	input              func() io.ReadCloser
+	input              func() (io.ReadCloser, error)
 	predicates         []ast.PredicateSym
 	predicateFactCount []int
 }
@@ -130,7 +130,10 @@ func (s *SimpleColumnStore) GetFacts(query ast.Atom, cb func(ast.Atom) error) er
 		toSkip += s.predicateFactCount[i] * p.Arity
 	}
 
-	f := s.input()
+	f, inputErr := s.input()
+	if inputErr != nil {
+		return ErrCouldNotRead
+	}
 	defer f.Close()
 
 	scanner := bufio.NewScanner(f)
@@ -178,8 +181,11 @@ var (
 
 // NewSimpleColumnStore returns a new fact store backed by a simple column file.
 // The input is called immediately.
-func NewSimpleColumnStore(input func() io.ReadCloser) (*SimpleColumnStore, error) {
-	f := input()
+func NewSimpleColumnStore(input func() (io.ReadCloser, error)) (*SimpleColumnStore, error) {
+	f, err := input()
+	if err != nil {
+		return nil, err
+	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
 	preds, predFactCount, err := readHeader(scanner)
@@ -211,7 +217,7 @@ func (sc SimpleColumn) WriteTo(store ReadOnlyFactStore, w io.Writer) error {
 		return ErrTooManyPreds
 	}
 	predFactCount := make([]int, len(preds))
-	if sc.deterministic {
+	if sc.Deterministic {
 		sort.Slice(preds, func(i, j int) bool {
 			a := preds[i]
 			b := preds[j]
@@ -249,7 +255,7 @@ func (sc SimpleColumn) WriteTo(store ReadOnlyFactStore, w io.Writer) error {
 		}); err != nil {
 			return err
 		}
-		if sc.deterministic {
+		if sc.Deterministic {
 			sort.Slice(facts, func(i, j int) bool {
 				return facts[i].Hash() < facts[j].Hash()
 			})

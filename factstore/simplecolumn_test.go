@@ -122,8 +122,8 @@ func TestStore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s, err := NewSimpleColumnStore(func() io.ReadCloser {
-		return io.NopCloser(bytes.NewReader(buf.Bytes()))
+	s, err := NewSimpleColumnStore(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(buf.Bytes())), nil
 	})
 
 	if err != nil {
@@ -177,8 +177,8 @@ func TestFiltered(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s, err := NewSimpleColumnStore(func() io.ReadCloser {
-		return io.NopCloser(bytes.NewReader(buf.Bytes()))
+	s, err := NewSimpleColumnStore(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(buf.Bytes())), nil
 	})
 
 	if err != nil {

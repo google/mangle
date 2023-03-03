@@ -30,6 +30,10 @@ type ReadOnlyFactStore interface {
 	GetFacts(ast.Atom, func(ast.Atom) error) error
 
 	// Contains returns true if given atom is already present in store.
+	// This is a convenience method that has a straightforward implementation
+	// in terms of GetFacts. It does not return error and treats any
+	// error condition as "false". Clients who distinguish "absent" from "error"
+	// should call GetFacts directly.
 	Contains(ast.Atom) bool
 
 	// ListPredicates lists predicates available in this store.

@@ -2,45 +2,194 @@ package factstore
 
 import (
 	"bytes"
+	"io"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/mangle/ast"
 )
 
-func TestRoundTrip(t *testing.T) {
-	sc := SimpleColumn{}
+const (
+	wantNumFooFacts = 2
+	wantNumBarFacts = 5
+	wantNumQazFacts = 2
+)
+
+func testStore(t *testing.T) *SimpleInMemoryStore {
+	t.Helper()
 	m := NewSimpleInMemoryStore()
 	facts := []ast.Atom{
 		atom("baz()"),
 		atom("foo(`\n/bar`)"),
 		atom("foo(/zzz)"),
-		atom("bar(/bar,1,/baz)"),
-		atom("bar(/bar,0,/def)"),
-		atom("bar(/abc,1,/def)"),
-		evalAtom("bar([/abc],1,/def)"),
-		evalAtom("bar([/abc, /def], 1, /def)"),
-		evalAtom("baz([/abc : 1,  /def : 2], 1, /def)"),
-		evalAtom("baz({/abc : 1,  /def : 2}, 1, /def)"),
+		atom("bar(/r,1,/z)"),
+		atom("bar(/t,2,/f)"),
+		atom("bar(/g,3,/h)"),
+		evalAtom("bar([/abc],4,/def)"),
+		evalAtom("bar([/abc, /def], 5, /def)"),
+		evalAtom("qaz([/abc : 123,  /def : 345], 10, /def)"),
+		evalAtom("qaz({/abc : 456,  /def : 678}, 20, /def)"),
 	}
 	for _, f := range facts {
 		m.Add(f)
 	}
+	if m.EstimateFactCount() != len(facts) {
+		t.Fatalf("SimpleInMemoryStore.EstimateFactCount() =  %d want %d", m.EstimateFactCount(), len(facts))
+	}
+	return &m
+}
+
+func TestOutput(t *testing.T) {
+	m := testStore(t)
+	sc := SimpleColumn{true /* deterministic */}
+	var buf bytes.Buffer
+	if err := sc.WriteTo(m, &buf); err != nil {
+		t.Fatal(err)
+	}
+
+	want := `4
+baz 0 1
+foo 1 2
+bar 3 5
+qaz 3 2
+%2Fzzz
+%60%0A%2Fbar%60
+%2Fr
+%2Fg
+%5B%2Fabc%2C%20%2Fdef%5D
+%5B%2Fabc%5D
+%2Ft
+1
+3
+5
+4
+2
+%2Fz
+%2Fh
+%2Fdef
+%2Fdef
+%2Ff
+%7B%2Fdef%20%3A%20678%2C%20%2Fabc%20%3A%20456%7D
+%5B%2Fdef%20%3A%20345%2C%20%2Fabc%20%3A%20123%5D
+20
+10
+%2Fdef
+%2Fdef
+`
+	if diff := cmp.Diff(want, string(buf.Bytes())); diff != "" {
+		t.Errorf("WriteTo() unexpected difference -want +got %v", diff)
+	}
+}
+
+func TestRoundTrip(t *testing.T) {
+	m := testStore(t)
+	sc := SimpleColumn{true /* deterministic */}
 	var buf bytes.Buffer
 	if err := sc.WriteTo(m, &buf); err != nil {
 		t.Fatal(err)
 	}
 
 	n := NewSimpleInMemoryStore()
-
 	if err := sc.ReadInto(bytes.NewReader(buf.Bytes()), n); err != nil {
 		t.Fatal(err)
 	}
-	if n.EstimateFactCount() != len(facts) {
-		t.Fatalf("fact count %d want %d", n.EstimateFactCount(), len(facts))
+	if n.EstimateFactCount() != m.EstimateFactCount() {
+		t.Fatalf("fact count %d want %d", n.EstimateFactCount(), m.EstimateFactCount())
 	}
-	for _, f := range facts {
-		if !n.Contains(f) {
-			t.Errorf("missing fact: %s", f.String())
+	for _, p := range m.ListPredicates() {
+		m.GetFacts(ast.NewQuery(p), func(fact ast.Atom) error {
+			if !n.Contains(fact) {
+				t.Errorf("missing fact: %s", fact.String())
+			}
+			return nil
+		})
+	}
+	for _, p := range n.ListPredicates() {
+		n.GetFacts(ast.NewQuery(p), func(fact ast.Atom) error {
+			if !m.Contains(fact) {
+				t.Errorf("extra fact: %s", fact.String())
+			}
+			return nil
+		})
+	}
+}
+
+func TestStore(t *testing.T) {
+	m := testStore(t)
+	sc := SimpleColumn{true /* deterministic */}
+	var buf bytes.Buffer
+	if err := sc.WriteTo(m, &buf); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := NewSimpleColumnStore(func() io.ReadCloser {
+		return io.NopCloser(bytes.NewReader(buf.Bytes()))
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(s.predicateFactCount) != len(m.ListPredicates()) {
+		t.Errorf("NewSimpleColumnStore: got %d predicates want %d", len(s.predicateFactCount), len(m.ListPredicates()))
+	}
+
+	var foundBaz bool
+	s.GetFacts(atom("baz()"), func(a ast.Atom) error {
+		if !a.Equals(atom("baz()")) {
+			t.Errorf("GetFacts(baz()): got %v want baz()", a)
 		}
+		foundBaz = true
+		return nil
+	})
+	if !foundBaz {
+		t.Errorf("GetFacts(baz()): got nothing want baz()")
+	}
+
+	tests := []struct {
+		query string
+		want  int
+	}{
+		{"foo(X)", wantNumFooFacts},
+		{"bar(X, Y, Z)", wantNumBarFacts},
+		{"qaz(X, Y, Z)", wantNumQazFacts},
+	}
+	for _, test := range tests {
+		var count int
+		s.GetFacts(atom(test.query), func(a ast.Atom) error {
+			if !m.Contains(a) {
+				t.Errorf("GetFacts(%s): unexpected fact: %v", test.query, a)
+			}
+			count++
+			return nil
+		})
+		if count != test.want {
+			t.Errorf("GetFacts(%s): got %d want %d facts", test.query, count, test.want)
+		}
+	}
+}
+
+func TestFiltered(t *testing.T) {
+	m := testStore(t)
+	sc := SimpleColumn{true /* deterministic */}
+	var buf bytes.Buffer
+	if err := sc.WriteTo(m, &buf); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := NewSimpleColumnStore(func() io.ReadCloser {
+		return io.NopCloser(bytes.NewReader(buf.Bytes()))
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !s.Contains(evalAtom("bar([/abc, /def], 5, /def)")) {
+		t.Errorf("Contains(bar([/abc, /def], 5, /def))=false want true")
+	}
+
+	if s.Contains(evalAtom("bar(/nope, /nope, /nope)")) {
+		t.Errorf("Contains(bar(/nope, /nope, /nope)=true want false")
 	}
 }

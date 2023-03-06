@@ -253,10 +253,11 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 	case symbols.StringConcatenate.Symbol:
 		var values []string
 		for i, val := range evaluatedArgs {
-			if val.Type != ast.StringType {
-				return ast.Constant{}, fmt.Errorf("cannot string concatenate: value at position %v cannot be converted to string", i)
+			res, err := evalToString(val)
+			if err != nil {
+				return ast.Constant{}, fmt.Errorf("cannot string concatenate at position %v: %v", i, err)
 			}
-			values = append(values, val.Symbol)
+			values = append(values, res.Symbol)
 		}
 		return ast.String(strings.Join(values, "")), nil
 
@@ -582,6 +583,35 @@ func EvalBaseTermPair(left, right ast.BaseTerm, subst ast.Subst) (ast.BaseTerm, 
 		return nil, nil, err
 	}
 	return left, right, nil
+}
+
+func evalToString(val ast.Constant) (ast.Constant, error) {
+	if val.Type == ast.StringType {
+		return val, nil
+	}
+
+	var toStringFun ast.FunctionSym
+	switch val.Type {
+	case ast.NameType:
+		toStringFun = symbols.NameToString
+	case ast.NumberType:
+		toStringFun = symbols.NumberToString
+	case ast.Float64Type:
+		toStringFun = symbols.Float64ToString
+	default:
+		return ast.Constant{}, fmt.Errorf("cannot convert constant to string constant: no conversion for value %v defined", val)
+	}
+
+	term := ast.ApplyFn{toStringFun, []ast.BaseTerm{val}}
+	res, err := EvalApplyFn(term, ast.ConstSubstMap{})
+	if err != nil {
+		return ast.Constant{}, err
+	}
+
+	if res.Type != ast.StringType {
+		return ast.Constant{}, fmt.Errorf("cannot convert constant to string constant: return value of conversion is not of type string")
+	}
+	return res, nil
 }
 
 func evalMax(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {

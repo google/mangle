@@ -664,6 +664,8 @@ func TestStringConcatenate(t *testing.T) {
 		{[]ast.BaseTerm{}, ast.String("")},
 		{[]ast.BaseTerm{ast.String("abc")}, ast.String("abc")},
 		{[]ast.BaseTerm{ast.String("abc"), ast.String("123")}, ast.String("abc123")},
+		{[]ast.BaseTerm{ast.Float64(3.14)}, ast.String("3.14")},
+		{[]ast.BaseTerm{ast.Number(42)}, ast.String("42")},
 	}
 	for _, test := range tests {
 		term := ast.ApplyFn{symbols.StringConcatenate, test.input}
@@ -677,10 +679,26 @@ func TestStringConcatenate(t *testing.T) {
 	}
 }
 
+func TestStringConcatenateForNameConstant(t *testing.T) {
+	name, err := ast.Name("/named/constant")
+	if err != nil {
+		t.Fatal("failed to create name constant: ", err)
+	}
+
+	term := ast.ApplyFn{symbols.StringConcatenate, []ast.BaseTerm{name}}
+	got, err := EvalExpr(term, ast.ConstSubstMap{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := ast.String("/named/constant")
+	if got != want {
+		t.Errorf("EvalExpr(%v)=%v want %v.", term, got, want)
+	}
+}
+
 func TestStringConcatenateFailure(t *testing.T) {
 	tests := [][]ast.BaseTerm{
-		[]ast.BaseTerm{ast.Float64(3.14)},
-		[]ast.BaseTerm{ast.Number(42)},
+		[]ast.BaseTerm{ast.ListNil},
 		[]ast.BaseTerm{ast.String("abc"), ast.ListNil},
 	}
 	for _, test := range tests {

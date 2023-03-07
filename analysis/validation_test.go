@@ -593,6 +593,11 @@ func TestBoundsAnalyzer(t *testing.T) {
 			makeSimpleDecl(atom("foo(X)"), ast.NumberBound),
 			makeSimpleDecl(atom("bar(Y)"), symbols.NewListType(ast.NumberBound)),
 		}),
+		newBoundsTestCase([]ast.Clause{
+			clause("bar(T) :-	T = fn:string:concat(\"A\", 123)."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("bar(T)"), ast.StringBound),
+		}),
 	}
 	for _, test := range tests {
 		bc, err := newBoundsAnalyzer(&test.programInfo, symbols.NewNameTrie(), nil, test.rulesMap)

@@ -1316,12 +1316,12 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 		}
 
 	case ast.ApplyFn:
-		switch z.Function {
-		case symbols.Cons:
+		switch z.Function.Symbol {
+		case symbols.Cons.Symbol:
 			argType := boundOfArg(z.Args[0], varRanges, nameTrie)
 			tailType := boundOfArg(z.Args[1], varRanges, nameTrie)
 			return ast.ApplyFn{symbols.ListType, []ast.BaseTerm{symbols.UpperBound([]ast.BaseTerm{argType, tailType})}}
-		case symbols.List:
+		case symbols.List.Symbol:
 			if len(z.Args) == 0 {
 				return ast.ApplyFn{symbols.ListType, []ast.BaseTerm{ast.AnyBound}}
 			}
@@ -1331,7 +1331,7 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 			}
 			return symbols.NewListType(symbols.UpperBound(argTypes))
 
-		case symbols.Map:
+		case symbols.Map.Symbol:
 			var keyTpes []ast.BaseTerm
 			var valTpes []ast.BaseTerm
 			for i := 0; i < len(z.Args); i++ {
@@ -1341,7 +1341,7 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 			}
 			return symbols.NewMapType(symbols.UpperBound(keyTpes), symbols.UpperBound(valTpes))
 
-		case symbols.Struct:
+		case symbols.Struct.Symbol:
 			var fields []ast.BaseTerm
 			for i := 0; i < len(z.Args); i++ {
 				fields = append(fields, z.Args[i])
@@ -1351,16 +1351,20 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 
 			return symbols.NewStructType(fields...)
 
-		case symbols.Pair:
+		case symbols.Pair.Symbol:
 			leftTpe := boundOfArg(z.Args[0], varRanges, nameTrie)
 			rightTpe := boundOfArg(z.Args[1], varRanges, nameTrie)
 			return ast.ApplyFn{symbols.PairType, []ast.BaseTerm{leftTpe, rightTpe}}
-		case symbols.Tuple:
+
+		case symbols.Tuple.Symbol:
 			var argTypes []ast.BaseTerm
 			for _, arg := range z.Args {
 				argTypes = append(argTypes, boundOfArg(arg, varRanges, nameTrie))
 			}
 			return ast.ApplyFn{symbols.TupleType, argTypes}
+
+		case symbols.StringConcatenate.Symbol:
+			return ast.StringBound
 		}
 		return ast.AnyBound
 	}

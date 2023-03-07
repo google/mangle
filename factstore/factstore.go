@@ -142,6 +142,95 @@ func (s SimpleInMemoryStore) Merge(other FactStore) {
 	}
 }
 
+// MergedStore is an implementation of FactStore that merges multiple
+// fact stores. It dispatches lookup requests to all of them but sending
+// all writes to a single one. It is advisable that the read stores are
+// disjoint, otherwise it may well happen that GetFacts will invoke the
+// callback with a fact multiple times.
+type MergedStore struct {
+	readStore  []ReadOnlyFactStore
+	writeStore FactStore
+}
+
+// Add implementation that adds to the write store.
+func (s MergedStore) Add(atom ast.Atom) bool {
+	if s.Contains(atom) {
+		return false
+	}
+	return s.writeStore.Add(atom)
+}
+
+// Contains implementation that checks all stores.
+func (s MergedStore) Contains(atom ast.Atom) bool {
+	for _, store := range s.readStore {
+		if store.Contains(atom) {
+			return true
+		}
+	}
+	return s.writeStore.Contains(atom)
+}
+
+// GetFacts implementation that dispatches to all stores.
+func (s MergedStore) GetFacts(query ast.Atom, cb func(ast.Atom) error) error {
+	for _, store := range s.readStore {
+		if err := store.GetFacts(query, cb); err != nil {
+			return err
+		}
+	}
+	if err := s.writeStore.GetFacts(query, cb); err != nil {
+		return err
+	}
+	return nil
+}
+
+// EstimateFactCount implements a FactStore method. The result
+// is an overestimate, because facts may be stored multiple times.
+func (s MergedStore) EstimateFactCount() int {
+	var estimatedTotal int
+	for _, store := range s.readStore {
+		estimatedTotal += store.EstimateFactCount()
+	}
+	return estimatedTotal + s.writeStore.EstimateFactCount()
+}
+
+// ListPredicates returns a merged list of predicates.
+func (s MergedStore) ListPredicates() []ast.PredicateSym {
+	m := make(map[ast.PredicateSym]bool)
+	for _, store := range s.readStore {
+		for _, p := range store.ListPredicates() {
+			m[p] = true
+		}
+	}
+	for _, p := range s.writeStore.ListPredicates() {
+		m[p] = true
+	}
+	res := make([]ast.PredicateSym, 0, len(m))
+	for p := range m {
+		res = append(res, p)
+	}
+	return res
+}
+
+// Merge forwards to writeStore.Merge
+func (s MergedStore) Merge(other FactStore) {
+	s.writeStore.Merge(other)
+}
+
+// NewMergedStore returns a new MergedStore.
+func NewMergedStore[T ReadOnlyFactStore](readStores []T, writeStore FactStore) FactStore {
+	if len(readStores) == 0 {
+		return writeStore
+	}
+	var readOnlyStores []ReadOnlyFactStore
+	for _, store := range readStores {
+		readOnlyStores = append(readOnlyStores, store)
+	}
+	return MergedStore{readOnlyStores, writeStore}
+}
+
+// Ensure that TeeingStore implements the FactStore interface.
+var _ FactStore = MergedStore{nil, NewSimpleInMemoryStore()}
+
 // TeeingStore is an implementation of FactStore that directs all writes to
 // an output store, while distributing reads over a read-only base store and
 // the output store.

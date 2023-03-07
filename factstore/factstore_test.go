@@ -45,7 +45,11 @@ func evalAtom(s string) ast.Atom {
 }
 
 func TestAddContains(t *testing.T) {
-	for _, fs := range []FactStore{NewSimpleInMemoryStore(), NewIndexedInMemoryStore(), NewMultiIndexedInMemoryStore()} {
+	for _, fs := range []FactStore{
+		NewSimpleInMemoryStore(),
+		NewIndexedInMemoryStore(),
+		NewMultiIndexedInMemoryStore(),
+		NewMergedStore([]FactStore{NewSimpleInMemoryStore()}, NewSimpleInMemoryStore())} {
 		t.Run(fmt.Sprintf("%T", fs), func(*testing.T) {
 			tests := []ast.Atom{
 				atom("baz()"),
@@ -131,6 +135,63 @@ func TestAddContains(t *testing.T) {
 	}
 }
 
+func TestMergedAddContains(t *testing.T) {
+	store := NewSimpleInMemoryStore()
+	store.Add(atom("i(/exist)"))
+	store.Add(atom("you(/exist)"))
+	merged := NewMergedStore([]FactStore{store}, NewSimpleInMemoryStore())
+	if !merged.Contains(atom("i(/exist)")) {
+		t.Errorf("merged.Contains(%v)=false want true", atom("i(/exist)"))
+	}
+	if merged.Add(atom("i(/exist)")) {
+		t.Errorf("merged.Add(%v)=true want false", atom("i(/exist)"))
+	}
+	if !merged.Add(atom("i(/persist)")) {
+		t.Errorf("merged.Add(%v)=false want false", atom("i(/persist)"))
+	}
+	if merged.Add(atom("i(/persist)")) {
+		t.Errorf("merged.Add(%v)=true want false", atom("i(/persist)"))
+	}
+	merged.Add(atom("we(/persist)"))
+	if len(merged.ListPredicates()) != 3 {
+		t.Errorf("expected 3 predicates")
+	}
+
+	want := NewSimpleInMemoryStore()
+	want.Add(atom("i(/exist)"))
+	want.Add(atom("you(/exist)"))
+	want.Add(atom("i(/persist)"))
+	want.Add(atom("we(/persist)"))
+	var got []ast.Atom
+	merged.GetFacts(atom("i(X)"), func(fact ast.Atom) error {
+		got = append(got, fact)
+		return nil
+	})
+
+	if len(got) != 2 {
+		t.Errorf("GetFacts(): %d facts expected 2 facts: %v", len(got), got)
+	}
+	for _, a := range got {
+		if !want.Contains(a) {
+			t.Errorf("GetFacts(): unexpected fact %v", a)
+		}
+	}
+}
+
+func TestMergedMerge(t *testing.T) {
+	readStore := NewSimpleInMemoryStore()
+	readStore.Add(atom("i(/exist)"))
+	writeStore := NewSimpleInMemoryStore()
+	merged := NewMergedStore([]FactStore{readStore}, writeStore)
+	tmpStore := NewSimpleInMemoryStore()
+	tmpStore.Add(atom("i(/exist)"))
+	tmpStore.Add(atom("i(/persist)"))
+	merged.Merge(tmpStore)
+	if !merged.Contains(atom("i(/persist)")) {
+		t.Errorf("Merge(...) missing expected fact %v", merged)
+	}
+}
+
 func TestTeeingAddContainsMerge(t *testing.T) {
 	base := NewSimpleInMemoryStore()
 	base.Add(atom("foo(/bar)"))
@@ -165,5 +226,4 @@ func TestTeeingAddContainsMerge(t *testing.T) {
 	if got, want := tmp.EstimateFactCount(), 2; got < want {
 		t.Errorf("tmp.EstimateFactCount() = %d want at least %d", got, want)
 	}
-
 }

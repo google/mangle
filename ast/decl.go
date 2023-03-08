@@ -24,6 +24,8 @@ const (
 	DescrExtensional = "extensional"
 	// DescrMode is a descriptor for a supported mode of a predicate.
 	DescrMode = "mode"
+	// DescrReflects is a descriptor for predicates that test ("reflect") name prefixes
+	DescrReflects = "reflects"
 	// DescrSynthetic is a descriptor for synthetic declarations.
 	DescrSynthetic = "synthetic"
 	// DescrPrivate is a descriptor for a predicate with package-private visibility.
@@ -213,6 +215,24 @@ func (d Decl) Visible() bool {
 // IsSynthetic returns true if this Decl is synthetic (generated).
 func (d Decl) IsSynthetic() bool {
 	return d.findDescr(DescrSynthetic, nil)
+}
+
+// Reflects returns (true, prefix) if this predicate covers ("reflects") a name prefix type.
+func (d Decl) Reflects() (Constant, bool) {
+	var (
+		found bool
+		c     Constant
+	)
+	d.findDescr(DescrReflects, func(a Atom) {
+		if len(a.Args) != 1 {
+			return
+		}
+		if name, ok := (a.Args[0]).(Constant); ok {
+			found = true
+			c = name
+		}
+	})
+	return c, found
 }
 
 // BoundDecl is a bound declaration for the arguments of a predicate.

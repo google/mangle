@@ -29,6 +29,7 @@ import (
 var (
 	// Predicates has all built-in predicates.
 	Predicates = map[ast.PredicateSym]ast.Mode{
+		symbols.MatchPrefix:    {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Lt:             {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Le:             {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.ListMember:     {ast.ArgModeOutput, ast.ArgModeInput},
@@ -109,6 +110,8 @@ func IsReducerFunction(sym ast.FunctionSym) bool {
 // apply-expressions or variables.
 func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, []*unionfind.UnionFind, error) {
 	switch atom.Predicate.Symbol {
+	case symbols.MatchPrefix.Symbol:
+		fallthrough
 	case symbols.MatchPair.Symbol:
 		fallthrough
 	case symbols.MatchCons.Symbol:
@@ -215,6 +218,20 @@ func match(pattern ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.Union
 		return false, nil, fmt.Errorf("not a constant: %v %T", evaluatedArg, evaluatedArg)
 	}
 	switch pattern.Predicate.Symbol {
+	case symbols.MatchPrefix.Symbol:
+		if len(pattern.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':match_prefix': %v", pattern.Args)
+		}
+		pat, ok := pattern.Args[1].(ast.Constant)
+		if !ok || pat.Type != ast.NameType {
+			return false, nil, fmt.Errorf("2nd arguments must be name constant for ':match_prefix': %v", pattern)
+		}
+		name, ok := evaluatedArg.(ast.Constant)
+		if !ok || name.Type != ast.NameType {
+			return false, nil, nil
+		}
+		return strings.HasPrefix(name.Symbol, pat.Symbol) && len(name.Symbol) > len(pat.Symbol), subst, nil
+
 	case symbols.MatchPair.Symbol:
 		if len(pattern.Args) != 3 {
 			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':match_pair': %v", pattern.Args)

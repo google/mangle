@@ -213,6 +213,21 @@ func UnionTypeArgs(tpe ast.BaseTerm) ([]ast.BaseTerm, error) {
 	return typeArgs(tpe), nil
 }
 
+// RemoveFromUnionType given T, removes S from a union type {..., S, ...} if S<:T.
+func RemoveFromUnionType(tpeToRemove, unionTpe ast.BaseTerm) (ast.BaseTerm, error) {
+	if debug && !IsUnionTypeExpression(unionTpe) {
+		return nil, fmt.Errorf("not a union type expression: %v", unionTpe)
+	}
+	var newArgs []ast.BaseTerm
+	for _, arg := range typeArgs(unionTpe) {
+		if TypeConforms(arg, tpeToRemove) {
+			continue
+		}
+		newArgs = append(newArgs, arg)
+	}
+	return NewUnionType(newArgs...), nil
+}
+
 // RelTypeArgs returns type arguments of a RelType.
 func RelTypeArgs(tpe ast.BaseTerm) ([]ast.BaseTerm, error) {
 	if debug && !IsRelTypeExpression(tpe) {

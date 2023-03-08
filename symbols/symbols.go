@@ -25,6 +25,9 @@ import (
 )
 
 var (
+	// MatchPrefix matches name constants that have a given prefix.
+	MatchPrefix = ast.PredicateSym{":match_prefix", 2}
+
 	// Lt is the less-than relation on numbers.
 	Lt = ast.PredicateSym{":lt", 2}
 
@@ -172,6 +175,7 @@ var (
 
 	// BuiltinRelations maps each builtin predicate to its argument range list
 	BuiltinRelations = map[ast.PredicateSym]ast.BaseTerm{
+		MatchPrefix: NewRelType(NewListType(ast.Variable{"X"}), ast.NameBound),
 		// TODO: support float64
 		Lt:       NewRelType(ast.NumberBound, ast.NumberBound),
 		Le:       NewRelType(ast.NumberBound, ast.NumberBound),

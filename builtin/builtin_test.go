@@ -174,6 +174,29 @@ func TestWithinDistanceError(t *testing.T) {
 	}
 }
 
+func TestMatchPrefix(t *testing.T) {
+	tests := []struct {
+		scrutinee ast.Constant
+		pattern   ast.Constant
+		want      bool
+	}{
+		{name("/foo/bar"), name("/foo"), true},
+		{name("/foo"), name("/foo"), false},
+		{name("/foo/bar"), name("/bar"), false},
+		{ast.String("foo/bar"), name("/foo"), false},
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":match_prefix", test.scrutinee, test.pattern)
+		got, _, err := Decide(atom, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("TestMatchPrefix(%v): got %v want %v", atom, got, test.want)
+		}
+	}
+}
+
 func TestMatchPair(t *testing.T) {
 	makePair := func(left, right ast.Constant) ast.Constant {
 		return ast.Pair(&left, &right)

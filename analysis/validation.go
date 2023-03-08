@@ -237,6 +237,7 @@ func (a *Analyzer) Analyze(program []ast.Clause) (*ProgramInfo, error) {
 	var rules []ast.Clause
 	rulesMap := make(map[ast.PredicateSym][]ast.Clause)
 	for _, clause := range program {
+		clause = RewriteClause(desugaredDecls, clause)
 		// Check each rule.
 		if err := a.CheckRule(clause); err != nil {
 			return nil, err
@@ -892,6 +893,16 @@ func (bc *BoundsAnalyzer) feasibleAlternatives(
 			return nil, fmt.Errorf("pred %v on args %v cannot succeed var ranges %v", pred, args, varRanges)
 		}
 	}
+	if pred.Symbol == symbols.MatchPrefix.Symbol {
+		tpe := boundOfArg(args[0], varRanges, bc.nameTrie)
+		prefix := args[1]
+		meet := symbols.LowerBound([]ast.BaseTerm{tpe, prefix})
+		if !meet.Equals(symbols.EmptyType) {
+			return []ast.BaseTerm{symbols.NewRelType(meet, ast.NameBound)}, nil
+		}
+		return nil, fmt.Errorf("pred %v cannot succeed: type %v is incompatible with %v", pred, tpe, prefix)
+	}
+
 	if pred.Symbol == symbols.MatchEntry.Symbol {
 		tpe := boundOfArg(args[0], varRanges, bc.nameTrie)
 		if symbols.IsMapTypeExpression(tpe) {
@@ -1106,6 +1117,33 @@ func (s *inferState) addOrRefine(v ast.Variable, tpe ast.BaseTerm) error {
 	return nil
 }
 
+// refineNegative uses negative information to refine an existing binding
+func (s *inferState) refineNegative(v ast.Variable, tpe ast.BaseTerm) error {
+	if v.Symbol == "_" {
+		return nil
+	}
+	i := s.usedVars.Find(v)
+	if i == -1 {
+		return nil
+	}
+	existing := s.varTpe[i]
+	if existing.Equals(tpe) {
+		return fmt.Errorf("variable %v bounded by %v cannot be refined with negative %v", v, s.varTpe[i], tpe)
+	}
+	if !symbols.IsUnionTypeExpression(existing) {
+		return nil
+	}
+	newTpe, err := symbols.RemoveFromUnionType(tpe, existing)
+	if err != nil {
+		return err
+	}
+	if newTpe.Equals(symbols.EmptyType) {
+		return fmt.Errorf("variable %v bounded by %v cannot be refined with negative %v", v, s.varTpe[i], tpe)
+	}
+	s.varTpe[i] = newTpe
+	return nil
+}
+
 func (s *inferState) asMap() map[ast.Variable]ast.BaseTerm {
 	m := make(map[ast.Variable]ast.BaseTerm, len(s.varTpe))
 	for i, v := range s.usedVars.Vars {
@@ -1165,16 +1203,24 @@ func (bc *BoundsAnalyzer) inferRelTypesFromPremise(premises []ast.Term, state *i
 		if err != nil {
 			return nil, fmt.Errorf("type mismatch %v : %v ", premise, err)
 		}
+		// For negated premise, there is never a variable bound so we never need to add
+		// a binding. We can refine existing bindings by using negative information.
+	nextAlternative:
 		for _, alternative := range alternatives {
 			relTypeArgs, err := symbols.RelTypeArgs(alternative)
 			if err != nil {
 				return nil, err // This cannot happen.
 			}
 			nextState := state.makeNext()
-			for i, a := range atom.Args {
-				if v, ok := a.(ast.Variable); ok {
-					// No error-check needed - alternative is feasible.
-					nextState.addOrRefine(v, relTypeArgs[i])
+			if atom.Predicate == symbols.MatchPrefix {
+				// Alternative is feasible, but information is "negative".
+				// For :match_prefix (only), we can use this to refine the type.
+				for i, a := range atom.Args {
+					if v, ok := a.(ast.Variable); ok {
+						if err := nextState.refineNegative(v, relTypeArgs[i]); err != nil {
+							continue nextAlternative
+						}
+					}
 				}
 			}
 			nextStates = append(nextStates, nextState)

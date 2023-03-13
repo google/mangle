@@ -16,6 +16,8 @@ package factstore
 
 import (
 	"bufio"
+	"bytes"
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -45,6 +47,10 @@ const (
 // - not more than 2^16 predicates
 // - not more than 2^32 facts per predicate
 // - predicate cannot have more than 2^10 arguments
+//
+// The SimpleColumnStore implements the ReadOnlyFactStore interface however it does
+// not provide any form for indexing. Large datasets that are frequently accessed would
+// benefit from a different store implementation or splitting up into multiple files.
 //
 // For a list of predicates p_1 ... p_n, the format is as follows:
 // line 1.     <number of predicates>
@@ -179,8 +185,27 @@ var (
 	ErrUnsupportedArity = errors.New("unsupported arity")
 )
 
+// NewSimpleColumnStoreFromBytes returns a new fact store backed by data in simplecolumn format.
+func NewSimpleColumnStoreFromBytes(data []byte) (*SimpleColumnStore, error) {
+	return NewSimpleColumnStore(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(data)), nil
+	})
+}
+
+// NewSimpleColumnStoreFromGzipBytes returns a new fact store backed by data that is
+// a gzipped file in simplecolumn format.
+func NewSimpleColumnStoreFromGzipBytes(data []byte) (*SimpleColumnStore, error) {
+	return NewSimpleColumnStore(func() (io.ReadCloser, error) {
+		reader, err := gzip.NewReader(bytes.NewReader(data))
+		if err != nil {
+			return nil, err
+		}
+		return reader, nil
+	})
+}
+
 // NewSimpleColumnStore returns a new fact store backed by a simple column file.
-// The input is called immediately.
+// The input closure is called immediately to parse the header.
 func NewSimpleColumnStore(input func() (io.ReadCloser, error)) (*SimpleColumnStore, error) {
 	f, err := input()
 	if err != nil {
@@ -211,12 +236,12 @@ func (sc SimpleColumn) writeHeader(preds []ast.PredicateSym, predFactCount []int
 
 // WriteTo writes contents of a fact store to the writer. It only
 // calls the ListPredicates and GetFacts methods on the store.
+// Flushing or closing the writer is is the caller's responsibility.
 func (sc SimpleColumn) WriteTo(store ReadOnlyFactStore, w io.Writer) error {
 	preds := store.ListPredicates()
 	if len(preds) > maxNumPreds {
 		return ErrTooManyPreds
 	}
-	predFactCount := make([]int, len(preds))
 	if sc.Deterministic {
 		sort.Slice(preds, func(i, j int) bool {
 			a := preds[i]
@@ -224,6 +249,7 @@ func (sc SimpleColumn) WriteTo(store ReadOnlyFactStore, w io.Writer) error {
 			return a.Arity < b.Arity || a.Arity == b.Arity && a.Symbol < b.Symbol
 		})
 	}
+	predFactCount := make([]int, len(preds))
 	for i, p := range preds {
 		if p.Arity > maxArity {
 			return fmt.Errorf("pred %v: %w", p, ErrUnsupportedArity)
@@ -265,7 +291,7 @@ func (sc SimpleColumn) WriteTo(store ReadOnlyFactStore, w io.Writer) error {
 				if len(f.Args) != p.Arity {
 					return fmt.Errorf("malformed fact: %v predicate arity %d: %w", f, p.Arity, ErrWrongArgument)
 				}
-				// line n + i + j: <column: argument x_j for fact i>
+				// line h + k: <column: argument x_j for fact k>
 				if _, err := fmt.Fprint(w, percentEscape(f.Args[i].String())); err != nil {
 					return err
 				}

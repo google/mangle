@@ -2,6 +2,7 @@ package factstore
 
 import (
 	"bytes"
+	"compress/gzip"
 	"io"
 	"testing"
 
@@ -191,5 +192,57 @@ func TestFiltered(t *testing.T) {
 
 	if s.Contains(evalAtom("bar(/nope, /nope, /nope)")) {
 		t.Errorf("Contains(bar(/nope, /nope, /nope)=true want false")
+	}
+}
+
+func TestNewBytes(t *testing.T) {
+	tmpStore := NewSimpleInMemoryStore()
+	tmpStore.Add(atom("i(/persist)"))
+	tmpStore.Add(atom("we(/persist)"))
+	var b bytes.Buffer
+	sc := SimpleColumn{}
+	if err := sc.WriteTo(tmpStore, &b); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewSimpleColumnStoreFromBytes(b.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(tmpStore.ListPredicates(), store.ListPredicates()); diff != "" {
+		t.Errorf("NewSimpleColumnStoreFromBytes: diff (-want +got) %v", diff)
+	}
+	if !store.Contains(atom("i(/persist)")) {
+		t.Errorf("NewSimpleColumnStoreFromBytes: expected atom i(/persist)")
+	}
+	if !store.Contains(atom("we(/persist)")) {
+		t.Errorf("NewSimpleColumnStoreFromBytes: expected atom i(/persist)")
+	}
+}
+
+func TestGzip(t *testing.T) {
+	tmpStore := NewSimpleInMemoryStore()
+	tmpStore.Add(atom("i(/persist)"))
+	tmpStore.Add(atom("we(/persist)"))
+	var b bytes.Buffer
+	w := gzip.NewWriter(&b)
+	sc := SimpleColumn{}
+	if err := sc.WriteTo(tmpStore, w); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewSimpleColumnStoreFromGzipBytes(b.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(tmpStore.ListPredicates(), store.ListPredicates()); diff != "" {
+		t.Errorf("NewSimpleColumnStoreFromGzipBytes: diff (-want +got) %v", diff)
+	}
+	if !store.Contains(atom("i(/persist)")) {
+		t.Errorf("NewSimpleColumnStoreFromGzipBytes: expected atom i(/persist)")
+	}
+	if !store.Contains(atom("we(/persist)")) {
+		t.Errorf("NewSimpleColumnStoreFromGzipBytes: expected atom i(/persist)")
 	}
 }

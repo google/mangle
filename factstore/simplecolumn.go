@@ -366,7 +366,7 @@ func readHeader(scanner *bufio.Scanner) ([]ast.PredicateSym, []int, error) {
 	if err != nil {
 		return nil, nil, ErrCouldNotRead
 	}
-	if numPreds <= 0 {
+	if numPreds < 0 {
 		return nil, nil, fmt.Errorf("invalid number of predicates %d: %w", numPreds, ErrWrongArgument)
 	}
 	if numPreds > maxNumPreds {

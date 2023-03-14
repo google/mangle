@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/mangle/ast"
 )
 
@@ -195,6 +196,26 @@ func TestFiltered(t *testing.T) {
 	}
 }
 
+func TestEmptyStore(t *testing.T) {
+	emptyStore := NewSimpleInMemoryStore()
+	var b bytes.Buffer
+	sc := SimpleColumn{}
+	if err := sc.WriteTo(emptyStore, &b); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewSimpleColumnStoreFromBytes(b.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff([]ast.PredicateSym{}, store.ListPredicates()); diff != "" {
+		t.Errorf("NewSimpleColumnStoreFromBytes: diff (-want +got) %v", diff)
+	}
+}
+
+func sortBySymbol(a ast.PredicateSym, b ast.PredicateSym) bool {
+	return a.Symbol < b.Symbol
+}
+
 func TestNewBytes(t *testing.T) {
 	tmpStore := NewSimpleInMemoryStore()
 	tmpStore.Add(atom("i(/persist)"))
@@ -208,7 +229,8 @@ func TestNewBytes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff(tmpStore.ListPredicates(), store.ListPredicates()); diff != "" {
+	if diff := cmp.Diff(tmpStore.ListPredicates(), store.ListPredicates(),
+		cmpopts.SortSlices(sortBySymbol)); diff != "" {
 		t.Errorf("NewSimpleColumnStoreFromBytes: diff (-want +got) %v", diff)
 	}
 	if !store.Contains(atom("i(/persist)")) {
@@ -236,7 +258,8 @@ func TestGzip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff(tmpStore.ListPredicates(), store.ListPredicates()); diff != "" {
+	if diff := cmp.Diff(tmpStore.ListPredicates(), store.ListPredicates(),
+		cmpopts.SortSlices(sortBySymbol)); diff != "" {
 		t.Errorf("NewSimpleColumnStoreFromGzipBytes: diff (-want +got) %v", diff)
 	}
 	if !store.Contains(atom("i(/persist)")) {

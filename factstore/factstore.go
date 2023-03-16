@@ -51,7 +51,7 @@ type FactStore interface {
 	Add(ast.Atom) bool
 
 	// Merge merges contents of given store.
-	Merge(FactStore)
+	Merge(ReadOnlyFactStore)
 }
 
 // SimpleInMemoryStore provides a simple implementation backed by a two-level map.
@@ -133,7 +133,7 @@ func (s SimpleInMemoryStore) Contains(a ast.Atom) bool {
 }
 
 // Merge adds all facts from other to this fact store.
-func (s SimpleInMemoryStore) Merge(other FactStore) {
+func (s SimpleInMemoryStore) Merge(other ReadOnlyFactStore) {
 	for _, pred := range other.ListPredicates() {
 		other.GetFacts(ast.NewQuery(pred), func(fact ast.Atom) error {
 			s.Add(fact)
@@ -212,7 +212,7 @@ func (s MergedStore) ListPredicates() []ast.PredicateSym {
 }
 
 // Merge forwards to writeStore.Merge
-func (s MergedStore) Merge(other FactStore) {
+func (s MergedStore) Merge(other ReadOnlyFactStore) {
 	s.writeStore.Merge(other)
 }
 
@@ -267,7 +267,7 @@ func (s TeeingStore) GetFacts(query ast.Atom, cb func(ast.Atom) error) error {
 }
 
 // Merge implementation that adds to the output store.
-func (s TeeingStore) Merge(other FactStore) {
+func (s TeeingStore) Merge(other ReadOnlyFactStore) {
 	s.Out.Merge(other)
 }
 
@@ -420,7 +420,7 @@ func (s IndexedInMemoryStore) EstimateFactCount() int {
 }
 
 // Merge adds all facts from other to this fact store.
-func (s IndexedInMemoryStore) Merge(other FactStore) {
+func (s IndexedInMemoryStore) Merge(other ReadOnlyFactStore) {
 	for _, pred := range other.ListPredicates() {
 		other.GetFacts(ast.NewQuery(pred), func(fact ast.Atom) error {
 			s.Add(fact)
@@ -574,7 +574,7 @@ func (s MultiIndexedInMemoryStore) EstimateFactCount() int {
 }
 
 // Merge adds all facts from other to this fact store.
-func (s MultiIndexedInMemoryStore) Merge(other FactStore) {
+func (s MultiIndexedInMemoryStore) Merge(other ReadOnlyFactStore) {
 	for _, pred := range other.ListPredicates() {
 		other.GetFacts(ast.NewQuery(pred), func(fact ast.Atom) error {
 			s.Add(fact)

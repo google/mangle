@@ -43,7 +43,7 @@ func (c *declChecker) check() []error {
 	for _, arg := range p.Args {
 		v, ok := arg.(ast.Variable)
 		if !ok {
-			c.errs = append(c.errs, fmt.Errorf("Decl requires an atom with variable arguments got %v", arg))
+			c.errs = append(c.errs, fmt.Errorf("Decl requires an atom with variables got %v", arg))
 			continue
 		}
 		expectedArgs[v] = struct{}{}
@@ -60,7 +60,7 @@ func (c *declChecker) check() []error {
 			}
 			seenDocAtom = true
 			if len(descrAtom.Args) == 0 {
-				c.errs = append(c.errs, fmt.Errorf("doc atom must not be empty"))
+				c.errs = append(c.errs, fmt.Errorf("descr atom must not be empty"))
 				continue
 			}
 			for _, docArg := range descrAtom.Args {
@@ -89,7 +89,7 @@ func (c *declChecker) check() []error {
 			// We ignore unknown descr atoms.
 		}
 	}
-	if len(expectedArgs) > 0 && len(expectedArgs) != len(p.Args) {
+	if !c.decl.IsSynthetic() && len(expectedArgs) > 0 && len(expectedArgs) != len(p.Args) {
 		c.errs = append(c.errs, fmt.Errorf("missing arg atoms for arguments %v", expectedArgs))
 	}
 	for _, boundDecl := range c.decl.Bounds {
@@ -103,11 +103,11 @@ func (c *declChecker) check() []error {
 // that each bound is an approppriate bound expression.
 func (c *declChecker) checkBound(p ast.Atom, boundDecl ast.BoundDecl) {
 	if len(boundDecl.Bounds) != len(p.Args) {
-		c.errs = append(c.errs, fmt.Errorf("in decl %q: expected %d bounds, got %d: %v ", p, len(p.Args), len(boundDecl.Bounds), boundDecl.Bounds))
+		c.errs = append(c.errs, fmt.Errorf("in decl %v: expected %d bounds, got %d: %v ", p, len(p.Args), len(boundDecl.Bounds), boundDecl.Bounds))
 	}
 	for i, bound := range boundDecl.Bounds {
 		if err := checkBoundExpression(bound); err != nil {
-			c.errs = append(c.errs, fmt.Errorf("in decl %q: the bound for argument %d must be parseable as predicate name: %v ", p, i, bound))
+			c.errs = append(c.errs, fmt.Errorf("in decl %v: the bound for argument %d must be parseable as predicate name: %v ", p, i, bound))
 		}
 	}
 }

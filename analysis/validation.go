@@ -98,11 +98,9 @@ func Analyze(program []parse.SourceUnit, extraPredicates map[ast.PredicateSym]as
 	return AnalyzeAndCheckBounds(program, extraPredicates, NoBoundsChecking)
 }
 
-// AnalyzeAndCheckBounds checks every rule, including bounds.
-func AnalyzeAndCheckBounds(program []parse.SourceUnit, extraPredicates map[ast.PredicateSym]ast.Decl, boundsChecking BoundsCheckingMode) (*ProgramInfo, error) {
+// ExtractPackages turns source units into merged source packages.
+func ExtractPackages(program []parse.SourceUnit) (map[string]*packages.Package, error) {
 	pkgs := map[string]*packages.Package{}
-	var clauses []ast.Clause
-	var decls []ast.Decl
 	for _, unit := range program {
 		p, err := packages.Extract(unit)
 		if err != nil {
@@ -115,6 +113,17 @@ func AnalyzeAndCheckBounds(program []parse.SourceUnit, extraPredicates map[ast.P
 			pkgs[p.Name] = &p
 		}
 	}
+	return pkgs, nil
+}
+
+// AnalyzeAndCheckBounds checks every rule, including bounds.
+func AnalyzeAndCheckBounds(program []parse.SourceUnit, extraPredicates map[ast.PredicateSym]ast.Decl, boundsChecking BoundsCheckingMode) (*ProgramInfo, error) {
+	pkgs, err := ExtractPackages(program)
+	if err != nil {
+		return nil, err
+	}
+	var clauses []ast.Clause
+	var decls []ast.Decl
 	for _, p := range pkgs {
 		ds, err := p.Decls()
 		if err != nil {

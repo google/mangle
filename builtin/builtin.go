@@ -60,7 +60,7 @@ var (
 		symbols.ListGet:      symbols.NewFunType(symbols.NewUnionType(varX, emptyType) /* <= */, listOfX, ast.NumberBound),
 		symbols.ListContains: symbols.NewFunType(ast.AnyBound /* <= */, listOfX, varX),
 		symbols.Append:       symbols.NewFunType(listOfX /* <= */, listOfX, varX),
-		symbols.Cons:         symbols.NewFunType(varX /* <= */, varX, listOfX),
+		symbols.Cons:         symbols.NewFunType(listOfX /* <= */, varX, listOfX),
 		symbols.Len:          symbols.NewFunType(ast.NumberBound /* <= */, listOfX),
 		symbols.List:         symbols.NewFunType(symbols.NewListType(varX) /* <= */, varX),
 		symbols.Pair:         symbols.NewFunType(symbols.NewPairType(varX, varY) /* <= */, varX, varY),

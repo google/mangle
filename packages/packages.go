@@ -100,7 +100,7 @@ func (p *Package) Decls() ([]ast.Decl, error) {
 			}
 			for i, bd := range decl.Bounds {
 				for j, b := range bd.Bounds {
-					if err := symbols.CheckTypeExpression(b); err == nil { // if no error
+					if err := symbols.CheckSetExpression(b); err == nil { // if no error
 						continue
 					}
 

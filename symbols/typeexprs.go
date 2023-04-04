@@ -220,7 +220,7 @@ func RemoveFromUnionType(tpeToRemove, unionTpe ast.BaseTerm) (ast.BaseTerm, erro
 	}
 	var newArgs []ast.BaseTerm
 	for _, arg := range typeArgs(unionTpe) {
-		if TypeConforms(arg, tpeToRemove) {
+		if SetConforms(arg, tpeToRemove) {
 			continue
 		}
 		newArgs = append(newArgs, arg)

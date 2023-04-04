@@ -113,7 +113,7 @@ func (c *declChecker) checkBound(p ast.Atom, boundDecl ast.BoundDecl) {
 }
 
 func checkBoundExpression(b ast.BaseTerm) error {
-	if err := symbols.CheckTypeExpression(b); err != nil {
+	if err := symbols.CheckSetExpression(b); err != nil {
 		// Not a type expression.
 		predicateBound, ok := b.(ast.Constant)
 		if !ok || predicateBound.Type != ast.StringType {

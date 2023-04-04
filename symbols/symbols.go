@@ -197,14 +197,20 @@ var (
 // TypeHandle provides functionality related to type expression.
 type TypeHandle struct {
 	expr ast.BaseTerm
+	ctx  map[ast.Variable]ast.BaseTerm
+}
+
+// NewSetHandle constructs a TypeHandle for a (simple) monotype.
+func NewSetHandle(expr ast.BaseTerm) (TypeHandle, error) {
+	return NewTypeHandle(nil, expr)
 }
 
 // NewTypeHandle constructs a TypeHandle.
-func NewTypeHandle(expr ast.BaseTerm) (TypeHandle, error) {
-	if err := CheckTypeExpression(expr); err != nil {
+func NewTypeHandle(ctx map[ast.Variable]ast.BaseTerm, expr ast.BaseTerm) (TypeHandle, error) {
+	if err := CheckTypeExpression(ctx, expr); err != nil {
 		return TypeHandle{}, err
 	}
-	return TypeHandle{expr}, nil
+	return TypeHandle{expr, ctx}, nil
 }
 
 // String returns a string represented of this type expression.
@@ -227,10 +233,10 @@ func (t TypeHandle) HasType(c ast.Constant) bool {
 		if err != nil {
 			return false
 		}
-		return TypeHandle{tpe.Args[0]}.HasType(fst) &&
-			TypeHandle{tpe.Args[1]}.HasType(snd)
+		return TypeHandle{tpe.Args[0], t.ctx}.HasType(fst) &&
+			TypeHandle{tpe.Args[1], t.ctx}.HasType(snd)
 	case ListType:
-		elementType := TypeHandle{tpe.Args[0]}
+		elementType := TypeHandle{tpe.Args[0], t.ctx}
 		shapeErr, err := c.ListValues(func(e ast.Constant) error {
 			if !elementType.HasType(e) {
 				return errTypeMismatch
@@ -247,13 +253,13 @@ func (t TypeHandle) HasType(c ast.Constant) bool {
 		}
 		return true
 	case TupleType:
-		return TypeHandle{expandTupleType(tpe.Args)}.HasType(c)
+		return TypeHandle{expandTupleType(tpe.Args), t.ctx}.HasType(c)
 	case MapType:
 		if c.IsMapNil() {
 			return true
 		}
-		keyTpe := TypeHandle{tpe.Args[0]}
-		valTpe := TypeHandle{tpe.Args[1]}
+		keyTpe := TypeHandle{tpe.Args[0], t.ctx}
+		valTpe := TypeHandle{tpe.Args[1], t.ctx}
 		e, err := c.MapValues(func(key ast.Constant, val ast.Constant) error {
 			if keyTpe.HasType(key) && valTpe.HasType(val) {
 				return nil
@@ -276,7 +282,7 @@ func (t TypeHandle) HasType(c ast.Constant) bool {
 			key := requiredArgs[i].(ast.Constant)
 			i++
 			val := requiredArgs[i]
-			fieldTpeMap[key] = TypeHandle{val}
+			fieldTpeMap[key] = TypeHandle{val, t.ctx}
 		}
 		optArgs, err := StructTypeOptionaArgs(tpe)
 		if err != nil {
@@ -284,7 +290,7 @@ func (t TypeHandle) HasType(c ast.Constant) bool {
 		}
 		for _, optArg := range optArgs {
 			f := optArg.(ast.ApplyFn)
-			fieldTpeMap[f.Args[0].(ast.Constant)] = TypeHandle{f.Args[1]}
+			fieldTpeMap[f.Args[0].(ast.Constant)] = TypeHandle{f.Args[1], t.ctx}
 		}
 		seen := make(map[ast.Constant]bool)
 		e, err := c.StructValues(func(key ast.Constant, val ast.Constant) error {
@@ -303,7 +309,7 @@ func (t TypeHandle) HasType(c ast.Constant) bool {
 		return e == nil && err == nil && len(fieldTpeMap) == len(seen)
 	case UnionType:
 		for _, arg := range tpe.Args {
-			alt := TypeHandle{arg}
+			alt := TypeHandle{arg, t.ctx}
 			if alt.HasType(c) {
 				return true
 			}
@@ -330,8 +336,16 @@ func hasBaseType(typeExpr ast.Constant, c ast.Constant) bool {
 	}
 }
 
+// CheckSetExpression returns an error if expr is not a valid type expression.
+// expr is by convention a type expression that talks about sets (no type variables,
+// no function type subexpressions, no reltype).
+func CheckSetExpression(expr ast.BaseTerm) error {
+	return CheckTypeExpression(nil, expr)
+}
+
 // CheckTypeExpression returns an error if expr is not a valid type expression.
-func CheckTypeExpression(expr ast.BaseTerm) error {
+// expr is by convention not a reltype.
+func CheckTypeExpression(ctx map[ast.Variable]ast.BaseTerm, expr ast.BaseTerm) error {
 	switch expr := expr.(type) {
 	case ast.Constant:
 		if IsBaseTypeExpression(expr) || expr.Type == ast.NameType {
@@ -340,7 +354,13 @@ func CheckTypeExpression(expr ast.BaseTerm) error {
 		return fmt.Errorf("not a base type expression: %v", expr)
 		return nil
 	case ast.Variable:
-		return fmt.Errorf("not a type expression: %v", expr)
+		if ctx != nil {
+			if _, ok := ctx[expr]; ok {
+				return nil
+			}
+		}
+		return fmt.Errorf("unexpected type variable: %v context: %v", expr, ctx)
+
 	case ast.ApplyFn:
 		fn, ok := TypeConstructors[expr.Function.Symbol]
 		if !ok {
@@ -348,7 +368,7 @@ func CheckTypeExpression(expr ast.BaseTerm) error {
 		}
 		args := expr.Args
 		if fn == FunType {
-			return CheckFunTypeExpression(expr)
+			return CheckFunTypeExpression(ctx, expr)
 		}
 		if fn.Arity != -1 && len(args) != fn.Arity {
 			return fmt.Errorf("expected %d arguments in type expression %v ", fn.Arity, expr)
@@ -374,7 +394,7 @@ func CheckTypeExpression(expr ast.BaseTerm) error {
 				}
 				i++
 				tpe := requiredArgs[i]
-				if err := CheckTypeExpression(tpe); err != nil {
+				if err := CheckTypeExpression(ctx, tpe); err != nil {
 					return fmt.Errorf("in a struct type expression %v : %w", expr, err)
 				}
 			}
@@ -382,7 +402,7 @@ func CheckTypeExpression(expr ast.BaseTerm) error {
 		}
 
 		for _, arg := range args {
-			if err := CheckTypeExpression(arg); err != nil {
+			if err := CheckTypeExpression(ctx, arg); err != nil {
 				return err
 			}
 		}
@@ -392,13 +412,78 @@ func CheckTypeExpression(expr ast.BaseTerm) error {
 	}
 }
 
-// CheckFunTypeExpression checks fun type expression.
-func CheckFunTypeExpression(expr ast.ApplyFn) error {
-	return fmt.Errorf("CheckFunTypeExpression: not implemented %v", expr)
+// CheckFunTypeExpression checks a function type expression.
+func CheckFunTypeExpression(ctx map[ast.Variable]ast.BaseTerm, expr ast.ApplyFn) error {
+	if len(expr.Args) == 0 {
+		return fmt.Errorf("expected at least 1 argument in function type expression %v ", expr)
+	}
+	codomain := expr.Args[0]
+	argTpes := expr.Args[1:]
+	vars := make(map[ast.Variable]bool)
+	for _, arg := range argTpes {
+		ast.AddVars(arg, vars)
+	}
+	codomainVars := make(map[ast.Variable]bool)
+	ast.AddVars(codomain, codomainVars)
+	// Check inclusion.
+	for v := range codomainVars {
+		if vars[v] {
+			continue
+		}
+		return fmt.Errorf("type variable %v not in domain vars %v ", v, vars)
+	}
+
+	ctxMap := make(map[ast.Variable]ast.BaseTerm)
+	for v := range vars {
+		ctxMap[v] = ast.AnyBound
+	}
+	for _, argTpe := range argTpes {
+		if err := CheckTypeExpression(ctxMap, argTpe); err != nil {
+			return err
+		}
+	}
+	return CheckTypeExpression(ctxMap, codomain)
 }
 
-// TypeConforms returns true if left <: right.
-func TypeConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
+// SetConforms returns true if |- left <: right for set expression.
+func SetConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
+	if left.Equals(right) || right.Equals(ast.AnyBound) {
+		return true
+	}
+	if leftTuple, ok := left.(ast.ApplyFn); ok && leftTuple.Function.Symbol == RelType.Symbol {
+		if rightTuple, ok := right.(ast.ApplyFn); ok && rightTuple.Function.Symbol == RelType.Symbol {
+			for i, leftArg := range leftTuple.Args {
+				if !SetConforms(leftArg, rightTuple.Args[i]) {
+					return false
+				}
+			}
+			return true
+		}
+	}
+	leftApply, leftApplyOk := left.(ast.ApplyFn)
+	rightApply, rightApplyOk := right.(ast.ApplyFn)
+	if leftApplyOk && leftApply.Function.Symbol == UnionType.Symbol {
+		for _, leftItem := range leftApply.Args {
+			if !SetConforms(leftItem, right) {
+				return false
+			}
+		}
+		return true
+	}
+	if rightApplyOk && rightApply.Function.Symbol == UnionType.Symbol {
+		for _, rightItem := range rightApply.Args {
+			if SetConforms(left, rightItem) {
+				return true
+			}
+		}
+	}
+
+	return TypeConforms(nil, left, right)
+}
+
+// TypeConforms returns true if ctx |- left <: right.
+// The arguments left and right cannot be RelType or UnionType
+func TypeConforms(ctx map[ast.Variable]ast.BaseTerm, left ast.BaseTerm, right ast.BaseTerm) bool {
 	if left.Equals(right) || right.Equals(ast.AnyBound) {
 		return true
 	}
@@ -410,6 +495,12 @@ func TypeConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
 			return leftConst.Type == ast.NameType && rightConst.Equals(ast.NameBound)
 		}
 	}
+	if leftVar, ok := left.(ast.Variable); ok {
+		return TypeConforms(ctx, ctx[leftVar], right)
+	}
+	if rightVar, ok := right.(ast.Variable); ok {
+		return TypeConforms(ctx, left, ctx[rightVar])
+	}
 	leftApply, leftApplyOk := left.(ast.ApplyFn)
 	rightApply, rightApplyOk := right.(ast.ApplyFn)
 	if leftApplyOk && leftApply.Function.Symbol == FunType.Symbol &&
@@ -418,42 +509,28 @@ func TypeConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
 		// E.g. /genus_species <: /name and /animal/bird <: /animal
 		// therefore FunType(/genus_species <= /animal) <: FunType(/name <= /animal/bird)
 		leftCodomain, rightCodomain := leftApply.Args[0], rightApply.Args[0]
-		if !TypeConforms(leftCodomain, rightCodomain) {
+		if !TypeConforms(ctx, leftCodomain, rightCodomain) {
 			return false
 		}
 		leftDomain, rightDomain := leftApply.Args[1:], rightApply.Args[1:]
 
 		for i, leftArg := range leftDomain {
-			if !TypeConforms(rightDomain[i], leftArg) {
+			if !TypeConforms(ctx, rightDomain[i], leftArg) {
 				return false
 			}
 		}
 		return true
 	}
 
-	if leftApplyOk && leftApply.Function.Symbol == UnionType.Symbol {
-		for _, leftItem := range leftApply.Args {
-			if !TypeConforms(leftItem, right) {
-				return false
-			}
-		}
-		return true
-	}
-	if rightApplyOk && rightApply.Function.Symbol == UnionType.Symbol {
-		for _, rightItem := range rightApply.Args {
-			if TypeConforms(left, rightItem) {
-				return true
-			}
-		}
-	}
 	if leftApplyOk && leftApply.Function.Symbol == ListType.Symbol {
 		if rightApplyOk && rightApply.Function.Symbol == ListType.Symbol {
-			return TypeConforms(leftApply.Args[0], rightApply.Args[0])
+			return TypeConforms(ctx, leftApply.Args[0], rightApply.Args[0])
 		}
 	}
 	if leftApplyOk && leftApply.Function.Symbol == MapType.Symbol {
 		if rightApplyOk && rightApply.Function.Symbol == MapType.Symbol {
-			return TypeConforms(rightApply.Args[0], leftApply.Args[0]) && TypeConforms(leftApply.Args[1], rightApply.Args[1])
+			return TypeConforms(ctx, rightApply.Args[0], leftApply.Args[0]) &&
+				TypeConforms(ctx, leftApply.Args[1], rightApply.Args[1])
 		}
 	}
 	if leftApplyOk && leftApply.Function.Symbol == StructType.Symbol {
@@ -481,7 +558,7 @@ func TypeConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
 				j++
 				rightTpe := rightRequired[j]
 				leftTpe, ok := leftMap[rightKey.Symbol]
-				if !ok || !TypeConforms(leftTpe, rightTpe) {
+				if !ok || !TypeConforms(ctx, leftTpe, rightTpe) {
 					return false
 				}
 			}
@@ -509,12 +586,12 @@ func TypeConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
 				key := optApply.Args[0].(ast.Constant).Symbol
 				rightTpe := optApply.Args[1]
 				leftTpe, ok := leftMap[key]
-				if ok && !TypeConforms(leftTpe, rightTpe) {
+				if ok && !TypeConforms(ctx, leftTpe, rightTpe) {
 					return false
 				}
 				if !ok {
 					leftTpe, ok := leftOptMap[key]
-					if ok && !TypeConforms(leftTpe, rightTpe) {
+					if ok && !TypeConforms(ctx, leftTpe, rightTpe) {
 						return false
 					}
 				}
@@ -525,23 +602,14 @@ func TypeConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
 
 	if leftApplyOk && leftApply.Function.Symbol == PairType.Symbol {
 		if rightApplyOk && rightApply.Function.Symbol == PairType.Symbol {
-			return TypeConforms(leftApply.Args[0], rightApply.Args[0]) && TypeConforms(leftApply.Args[1], rightApply.Args[1])
+			return TypeConforms(ctx, leftApply.Args[0], rightApply.Args[0]) &&
+				TypeConforms(ctx, leftApply.Args[1], rightApply.Args[1])
 		}
 	}
 	if leftTuple, ok := left.(ast.ApplyFn); ok && leftTuple.Function.Symbol == TupleType.Symbol {
 		if rightTuple, ok := right.(ast.ApplyFn); ok && rightTuple.Function.Symbol == TupleType.Symbol {
 			for i, leftArg := range leftTuple.Args {
-				if !TypeConforms(leftArg, rightTuple.Args[i]) {
-					return false
-				}
-			}
-			return true
-		}
-	}
-	if leftTuple, ok := left.(ast.ApplyFn); ok && leftTuple.Function.Symbol == RelType.Symbol {
-		if rightTuple, ok := right.(ast.ApplyFn); ok && rightTuple.Function.Symbol == RelType.Symbol {
-			for i, leftArg := range leftTuple.Args {
-				if !TypeConforms(leftArg, rightTuple.Args[i]) {
+				if !TypeConforms(ctx, leftArg, rightTuple.Args[i]) {
 					return false
 				}
 			}
@@ -560,7 +628,7 @@ func expandTupleType(args []ast.BaseTerm) ast.BaseTerm {
 	return res
 }
 
-// UpperBound returns upper bound of type expressions.
+// UpperBound returns upper bound of set expressions.
 func UpperBound(typeExprs []ast.BaseTerm) ast.BaseTerm {
 	var worklist []ast.BaseTerm
 	for _, typeExpr := range typeExprs {
@@ -581,10 +649,10 @@ func UpperBound(typeExprs []ast.BaseTerm) ast.BaseTerm {
 typeExprLoop:
 	for _, typeExpr := range worklist {
 		for i, existing := range reduced {
-			if TypeConforms(typeExpr, existing) {
+			if SetConforms(typeExpr, existing) {
 				continue typeExprLoop
 			}
-			if TypeConforms(existing, typeExpr) {
+			if SetConforms(existing, typeExpr) {
 				reduced[i] = typeExpr
 				continue typeExprLoop
 			}
@@ -608,10 +676,10 @@ func intersectType(a, b ast.BaseTerm) ast.BaseTerm {
 	if b.Equals(ast.AnyBound) {
 		return a
 	}
-	if TypeConforms(a, b) {
+	if SetConforms(a, b) {
 		return a
 	}
-	if TypeConforms(b, a) {
+	if SetConforms(b, a) {
 		return b
 	}
 	if aUnion, ok := a.(ast.ApplyFn); ok && aUnion.Function == UnionType {
@@ -626,9 +694,9 @@ func intersectType(a, b ast.BaseTerm) ast.BaseTerm {
 	if bUnion, ok := b.(ast.ApplyFn); ok && bUnion.Function == UnionType {
 		var res []ast.BaseTerm
 		for _, elem := range bUnion.Args {
-			if TypeConforms(a, elem) {
+			if SetConforms(a, elem) {
 				res = append(res, a)
-			} else if TypeConforms(elem, a) {
+			} else if SetConforms(elem, a) {
 				res = append(res, elem)
 			}
 		}
@@ -638,7 +706,7 @@ func intersectType(a, b ast.BaseTerm) ast.BaseTerm {
 	return EmptyType
 }
 
-// LowerBound returns a lower bound of type expressions.
+// LowerBound returns a lower bound of set expressions.
 func LowerBound(typeExprs []ast.BaseTerm) ast.BaseTerm {
 	var typeExpr ast.BaseTerm = ast.AnyBound
 	for _, t := range typeExprs {

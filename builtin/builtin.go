@@ -41,37 +41,43 @@ var (
 		symbols.MatchEntry:     {ast.ArgModeInput, ast.ArgModeInput, ast.ArgModeOutput},
 	}
 
-	// Functions has all built-in functions except reducers.
-	Functions = map[ast.FunctionSym]struct{}{
-		symbols.Div:   {},
-		symbols.Mult:  {},
-		symbols.Plus:  {},
-		symbols.Minus: {},
+	varX      = ast.Variable{"X"}
+	varY      = ast.Variable{"Y"}
+	listOfX   = symbols.NewListType(varX)
+	listOfNum = symbols.NewListType(ast.NumberBound)
+	emptyType = symbols.NewUnionType()
+
+	// Functions has all built-in functions.
+	Functions = map[ast.FunctionSym]ast.BaseTerm{
+		symbols.Div:   emptyType,
+		symbols.Mult:  emptyType,
+		symbols.Plus:  emptyType,
+		symbols.Minus: emptyType,
 
 		// This is only used to start a "do-transform".
-		symbols.GroupBy: {},
+		symbols.GroupBy: emptyType,
 
-		symbols.ListGet:           {},
-		symbols.Append:            {},
-		symbols.Cons:              {},
-		symbols.Len:               {},
-		symbols.List:              {},
-		symbols.Pair:              {},
-		symbols.Tuple:             {},
-		symbols.NumberToString:    {},
-		symbols.Float64ToString:   {},
-		symbols.NameToString:      {},
-		symbols.StringConcatenate: {},
+		symbols.ListGet:      symbols.NewFunType(symbols.NewUnionType(varX, emptyType) /* <= */, listOfX, ast.NumberBound),
+		symbols.ListContains: symbols.NewFunType(ast.AnyBound /* <= */, listOfX, varX),
+		symbols.Append:       symbols.NewFunType(listOfX /* <= */, listOfX, varX),
+		symbols.Cons:         symbols.NewFunType(varX /* <= */, varX, listOfX),
+		symbols.Len:          symbols.NewFunType(ast.NumberBound /* <= */, listOfX),
+		symbols.List:         symbols.NewFunType(symbols.NewListType(varX) /* <= */, varX),
+		symbols.Pair:         symbols.NewFunType(symbols.NewPairType(varX, varY) /* <= */, varX, varY),
+		symbols.Tuple:        emptyType,
+
+		symbols.StringConcatenate: symbols.NewFunType(
+			ast.StringBound /* <= */, ast.AnyBound),
 	}
 
 	// ReducerFunctions has those built-in functions with are reducers.
-	ReducerFunctions = map[ast.FunctionSym]struct{}{
-		symbols.Collect:         {},
-		symbols.CollectDistinct: {},
-		symbols.PickAny:         {},
-		symbols.Max:             {},
-		symbols.Sum:             {},
-		symbols.Count:           {},
+	ReducerFunctions = map[ast.FunctionSym]ast.BaseTerm{
+		symbols.Collect:         symbols.NewFunType(listOfX /* <= */, listOfX),
+		symbols.CollectDistinct: symbols.NewFunType(listOfX /* <= */, listOfX),
+		symbols.PickAny:         symbols.NewFunType(varX /* <= */, listOfX),
+		symbols.Max:             symbols.NewFunType(ast.NumberBound /* <= */, listOfNum),
+		symbols.Sum:             symbols.NewFunType(ast.NumberBound /* <= */, listOfNum),
+		symbols.Count:           symbols.NewFunType(ast.NumberBound /* <= */, listOfX),
 	}
 
 	// errFound is used for exiting a loop
@@ -79,8 +85,8 @@ var (
 )
 
 func init() {
-	for fn := range ReducerFunctions {
-		Functions[fn] = struct{}{}
+	for fn, tpe := range ReducerFunctions {
+		Functions[fn] = tpe
 	}
 }
 
@@ -463,7 +469,7 @@ func (t TypeChecker) CheckOneBoundDecl(fact ast.Atom, boundDecl ast.BoundDecl) e
 		if !ok {
 			return fmt.Errorf("fact %v could not check fact argument %v", fact, fact.Args[j])
 		}
-		t, err := symbols.NewTypeHandle(bound)
+		t, err := symbols.NewSetHandle(bound)
 		if err != nil {
 			return err
 		}

@@ -65,7 +65,7 @@ type Analyzer struct {
 	extraPredicates map[ast.PredicateSym]ast.Decl
 	// Additional functions.
 	// Keys are disjoint from builtin functions.
-	extraFunctions map[ast.FunctionSym]struct{}
+	extraFunctions map[ast.FunctionSym]ast.BaseTerm
 	// Declaration of predicates to be analyzed.
 	// Keys are disjoint from extraPredicates and builtin.Predicates.
 	decl map[ast.PredicateSym]ast.Decl
@@ -853,7 +853,7 @@ func (bc *BoundsAnalyzer) checkClauses(decl *ast.Decl) error {
 	// conform to the declaration (at least one alternative among declared ones).
 	if initialFactRelTypes, ok := bc.initialFactMap[pred]; ok {
 		for _, inferred := range symbols.RelTypeAlternatives(initialFactRelTypes) {
-			if !symbols.TypeConforms(inferred, declaredRelTypeExpr) {
+			if !symbols.SetConforms(inferred, declaredRelTypeExpr) {
 				return fmt.Errorf("found unit clause with %v that does not conform to any decl %v", inferred, declaredRelTypeExpr)
 			}
 		}
@@ -864,7 +864,7 @@ func (bc *BoundsAnalyzer) checkClauses(decl *ast.Decl) error {
 		if err != nil {
 			return err
 		}
-		if !symbols.TypeConforms(inferredRelTypeExpr, declaredRelTypeExpr) {
+		if !symbols.SetConforms(inferredRelTypeExpr, declaredRelTypeExpr) {
 			var rules strings.Builder
 			for _, r := range bc.RulesMap[pred] {
 				rules.WriteString(r.String() + "\n")
@@ -1079,7 +1079,7 @@ func (bc *BoundsAnalyzer) inferRelTypes(pred ast.PredicateSym) (ast.BaseTerm, er
 			return nil, err
 		}
 		for _, alternative := range symbols.RelTypeAlternatives(relType) {
-			if !symbols.TypeConforms(alternative, symbols.RelTypeFromAlternatives(alternatives)) {
+			if !symbols.SetConforms(alternative, symbols.RelTypeFromAlternatives(alternatives)) {
 				alternatives = append(alternatives, alternative)
 			}
 		}

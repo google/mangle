@@ -400,18 +400,18 @@ func TestCheckTypeExpressionStructured(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		h, err := symbols.NewTypeHandle(test.tpe)
+		h, err := symbols.NewSetHandle(test.tpe)
 		if err != nil {
-			t.Errorf("NewTypeHandle(%v) failed %v", test.tpe, err)
+			t.Errorf("NewMonoTypeHandle(%v) failed %v", test.tpe, err)
 		}
 		for _, c := range test.good {
 			if !h.HasType(c) {
-				t.Errorf("NewTypeHandle(%v).HasType(%v)=false want true", test.tpe, c)
+				t.Errorf("NewMonoTypeHandle(%v).HasType(%v)=false want true", test.tpe, c)
 			}
 		}
 		for _, c := range test.bad {
 			if h.HasType(c) {
-				t.Errorf("NewTypeHandle(%v).HasType(%v)=true want false", test.tpe, c)
+				t.Errorf("NewMonoTypeHandle(%v).HasType(%v)=true want false", test.tpe, c)
 			}
 		}
 	}

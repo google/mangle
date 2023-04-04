@@ -25,7 +25,7 @@ func pair(fst ast.Constant, snd ast.Constant) ast.Constant {
 	return ast.Pair(&fst, &snd)
 }
 
-func TestCheckTypeExpression(t *testing.T) {
+func TestCheckSetExpression(t *testing.T) {
 	fooName, _ := ast.Name("/foo")
 	fooBarName, _ := ast.Name("/foo/bar")
 	tests := []struct {
@@ -97,7 +97,7 @@ func TestCheckTypeExpression(t *testing.T) {
 		// Structured values that need evaluation for readability are tested in builtin_test.go
 	}
 	for _, test := range tests {
-		h, err := NewTypeHandle(test.tpe)
+		h, err := NewSetHandle(test.tpe)
 		if err != nil {
 			t.Errorf("NewTypeHandle(%v) failed %v", test.tpe, err)
 		}
@@ -114,7 +114,31 @@ func TestCheckTypeExpression(t *testing.T) {
 	}
 }
 
-func TestCheckTypeExpressionNegative(t *testing.T) {
+func TestCheckTypeExpression(t *testing.T) {
+	tests := []struct {
+		tpe  ast.BaseTerm
+		vars map[ast.Variable]ast.BaseTerm
+	}{
+		{
+			tpe: NewFunType(
+				NewPairType(ast.Variable{"X"}, ast.Variable{"Y"}),
+				// <=
+				ast.Variable{"X"}, ast.Variable{"Y"}),
+			vars: map[ast.Variable]ast.BaseTerm{
+				ast.Variable{"X"}: ast.NumberBound,
+				ast.Variable{"Y"}: ast.NumberBound,
+			},
+		},
+	}
+	for _, test := range tests {
+		_, err := NewTypeHandle(test.vars, test.tpe)
+		if err != nil {
+			t.Errorf("NewTypeHandle(%v) failed %v", test.tpe, err)
+		}
+	}
+}
+
+func TestSetExpressionNegative(t *testing.T) {
 	tests := []ast.BaseTerm{
 		ast.ApplyFn{MapType, []ast.BaseTerm{name("/foo")}},
 		ast.ApplyFn{MapType, []ast.BaseTerm{ast.Number(2), name("/foo")}},
@@ -122,7 +146,7 @@ func TestCheckTypeExpressionNegative(t *testing.T) {
 		ast.ApplyFn{StructType, []ast.BaseTerm{ast.Number(2), name("/foo")}},
 	}
 	for _, test := range tests {
-		if h, err := NewTypeHandle(test); err == nil { // if NO error
+		if h, err := NewSetHandle(test); err == nil { // if NO error
 			t.Errorf("NewTypeHandle(%v)=%v succeeded, expected error", h, test)
 		}
 	}
@@ -179,7 +203,7 @@ func TestRelTypeMethods(t *testing.T) {
 	}
 }
 
-func TestTypeConforms(t *testing.T) {
+func TestSetConforms(t *testing.T) {
 	tests := []struct {
 		left  ast.BaseTerm
 		right ast.BaseTerm
@@ -209,7 +233,7 @@ func TestTypeConforms(t *testing.T) {
 		},
 		{
 			NewStructType(name("/foo"), ast.AnyBound, NewOpt(name("/bar"), ast.NumberBound)),
-			NewStructType(name("/foo"), ast.StringBound),
+			NewStructType(name("/foo"), ast.AnyBound, name("/bar"), ast.NumberBound),
 			false,
 		},
 		{
@@ -264,8 +288,47 @@ func TestTypeConforms(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		if got := TypeConforms(test.left, test.right); got != test.want {
-			t.Errorf("TypeConforms(%v, %v)=%v want %v", test.left, test.right, got, test.want)
+		if got := SetConforms(test.left, test.right); got != test.want {
+			t.Errorf("MonoTypeConforms(%v, %v)=%v want %v", test.left, test.right, got, test.want)
+		}
+	}
+}
+
+func TestTypeConforms(t *testing.T) {
+	tests := []struct {
+		ctx   map[ast.Variable]ast.BaseTerm
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
+	}{
+		{
+			map[ast.Variable]ast.BaseTerm{ast.Variable{"X"}: NewListType(ast.NumberBound)},
+			NewUnionType(NewRelType(ast.StringBound, ast.NumberBound), NewRelType(ast.NumberBound, ast.NumberBound)),
+			NewUnionType(NewRelType(ast.AnyBound, ast.StringBound), NewRelType(ast.NumberBound, ast.NumberBound)),
+			false,
+		},
+		{
+			map[ast.Variable]ast.BaseTerm{ast.Variable{"X"}: NewListType(ast.NumberBound)},
+			NewFunType(ast.NumberBound /* <= */, ast.Variable{"X"}),
+			NewFunType(ast.NumberBound /* <= */, NewListType(ast.NumberBound)),
+			true,
+		},
+		{
+			map[ast.Variable]ast.BaseTerm{ast.Variable{"X"}: NewListType(ast.NumberBound)},
+			NewFunType(ast.NumberBound /* <= */, NewListType(ast.NumberBound)),
+			NewFunType(ast.NumberBound /* <= */, ast.Variable{"X"}),
+			true,
+		},
+		{
+			map[ast.Variable]ast.BaseTerm{ast.Variable{"X"}: NewListType(ast.NumberBound)},
+			NewFunType(ast.Variable{"X"} /* <= */, ast.AnyBound),
+			NewFunType(ast.AnyBound /* <= */, NewListType(ast.NumberBound)),
+			true,
+		},
+	}
+	for _, test := range tests {
+		if got := TypeConforms(test.ctx, test.left, test.right); got != test.want {
+			t.Errorf("TypeConforms(%v, %v, %v)=%v want %v", test.ctx, test.left, test.right, got, test.want)
 		}
 	}
 }
@@ -470,7 +533,7 @@ func TestLowerBound(t *testing.T) {
 		if got == nil && test.want == nil {
 			continue
 		}
-		if !got.Equals(test.want) {
+		if !(SetConforms(got, test.want) && SetConforms(test.want, got)) {
 			t.Errorf("LowerBound(%v)=%v want %v", test.exprs, got, test.want)
 		}
 	}

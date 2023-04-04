@@ -112,8 +112,8 @@ func TestCheckRulePositiveExtraFun(t *testing.T) {
 		analyzer, _ := New(map[ast.PredicateSym]ast.Decl{
 			ast.PredicateSym{"bar", 1}: makeSyntheticDecl(t, atom("bar(X)")),
 		}, nil, ErrorForBoundsMismatch)
-		analyzer.extraFunctions = map[ast.FunctionSym]struct{}{
-			ast.FunctionSym{"fn:ring_the_alarm", 0}: {},
+		analyzer.extraFunctions = map[ast.FunctionSym]ast.BaseTerm{
+			ast.FunctionSym{"fn:ring_the_alarm", 0}: ast.AnyBound,
 		}
 		err := analyzer.CheckRule(clause)
 		if err != nil {

@@ -65,6 +65,7 @@ var (
 		symbols.List:         symbols.NewFunType(symbols.NewListType(varX) /* <= */, varX),
 		symbols.Pair:         symbols.NewFunType(symbols.NewPairType(varX, varY) /* <= */, varX, varY),
 		symbols.Tuple:        emptyType,
+		symbols.StructGet:    symbols.NewFunType(ast.AnyBound /* <= */, ast.AnyBound, ast.NameBound),
 
 		symbols.StringConcatenate: symbols.NewFunType(
 			ast.StringBound /* <= */, ast.AnyBound),

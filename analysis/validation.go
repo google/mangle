@@ -1112,6 +1112,9 @@ func (s *inferState) makeNext() *inferState {
 
 // addOrRefine either adds a binding or intersects type for an existing one.
 func (s *inferState) addOrRefine(v ast.Variable, tpe ast.BaseTerm) error {
+	if tpe.Equals(symbols.EmptyType) {
+		return fmt.Errorf("variable %v has empty type", v)
+	}
 	if v.Symbol == "_" {
 		return nil
 	}
@@ -1121,7 +1124,6 @@ func (s *inferState) addOrRefine(v ast.Variable, tpe ast.BaseTerm) error {
 		s.varTpe = append(s.varTpe, tpe)
 		return nil
 	}
-
 	tpe = symbols.LowerBound([]ast.BaseTerm{s.varTpe[i], tpe})
 	if tpe.Equals(symbols.EmptyType) {
 		return fmt.Errorf("variable %v cannot have both %v and %v", v, s.varTpe[i], tpe)
@@ -1285,7 +1287,6 @@ func (bc *BoundsAnalyzer) inferRelTypesFromPremise(premises []ast.Term, state *i
 func (bc *BoundsAnalyzer) inferRelTypesFromClause(clause ast.Clause) (ast.BaseTerm, error) {
 	usedVars := VarList{}
 	state := &inferState{0, usedVars, []ast.BaseTerm{}}
-
 	levels := make([][]*inferState, len(clause.Premises)+1)
 	levels[0] = []*inferState{state}
 	for i := range clause.Premises {
@@ -1318,6 +1319,32 @@ func (bc *BoundsAnalyzer) inferRelTypesFromClause(clause ast.Clause) (ast.BaseTe
 		relTypes = append(relTypes, symbols.NewRelType(headTuple...))
 	}
 	return symbols.RelTypeFromAlternatives(relTypes), nil
+}
+
+func checkFunApply(z ast.ApplyFn, fnTpe ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTrie symbols.NameTrie) (ast.BaseTerm, error) {
+	if fnTpe.Equals(symbols.EmptyType) {
+		return nil, fmt.Errorf("type checking for %v not implemented", z)
+	}
+	argTypes, err := symbols.FunTypeArgs(fnTpe)
+	if err != nil {
+		return nil, fmt.Errorf("not a function type: %v", fnTpe)
+	}
+	if len(argTypes) != len(z.Args) {
+		return nil, fmt.Errorf("wrong number of arguments: expected %d got %d", len(argTypes), len(z.Args))
+	}
+	actualTpes := make([]ast.BaseTerm, len(argTypes))
+	for i, arg := range z.Args {
+		actualTpes[i] = boundOfArg(arg, varRanges, nameTrie)
+	}
+	subst, err := unionfind.UnifyTypeExpr(actualTpes, argTypes)
+	if err != nil {
+		return nil, fmt.Errorf("could not unify %v and %v: %v", actualTpes, argTypes, err)
+	}
+	res, err := symbols.FunTypeResult(fnTpe)
+	if err != nil {
+		return nil, fmt.Errorf("not a function type: %v", fnTpe)
+	}
+	return res.ApplySubstBase(ast.SubstMap(subst)), nil
 }
 
 func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTrie symbols.NameTrie) ast.BaseTerm {
@@ -1375,11 +1402,8 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 		}
 
 	case ast.ApplyFn:
+		// TODO: Less special cases. Add support repeated arguments to function types.
 		switch z.Function.Symbol {
-		case symbols.Cons.Symbol:
-			argType := boundOfArg(z.Args[0], varRanges, nameTrie)
-			tailType := boundOfArg(z.Args[1], varRanges, nameTrie)
-			return ast.ApplyFn{symbols.ListType, []ast.BaseTerm{symbols.UpperBound([]ast.BaseTerm{argType, tailType})}}
 		case symbols.List.Symbol:
 			if len(z.Args) == 0 {
 				return ast.ApplyFn{symbols.ListType, []ast.BaseTerm{ast.AnyBound}}
@@ -1410,24 +1434,44 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 
 			return symbols.NewStructType(fields...)
 
-		case symbols.Pair.Symbol:
-			leftTpe := boundOfArg(z.Args[0], varRanges, nameTrie)
-			rightTpe := boundOfArg(z.Args[1], varRanges, nameTrie)
-			return ast.ApplyFn{symbols.PairType, []ast.BaseTerm{leftTpe, rightTpe}}
+		case symbols.StructGet.Symbol:
+			structTpe := boundOfArg(z.Args[0], varRanges, nameTrie)
+			if !symbols.IsStructTypeExpression(structTpe) {
+				return symbols.EmptyType
+			}
+			field, ok := z.Args[1].(ast.Constant)
+			if !ok || field.Type != ast.NameType {
+				return symbols.EmptyType
+			}
+			fieldTpe, err := symbols.StructTypeField(structTpe, field)
+			if err != nil {
+				return symbols.EmptyType
+			}
+			return fieldTpe
 
 		case symbols.Tuple.Symbol:
 			var argTypes []ast.BaseTerm
 			for _, arg := range z.Args {
 				argTypes = append(argTypes, boundOfArg(arg, varRanges, nameTrie))
 			}
-			return ast.ApplyFn{symbols.TupleType, argTypes}
+			return symbols.NewTupleType(argTypes...)
 
 		case symbols.StringConcatenate.Symbol:
 			return ast.StringBound
 		}
+
+		if fnTpe, ok := builtin.GetBuiltinFunctionType(z.Function); ok {
+			res, err := checkFunApply(z, fnTpe, varRanges, nameTrie)
+			if err != nil {
+				return symbols.EmptyType // TODO: return error
+			}
+			return res
+		}
+		return ast.AnyBound
+
+	default:
 		return ast.AnyBound
 	}
-	return ast.AnyBound
 }
 
 func typeOfFn(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie symbols.NameTrie) ast.BaseTerm {
@@ -1451,5 +1495,13 @@ func typeOfFn(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie s
 		elemTpe := boundOfArg(x.Args[0], varRanges, nameTrie)
 		return ast.ApplyFn{symbols.ListType, []ast.BaseTerm{elemTpe}}
 	}
-	return ast.AnyBound
+	fnTpe, ok := builtin.GetBuiltinFunctionType(x.Function)
+	if !ok {
+		return ast.AnyBound // TODO: return error
+	}
+	res, err := checkFunApply(x, fnTpe, varRanges, nameTrie)
+	if err != nil {
+		return ast.AnyBound
+	}
+	return res
 }

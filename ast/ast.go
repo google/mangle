@@ -121,6 +121,14 @@ type Subst interface {
 	Get(Variable) BaseTerm
 }
 
+// SubstMap is a substitution backed by a map from variables to constants.
+type SubstMap map[Variable]BaseTerm
+
+// Get implements the Get method from Subst.
+func (m SubstMap) Get(v Variable) BaseTerm {
+	return m[v]
+}
+
 // ConstSubstMap is a substitution backed by a map from variables to constants.
 type ConstSubstMap map[Variable]Constant
 

@@ -476,27 +476,32 @@ type boundsTestCase struct {
 	nameTrie    symbols.NameTrie
 }
 
-func makeDesugaredDecls(decls ...ast.Decl) map[ast.PredicateSym]*ast.Decl {
+func makeDesugaredDecls(t *testing.T, decls ...ast.Decl) map[ast.PredicateSym]*ast.Decl {
+	t.Helper()
 	declMap := make(map[ast.PredicateSym]ast.Decl)
 	for _, decl := range decls {
 		declMap[decl.DeclaredAtom.Predicate] = decl
 	}
-	desugaredDecls, _ := symbols.CheckAndDesugar(declMap)
+	desugaredDecls, err := symbols.CheckAndDesugar(declMap)
+	if err != nil {
+		t.Fatal(err)
+	}
 	return desugaredDecls
 }
 
-func newBoundsTestCase(clauses []ast.Clause, decls []ast.Decl) boundsTestCase {
-	return newBoundsTestCaseWithNameTrie(clauses, decls, nil)
+func newBoundsTestCase(t *testing.T, clauses []ast.Clause, decls []ast.Decl) boundsTestCase {
+	return newBoundsTestCaseWithNameTrie(t, clauses, decls, nil)
 }
 
-func newBoundsTestCaseWithNameTrie(clauses []ast.Clause, decls []ast.Decl, nameTrie symbols.NameTrie) boundsTestCase {
+func newBoundsTestCaseWithNameTrie(t *testing.T, clauses []ast.Clause, decls []ast.Decl, nameTrie symbols.NameTrie) boundsTestCase {
+	t.Helper()
 	idbSymbols := make(map[ast.PredicateSym]struct{})
 	for _, clause := range clauses {
 		idbSymbols[clause.Head.Predicate] = struct{}{}
 	}
 
 	return boundsTestCase{
-		programInfo: ProgramInfo{nil, idbSymbols, nil, clauses, makeDesugaredDecls(decls...)},
+		programInfo: ProgramInfo{nil, idbSymbols, nil, clauses, makeDesugaredDecls(t, decls...)},
 		rulesMap:    makeRulesMap(clauses),
 		nameTrie:    nameTrie,
 	}
@@ -511,26 +516,26 @@ func makeSimpleDecl(a ast.Atom, bound ...ast.BaseTerm) ast.Decl {
 
 func TestBoundsAnalyzer(t *testing.T) {
 	tests := []boundsTestCase{
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X) :- bar(X), X = 3."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X)"), ast.NumberBound),
 			makeSimpleDecl(atom("bar(X)"), ast.NumberBound),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X, Y, Z) :- bar(X, Y), baz(Y, Z)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X, Y, Z)"), ast.StringBound, ast.NumberBound, ast.NumberBound),
 			makeSimpleDecl(atom("bar(A, B)"), ast.StringBound, ast.NumberBound),
 			makeSimpleDecl(atom("baz(E, F)"), ast.NumberBound, ast.NumberBound),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X, X) :- bar(X)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X, Y)"), ast.NumberBound, ast.NumberBound),
 			makeSimpleDecl(atom("bar(A)"), ast.NumberBound),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X) :- bar(X)."),
 			clause("foo(X) :- baz(X)."),
 		}, []ast.Decl{
@@ -538,7 +543,7 @@ func TestBoundsAnalyzer(t *testing.T) {
 			makeSimpleDecl(atom("bar(A)"), ast.StringBound),
 			makeSimpleDecl(atom("baz(A)"), ast.NumberBound),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X) :- bar(X)."),
 			clause("foo(X) :- baz(X)."),
 		}, []ast.Decl{
@@ -546,7 +551,7 @@ func TestBoundsAnalyzer(t *testing.T) {
 			makeSimpleDecl(atom("bar(A)"), ast.NumberBound),
 			makeSimpleDecl(atom("baz(A)"), ast.NumberBound),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(1)."),
 			clause("foo(X) :- bar(X)."),
 			clause("bar(X) :- foo(X)."),
@@ -554,7 +559,7 @@ func TestBoundsAnalyzer(t *testing.T) {
 			makeSimpleDecl(atom("foo(X)"), ast.NumberBound),
 			makeSimpleDecl(atom("bar(A)"), ast.NumberBound),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(1)."),
 			clause("foo(['a'])."),
 			clause("foo(X) :- bar(X)."),
@@ -575,42 +580,72 @@ func TestBoundsAnalyzer(t *testing.T) {
 				},
 			},
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X) :- bar(X), :match_prefix(X, /foo)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X)"), ast.NameBound),
 			makeSimpleDecl(atom("bar(X)"), name("/foo")),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X) :- bar(Y), :match_entry(Y, 'a', X)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X)"), ast.NumberBound),
 			makeSimpleDecl(atom("bar(Y)"), symbols.NewMapType(ast.StringBound, ast.NumberBound)),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X) :- bar(Y), :match_field(Y, /value, X)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X)"), ast.NumberBound),
 			makeSimpleDecl(atom("bar(Y)"), symbols.NewStructType(name("/value"), ast.NumberBound)),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X) :- bar(Y), :list:member(X, Y)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X)"), ast.NumberBound),
 			makeSimpleDecl(atom("bar(Y)"), symbols.NewListType(ast.NumberBound)),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("bar(T) :-	T = fn:string:concat(\"A\", 123)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("bar(T)"), ast.StringBound),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
+			clause("bar(T) :-	T = fn:list:get(['a'], 0)."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("bar(T)"), symbols.NewOptionType(ast.StringBound)),
+		}),
+		newBoundsTestCase(t, []ast.Clause{
+			clause("bar(fn:pair('a', 0))."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("bar(T)"), symbols.NewPairType(ast.StringBound, ast.NumberBound)),
+		}),
+		newBoundsTestCase(t, []ast.Clause{
+			clause("bar(fn:tuple('a', 0, /foo))."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("bar(T)"), symbols.NewTupleType(ast.StringBound, ast.NumberBound, ast.NameBound)),
+		}),
+		newBoundsTestCase(t, []ast.Clause{
+			clause("bar(X) :- X = fn:tuple('a', 0, /foo)."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("bar(T)"), symbols.NewTupleType(ast.StringBound, ast.NumberBound, ast.NameBound)),
+		}),
+		newBoundsTestCase(t, []ast.Clause{
+			clause("bar(X) :- :match_field({ /foo: 'a' }, /foo, X)."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("bar(S)"), ast.StringBound),
+		}),
+		newBoundsTestCase(t, []ast.Clause{
+			clause("bar(X) :- X = fn:struct:get({ /foo: 'a' }, /foo)."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("bar(S)"), ast.StringBound),
+		}),
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X) :- bar(X), :match_prefix(X, /baz)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X)"), name("/baz")),
 			makeSimpleDecl(atom("bar(X)"), symbols.NewUnionType(name("/bar"), name("/baz"))),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X) :- boo(X), !:match_prefix(X, /bazzz)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X)"), name("/bar")),
@@ -630,43 +665,43 @@ func TestBoundsAnalyzer(t *testing.T) {
 
 func TestBoundsAnalyzerNegative(t *testing.T) {
 	tests := []boundsTestCase{
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X, Y, Z) :- bar(X, Y), baz(Y, Z)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X, Y, Z)"), ast.StringBound, ast.StringBound, ast.NumberBound),
 			makeSimpleDecl(atom("bar(A, B)"), ast.StringBound, ast.NumberBound),
 			makeSimpleDecl(atom("baz(E, F)"), ast.NumberBound, ast.NumberBound),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo('hello')."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(Num)"), ast.NumberBound),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X) :- bar(X), X = 'hello'."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X)"), ast.NumberBound),
 			makeSimpleDecl(atom("bar(X)"), ast.NumberBound),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X) :- bar(X), :lt(X, 10)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X)"), ast.StringBound),
 			makeSimpleDecl(atom("bar(X)"), ast.StringBound),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X, Y) :- bar(X, Y)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X, Y)"), ast.StringBound, ast.NumberBound),
 			makeSimpleDecl(atom("bar(A, B)"), ast.AnyBound, ast.NumberBound),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X, Y) :- bar(X, Y), bar(X, Z), bar(Z, Y)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X, Y)"), ast.StringBound, ast.NumberBound),
 			makeSimpleDecl(atom("bar(A, B)"), ast.StringBound, ast.NumberBound),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X) :- bar(X)."),
 			clause("foo(X) :- baz(X)."),
 		}, []ast.Decl{
@@ -674,24 +709,49 @@ func TestBoundsAnalyzerNegative(t *testing.T) {
 			makeSimpleDecl(atom("bar(A)"), ast.StringBound),
 			makeSimpleDecl(atom("baz(A)"), ast.NumberBound),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X) :- bar(X, Y), baz(['hello'])."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X)"), ast.NumberBound),
 			makeSimpleDecl(atom("bar(A, B)"), ast.StringBound, ast.StringBound),
 			makeSimpleDecl(atom("baz(A)"), symbols.NewListType(ast.NumberBound)),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
+			clause("bar(X) :- :match_field({ /foo: 'a' }, /baz, X)."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("bar(S)"), ast.StringBound),
+		}),
+		newBoundsTestCase(t, []ast.Clause{
+			clause("bar(X) :- X = fn:struct:get({ /foo: 2 }, /foo)."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("bar(S)"), ast.StringBound),
+		}),
+		newBoundsTestCase(t, []ast.Clause{
+			clause("bar(X) :- X = fn:struct:get({ /foo: 2 }, /baz)."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("bar(S)"), ast.StringBound),
+		}),
+		newBoundsTestCase(t, []ast.Clause{
+			clause("bar(X) :- :match_field({ /foo: 2 }, /foo, X)."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("bar(S)"), ast.StringBound),
+		}),
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X) :- bar(X), :match_prefix(X, /foo)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X)"), ast.NameBound),
 			makeSimpleDecl(atom("bar(X)"), name("/bar")),
 		}),
-		newBoundsTestCase([]ast.Clause{
+		newBoundsTestCase(t, []ast.Clause{
 			clause("foo(X) :- bar(X), :match_prefix(X, /baz)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X)"), name("/bar")),
 			makeSimpleDecl(atom("bar(X)"), symbols.NewUnionType(name("/bar"), name("/baz"))),
+		}),
+		newBoundsTestCase(t, []ast.Clause{
+			clause("bar(T) :-	T = fn:list:get(['a'], 0)."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("bar(T)"), symbols.NewOptionType(ast.NumberBound)),
 		}),
 	}
 	for _, test := range tests {
@@ -714,7 +774,7 @@ func TestCollectNames(t *testing.T) {
 		want  symbols.NameTrie
 	}{
 		{
-			decls: makeDesugaredDecls(
+			decls: makeDesugaredDecls(t,
 				makeSimpleDecl(atom("a(X)"), name("/foo")),
 				makeSimpleDecl(atom("b(X)"), name("/foo")),
 				makeSimpleDecl(atom("c(X)"), name("/foo/bar")),
@@ -722,7 +782,7 @@ func TestCollectNames(t *testing.T) {
 			want: symbols.NewNameTrie().Add([]string{"foo"}).Add([]string{"foo", "bar"}),
 		},
 		{
-			decls: makeDesugaredDecls(
+			decls: makeDesugaredDecls(t,
 				makeSimpleDecl(atom("b(X)"), name("/foo/baz")),
 			),
 			want: symbols.NewNameTrie().Add([]string{"foo", "bar"}).Add([]string{"foo", "baz"}),
@@ -737,7 +797,7 @@ func TestCollectNames(t *testing.T) {
 }
 
 func TestBoundsAnalyzerWithNames(t *testing.T) {
-	test := newBoundsTestCaseWithNameTrie([]ast.Clause{
+	test := newBoundsTestCaseWithNameTrie(t, []ast.Clause{
 		clause("a(X) :- b(X)."),
 	}, []ast.Decl{
 		makeSimpleDecl(atom("a(X)"), name("/foo")),
@@ -755,7 +815,7 @@ func TestBoundsAnalyzerWithNames(t *testing.T) {
 }
 
 func TestBoundsAnalyzerWithManyInitialFacts(t *testing.T) {
-	test := newBoundsTestCaseWithNameTrie([]ast.Clause{
+	test := newBoundsTestCaseWithNameTrie(t, []ast.Clause{
 		clause("a(X) :- b(X)."),
 	}, []ast.Decl{
 		makeSimpleDecl(atom("a(X)"), name("/foo")),
@@ -777,7 +837,7 @@ func TestBoundsAnalyzerWithManyInitialFacts(t *testing.T) {
 }
 
 func TestBoundsAnalyzerWithNamesNegative(t *testing.T) {
-	test := newBoundsTestCaseWithNameTrie([]ast.Clause{
+	test := newBoundsTestCaseWithNameTrie(t, []ast.Clause{
 		clause("a(X) :- b(X)."),
 	}, []ast.Decl{
 		makeSimpleDecl(atom("a(X)"), name("/foo")),

@@ -110,6 +110,8 @@ var (
 	StructGet = ast.FunctionSym{"fn:struct:get", 2}
 	// Tuple acts either as identity (one argument), pair (two arguments) or nested pair (more).
 	Tuple = ast.FunctionSym{"fn:tuple", -1}
+	// Some constructs an element of an option type.
+	Some = ast.FunctionSym{"fn:some", 1}
 	// List constructs a list.
 	List = ast.FunctionSym{"fn:list", -1}
 	// Map constructs a map.
@@ -140,6 +142,10 @@ var (
 	PairType = ast.FunctionSym{"fn:Pair", 2}
 	// TupleType is a type-level function that returns a tuple type out of pair types.
 	TupleType = ast.FunctionSym{"fn:Tuple", -1}
+	// OptionType is a constructor for an option type.
+	// A value of fn:Option(T) is either fn:some(c) for c:T, or fn:none().
+	// TODO: Implement runtime representation.
+	OptionType = ast.FunctionSym{"fn:Option", 1}
 	// ListType is a constructor for a list type.
 	ListType = ast.FunctionSym{"fn:List", 1}
 	// MapType is a constructor for a map type.
@@ -162,6 +168,7 @@ var (
 	TypeConstructors = map[string]ast.FunctionSym{
 		UnionType.Symbol:  UnionType,
 		ListType.Symbol:   ListType,
+		OptionType.Symbol: OptionType,
 		PairType.Symbol:   PairType,
 		TupleType.Symbol:  TupleType,
 		MapType.Symbol:    MapType,

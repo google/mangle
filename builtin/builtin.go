@@ -57,12 +57,13 @@ var (
 		// This is only used to start a "do-transform".
 		symbols.GroupBy: emptyType,
 
-		symbols.ListGet:      symbols.NewFunType(symbols.NewUnionType(varX, emptyType) /* <= */, listOfX, ast.NumberBound),
+		symbols.ListGet:      symbols.NewFunType(symbols.NewOptionType(varX) /* <= */, listOfX, ast.NumberBound),
 		symbols.ListContains: symbols.NewFunType(ast.AnyBound /* <= */, listOfX, varX),
 		symbols.Append:       symbols.NewFunType(listOfX /* <= */, listOfX, varX),
 		symbols.Cons:         symbols.NewFunType(listOfX /* <= */, varX, listOfX),
 		symbols.Len:          symbols.NewFunType(ast.NumberBound /* <= */, listOfX),
 		symbols.List:         symbols.NewFunType(symbols.NewListType(varX) /* <= */, varX),
+		symbols.Some:         symbols.NewFunType(symbols.NewOptionType(varX) /* <= */, varX),
 		symbols.Pair:         symbols.NewFunType(symbols.NewPairType(varX, varY) /* <= */, varX, varY),
 		symbols.Tuple:        emptyType,
 		symbols.StructGet:    symbols.NewFunType(ast.AnyBound /* <= */, ast.AnyBound, ast.NameBound),
@@ -89,6 +90,18 @@ func init() {
 	for fn, tpe := range ReducerFunctions {
 		Functions[fn] = tpe
 	}
+}
+
+// GetBuiltinFunctionType returns the type of a builtin function.
+// The type may contain type variables.
+func GetBuiltinFunctionType(sym ast.FunctionSym) (ast.BaseTerm, bool) {
+	if tpe, ok := Functions[sym]; ok {
+		return tpe, true
+	}
+	if tpe, ok := Functions[ast.FunctionSym{sym.Symbol, -1}]; ok {
+		return tpe, true // variable arity
+	}
+	return nil, false
 }
 
 // IsBuiltinFunction returns true if sym is a builtin function.

@@ -67,6 +67,11 @@ func NewTupleType(parts ...ast.BaseTerm) ast.ApplyFn {
 	return newTypeExpr(TupleType, parts...)
 }
 
+// NewOptionType returns a new ListType.
+func NewOptionType(elem ast.BaseTerm) ast.ApplyFn {
+	return newTypeExpr(OptionType, elem)
+}
+
 // NewListType returns a new ListType.
 func NewListType(elem ast.BaseTerm) ast.ApplyFn {
 	return newTypeExpr(ListType, elem)
@@ -117,6 +122,11 @@ func IsMapTypeExpression(tpe ast.BaseTerm) bool {
 // IsStructTypeExpression returns true if tpe is a StructType.
 func IsStructTypeExpression(tpe ast.BaseTerm) bool {
 	return (*typeOp(tpe)).Symbol == StructType.Symbol
+}
+
+// IsFunTypeExpression returns true if tpe is a UnionType.
+func IsFunTypeExpression(tpe ast.BaseTerm) bool {
+	return (*typeOp(tpe)).Symbol == FunType.Symbol
 }
 
 // IsUnionTypeExpression returns true if tpe is a UnionType.
@@ -203,6 +213,22 @@ func StructTypeField(tpe ast.BaseTerm, field ast.Constant) (ast.BaseTerm, error)
 		}
 	}
 	return nil, fmt.Errorf("no field %v in %v", field, tpe)
+}
+
+// FunTypeResult returns result type of function type.
+func FunTypeResult(tpe ast.BaseTerm) (ast.BaseTerm, error) {
+	if debug && !IsFunTypeExpression(tpe) {
+		return nil, fmt.Errorf("not a function type expression: %v", tpe)
+	}
+	return typeArgs(tpe)[0], nil
+}
+
+// FunTypeArgs returns function arguments of function type.
+func FunTypeArgs(tpe ast.BaseTerm) ([]ast.BaseTerm, error) {
+	if debug && !IsFunTypeExpression(tpe) {
+		return nil, fmt.Errorf("not a function type expression: %v", tpe)
+	}
+	return typeArgs(tpe)[1:], nil
 }
 
 // UnionTypeArgs returns type arguments of a UnionType.

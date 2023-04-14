@@ -104,6 +104,31 @@ func TestCheckRulePositive(t *testing.T) {
 	}
 }
 
+func TestCheckRuleBindsByDecl(t *testing.T) {
+	d, err := ast.NewDecl(
+		atom("bar(Struct, FieldValue)"),
+		[]ast.Atom{
+			atom("mode('+', '+')"),
+			atom("mode('+', '-')"),
+		},
+		[]ast.BoundDecl{ast.NewBoundDecl(ast.AnyBound), ast.NewBoundDecl(ast.AnyBound)},
+		nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	analyzer, err := New(nil, []ast.Decl{d}, ErrorForBoundsMismatch)
+	if err != nil {
+		t.Fatalf("New(nil, %v, ErrorForBoundsMismatch) returned unexpected error: %v", d, err)
+	}
+
+	// :match_field expects first argument to be bound
+	clause := clause("bar(S, F) :- :match_field(S, /random, F).")
+	if err := analyzer.CheckRule(clause); err != nil {
+		t.Errorf("CheckRule(%v) returned unexpected error: %v", clause, err)
+	}
+}
+
 func TestCheckRulePositiveExtraFun(t *testing.T) {
 	tests := []ast.Clause{
 		clause("foo(Y) :- bar(X) |> let Y = fn:plus(X, X), let _ = fn:ring_the_alarm()."),

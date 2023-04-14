@@ -384,6 +384,29 @@ func newBoundsAnalyzer(programInfo *ProgramInfo, nameTrie symbols.NameTrie, init
 		make(map[ast.PredicateSym]ast.BaseTerm), visiting}, nil
 }
 
+// variablesBoundByDecl checks which arguments are always bound (provided) based on the declaration.
+func variablesBoundByDecl(atom ast.Atom, decls map[ast.PredicateSym]ast.Decl) []ast.Variable {
+	decl, exists := decls[atom.Predicate]
+	if !exists {
+		return []ast.Variable{}
+	}
+
+	mode := unifyModes(decl.Modes())
+	var boundedVars []ast.Variable
+
+	for i, argMode := range mode {
+		if argMode != ast.ArgModeInput {
+			continue
+		}
+
+		if v, ok := atom.Args[i].(ast.Variable); ok {
+			boundedVars = append(boundedVars, v)
+		}
+	}
+
+	return boundedVars
+}
+
 // CheckRule checks that every variable is either "bound" or defined by a transform.
 // A variable in a rule is bound when it appears in a positive atom, or is unified
 // (via an equality) with a constant or another variable that is bound.
@@ -398,6 +421,11 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 	ast.AddVars(clause.Head, headVars)
 	ast.AddVars(clause.Head, seenVars)
 	uf := unionfind.New()
+
+	for _, v := range variablesBoundByDecl(clause.Head, a.decl) {
+		boundVars[v] = true
+	}
+
 	if clause.Premises != nil {
 		for _, premise := range clause.Premises {
 			ast.AddVars(premise, seenVars)
@@ -1020,6 +1048,29 @@ func (bc *BoundsAnalyzer) feasibleAlternatives(
 		return nil, fmt.Errorf("no feasible alternative reltypes %v args %v var ranges %v", relTypeExpr, args, varRanges)
 	}
 	return feasible, nil
+}
+
+// unifyModes takes multiple modes definition for the statement and merges them together into a single mode definition per argument.
+// Example: single argument modes [+,+,?] result in ?, but [+,+] results in +.
+func unifyModes(modes []ast.Mode) ast.Mode {
+	if len(modes) == 0 {
+		return ast.Mode{}
+	}
+
+	var unifiedMode []ast.ArgMode
+	for i := 0; i < len(modes[0]); i++ {
+		argMode := modes[0][i]
+
+		for _, m := range modes[1:] {
+			if argMode != m[i] {
+				argMode = ast.ArgModeInputOutput
+				break
+			}
+		}
+		unifiedMode = append(unifiedMode, argMode)
+	}
+
+	return unifiedMode
 }
 
 // While checking a rule, we want to look up possible relation types.

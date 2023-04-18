@@ -121,22 +121,26 @@ func IsMapTypeExpression(tpe ast.BaseTerm) bool {
 
 // IsStructTypeExpression returns true if tpe is a StructType.
 func IsStructTypeExpression(tpe ast.BaseTerm) bool {
-	return (*typeOp(tpe)).Symbol == StructType.Symbol
+	op := typeOp(tpe)
+	return op != nil && op.Symbol == StructType.Symbol
 }
 
 // IsFunTypeExpression returns true if tpe is a UnionType.
 func IsFunTypeExpression(tpe ast.BaseTerm) bool {
-	return (*typeOp(tpe)).Symbol == FunType.Symbol
+	op := typeOp(tpe)
+	return op != nil && op.Symbol == FunType.Symbol
 }
 
 // IsUnionTypeExpression returns true if tpe is a UnionType.
 func IsUnionTypeExpression(tpe ast.BaseTerm) bool {
-	return (*typeOp(tpe)).Symbol == UnionType.Symbol
+	op := typeOp(tpe)
+	return op != nil && op.Symbol == UnionType.Symbol
 }
 
 // IsRelTypeExpression returns true if tpe is a RelType.
 func IsRelTypeExpression(tpe ast.BaseTerm) bool {
-	return (*typeOp(tpe)).Symbol == RelType.Symbol
+	op := typeOp(tpe)
+	return op != nil && op.Symbol == RelType.Symbol
 }
 
 // ListTypeArg returns the type argument of a ListType.

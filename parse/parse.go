@@ -453,8 +453,13 @@ func (p Parser) VisitAppl(ctx *gen.ApplContext) any {
 		// Either ast.Atom or ast.ApplyFn
 		var args []ast.BaseTerm
 		for _, e := range ctx.AllTerm() {
-			arg := p.Visit(e).(ast.BaseTerm)
-			args = append(args, arg)
+			arg := p.Visit(e)
+			baseTerm, ok := arg.(ast.BaseTerm)
+			if !ok {
+				p.errors.Add(fmt.Sprintf("expected base term got %v", arg), e.GetStart().GetLine(), e.GetStart().GetColumn())
+				continue
+			}
+			args = append(args, baseTerm)
 		}
 		fnSym := ast.FunctionSym{name, len(args)}
 		return ast.ApplyFn{fnSym, args}

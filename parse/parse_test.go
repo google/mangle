@@ -404,6 +404,10 @@ func TestParseUnitNegative(t *testing.T) {
 			name: "missing body",
 			str:  "a(B) :-",
 		},
+		{
+			name: "invalid function",
+			str:  "fn:(n()).",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -694,12 +694,12 @@ func (v Variable) Equals(u Term) bool {
 	return ok && v.Symbol == o.Symbol
 }
 
-// ApplySubst returns the result of applying the given substituion.
+// ApplySubst returns the result of applying the given substitution.
 func (v Variable) ApplySubst(s Subst) Term {
 	return v.ApplySubstBase(s)
 }
 
-// ApplySubstBase returns the result of applying the given substituion.
+// ApplySubstBase returns the result of applying the given substitution.
 func (v Variable) ApplySubstBase(s Subst) BaseTerm {
 	if s == nil {
 		return v

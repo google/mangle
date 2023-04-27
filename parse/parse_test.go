@@ -922,7 +922,7 @@ func TestRoundtrip(t *testing.T) {
 	}
 }
 
-func TestPredicateNamePsotive(t *testing.T) {
+func TestPredicateNamePositive(t *testing.T) {
 	tests := []struct {
 		name string
 		str  string

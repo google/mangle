@@ -1532,6 +1532,7 @@ func typeOfFn(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie s
 	case symbols.Min.Symbol:
 		fallthrough
 	case symbols.Div.Symbol:
+	case symbols.FloatDiv.Symbol:
 		fallthrough
 	case symbols.Mult.Symbol:
 		return ast.NumberBound

@@ -55,8 +55,10 @@ var (
 	// WithinDistance is a relation on numbers X, Y, Z satisfying |X - Y| < Z.
 	WithinDistance = ast.PredicateSym{":within_distance", 3}
 
-	// Div is a family of functions mapping X,Y1,.. to (X / Y1) / Y2 ... DIV(X) is 1/x.
+	// Div is a family of functions mapping integer division: X,Y1,.. to (X / Y1) / Y2 ... DIV(X) is 1/x.
 	Div = ast.FunctionSym{"fn:div", -1}
+	// FloatDiv is a family of functions mapping division: X,Y1,.. to (X / Y1) / Y2 ... FloatDiv(X) is 1/x.
+	FloatDiv = ast.FunctionSym{"fn:float:div", -1}
 	// Mult is a family of functions mapping X,Y1,.. to (X * Y1) * Y2 ... MULT(x) is x.
 	Mult = ast.FunctionSym{"fn:mult", -1}
 	// Plus is a family of functions mapping X,Y1,.. to (X + Y1) + Y2 ... PLUS(x) is x.

@@ -734,6 +734,30 @@ func TestArithmeticFunctions(t *testing.T) {
 			program: `fun(O) :- one(I) |> let O = fn:minus(1.0, 2).`,
 			wantErr: true,
 		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:float:div().`,
+			wantErr: true,
+		},
+		{
+			program: `fun(O) :- f_one(I) |> let O = fn:float:div(I).`,
+			want:    atom("fun(1.0)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:float:div(0.0).`,
+			wantErr: true,
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:float:div(2).`,
+			want:    atom("fun(0.5)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:float:div(1, 2).`,
+			want:    atom("fun(0.5)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:float:div(10, 2, 2.0).`,
+			want:    atom("fun(2.5)"),
+		},
 	} {
 		t.Run(tt.program, func(t *testing.T) {
 			store := factstore.NewSimpleInMemoryStore()

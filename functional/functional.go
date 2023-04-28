@@ -385,6 +385,12 @@ func EvalNumericApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, err
 			return ast.Constant{}, err
 		}
 		return ast.Number(res), nil
+	case symbols.FloatDiv.Symbol:
+		res, err := evalFloatDiv(args)
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return ast.Float64(res), nil
 	default:
 		return ast.Constant{}, fmt.Errorf("unknown function %s in %s", applyFn, applyFn.Function)
 	}
@@ -424,6 +430,56 @@ func evalDiv(args []ast.Constant) (int64, error) {
 		if res == 0 {
 			return 0, nil
 		}
+	}
+	return res, nil
+}
+
+func valueAsFloat(a ast.Constant) (float64, error) {
+	switch a.Type {
+	case ast.Float64Type:
+		f, err := a.Float64Value()
+		if err != nil {
+			return 0, err
+		}
+		return f, nil
+	case ast.NumberType:
+		v, err := a.NumberValue()
+		if err != nil {
+			return 0, err
+		}
+		return float64(v), nil
+	default:
+		return 0, fmt.Errorf("unsupported non numeric type %v", a.Type)
+	}
+}
+
+func evalFloatDiv(args []ast.Constant) (float64, error) {
+	if len(args) == 0 {
+		return 0, fmt.Errorf("empty argument list")
+	}
+	if len(args) == 1 {
+		f, err := valueAsFloat(args[0])
+		if err != nil {
+			return 0, err
+		}
+		if f == 0 {
+			return 0, ErrDivisionByZero
+		}
+		return 1 / f, nil
+	}
+	res, err := valueAsFloat(args[0])
+	if err != nil {
+		return 0, err
+	}
+	for _, divisorConst := range args[1:] {
+		divisor, err := valueAsFloat(divisorConst)
+		if err != nil {
+			return 0, err
+		}
+		if divisor == 0 {
+			return 0, ErrDivisionByZero
+		}
+		res = res / divisor
 	}
 	return res, nil
 }

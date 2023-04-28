@@ -349,6 +349,14 @@ func Struct(kvMap map[*Constant]*Constant) *Constant {
 	return m
 }
 
+// NameValue returns the name value of this constant, if it is of type name.
+func (c Constant) NameValue() (string, error) {
+	if c.Type != NameType {
+		return "", fmt.Errorf("not a name constant %v", c)
+	}
+	return c.Symbol, nil
+}
+
 // StringValue returns the string value of this constant, if it is of type string.
 func (c Constant) StringValue() (string, error) {
 	if c.Type != StringType {

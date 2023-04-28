@@ -333,6 +333,13 @@ func TestName(t *testing.T) {
 		} else if test.want == nil && err == nil {
 			t.Errorf("expected error but got %s", c)
 		}
+		str, err := c.NameValue()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if test.want != nil && str != test.str {
+			t.Errorf("want %q got %q", test.str, str)
+		}
 	}
 }
 

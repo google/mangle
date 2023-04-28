@@ -628,7 +628,7 @@ func hashPair(fst, snd *Constant, tpe ConstantType) int64 {
 	if snd == nil {
 		return int64(left)
 	}
-	return int64(left) + int64(snd.Hash())
+	return 2*int64(left) + 3*int64(snd.Hash())
 }
 
 // Hash returns a hash code for this constant

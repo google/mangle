@@ -112,6 +112,8 @@ func TestEqualsStructured(t *testing.T) {
 		right *Constant
 		want  bool
 	}{
+		{&fooBarPair, &fooBarPair, true},
+		{&fooBarPair, &barFooPair, false},
 		{&fooBarList, &barFooList, false},
 		{&fooBarList, &fooBarList, true},
 		{mapExample, mapExampleSame, true},
@@ -128,6 +130,16 @@ func TestEqualsStructured(t *testing.T) {
 		got := testcase.left.Equals(testcase.right)
 		if got != testcase.want {
 			t.Errorf("(%v).Equals(%v) got %v want %v", testcase.left, testcase.right, got, testcase.want)
+		}
+		lh, rh := testcase.left.Hash(), testcase.right.Hash()
+		if testcase.want {
+			if lh != rh {
+				t.Errorf("(%v).Hash() %d != (%v).Hash() %d but want same", testcase.left, lh, testcase.right, rh)
+			}
+		} else {
+			if lh == rh {
+				t.Errorf("(%v).Hash() %d == (%v).Hash() %d but want different", testcase.left, lh, testcase.right, rh)
+			}
 		}
 	}
 }

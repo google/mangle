@@ -60,8 +60,11 @@ func TestAddContains(t *testing.T) {
 				atom("bar(/bar,/def)"),
 				atom("bar(/abc,/def)"),
 				evalAtom("bar([/abc],1,/def)"),
+				evalAtom("bar([/abc, /def],1,/def)"),
+				evalAtom("bar([/def, /abc],1,/def)"),
 				evalAtom("baz([/abc : 1,  /def : 2], 1, /def)"),
 				evalAtom("baz({/abc : 1,  /def : 2}, 1, /def)"),
+				evalAtom("baz({/abc : 1,  /def : 3}, 1, /def)"),
 			}
 			for _, atom := range tests {
 				if got := fs.Add(atom); !got {

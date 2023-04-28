@@ -368,19 +368,38 @@ func EvalNumericApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, err
 		}
 		return ast.Number(res), nil
 	case symbols.Mult.Symbol:
-		return ast.Number(evalMult(args)), nil
+		res, err := evalMult(args)
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return ast.Number(res), nil
 	case symbols.Plus.Symbol:
-		return ast.Number(evalPlus(args)), nil
+		res, err := evalPlus(args)
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return ast.Number(res), nil
 	case symbols.Minus.Symbol:
-		return ast.Number(evalMinus(args)), nil
+		res, err := evalMinus(args)
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return ast.Number(res), nil
 	default:
 		return ast.Constant{}, fmt.Errorf("unknown function %s in %s", applyFn, applyFn.Function)
 	}
 }
 
 func evalDiv(args []ast.Constant) (int64, error) {
+	if len(args) == 0 {
+		return 0, fmt.Errorf("empty argument list")
+	}
 	if len(args) == 1 {
-		switch args[0].NumValue {
+		v, err := args[0].NumberValue()
+		if err != nil {
+			return 0, err
+		}
+		switch v {
 		case 0:
 			return 0, ErrDivisionByZero
 		case 1:
@@ -389,9 +408,15 @@ func evalDiv(args []ast.Constant) (int64, error) {
 			return 0, nil // integer division 1 / arg[0]
 		}
 	}
-	res := args[0].NumValue
+	res, err := args[0].NumberValue()
+	if err != nil {
+		return 0, err
+	}
 	for _, divisorConst := range args[1:] {
-		divisor := divisorConst.NumValue
+		divisor, err := divisorConst.NumberValue()
+		if err != nil {
+			return 0, err
+		}
 		if divisor == 0 {
 			return 0, ErrDivisionByZero
 		}
@@ -403,31 +428,49 @@ func evalDiv(args []ast.Constant) (int64, error) {
 	return res, nil
 }
 
-func evalMult(args []ast.Constant) int64 {
+func evalMult(args []ast.Constant) (int64, error) {
 	var product int64 = 1
 	for _, factor := range args {
-		product = product * factor.NumValue
+		v, err := factor.NumberValue()
+		if err != nil {
+			return 0, err
+		}
+		product = product * v
 	}
-	return product
+	return product, nil
 }
 
-func evalPlus(args []ast.Constant) int64 {
+func evalPlus(args []ast.Constant) (int64, error) {
 	var sum int64 = 0
 	for _, num := range args {
-		sum += num.NumValue
+		v, err := num.NumberValue()
+		if err != nil {
+			return 0, err
+		}
+		sum += v
 	}
-	return sum
+	return sum, nil
 }
 
-func evalMinus(args []ast.Constant) int64 {
-	diff := args[0].NumValue
+func evalMinus(args []ast.Constant) (int64, error) {
+	if len(args) == 0 {
+		return 0, fmt.Errorf("empty argument list")
+	}
+	diff, err := args[0].NumberValue()
+	if err != nil {
+		return 0, err
+	}
 	if len(args) == 1 {
-		return -diff // "unary minus"
+		return -diff, nil // "unary minus"
 	}
 	for _, num := range args[1:] {
-		diff -= num.NumValue
+		v, err := num.NumberValue()
+		if err != nil {
+			return 0, err
+		}
+		diff -= v
 	}
-	return diff
+	return diff, nil
 }
 
 // EvalReduceFn evaluates a combiner (reduce) function.

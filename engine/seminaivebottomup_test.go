@@ -647,6 +647,116 @@ func TestTransformErrors(t *testing.T) {
 	}
 }
 
+func TestArithmeticFunctions(t *testing.T) {
+	numbers := []ast.Clause{
+		clause(`one(1).`),
+		clause(`f_one(1.0).`),
+	}
+
+	for _, tt := range []struct {
+		program string
+		want    ast.Atom
+		wantErr bool
+	}{
+		{
+			program: `fun(O) :- one(I) |> let O = fn:div().`,
+			wantErr: true,
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:div(I).`,
+			want:    atom("fun(1)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:div(0).`,
+			wantErr: true,
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:div(2).`,
+			want:    atom("fun(0)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:div(1, 2).`,
+			want:    atom("fun(0)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:div(10, 2, 2).`,
+			want:    atom("fun(2)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:div(1.0, 2).`,
+			wantErr: true,
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:mult().`,
+			want:    atom("fun(1)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:mult(2).`,
+			want:    atom("fun(2)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:mult(1, 2).`,
+			want:    atom("fun(2)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:mult(1.0, 2).`,
+			wantErr: true,
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:plus().`,
+			want:    atom("fun(0)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:plus(2).`,
+			want:    atom("fun(2)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:plus(1, 2).`,
+			want:    atom("fun(3)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:plus(1.0, 2).`,
+			wantErr: true,
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:minus().`,
+			wantErr: true,
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:minus(2).`,
+			want:    atom("fun(-2)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:minus(1, 2).`,
+			want:    atom("fun(-1)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:minus(1.0, 2).`,
+			wantErr: true,
+		},
+	} {
+		t.Run(tt.program, func(t *testing.T) {
+			store := factstore.NewSimpleInMemoryStore()
+			u := unit(tt.program)
+			err := analyzeAndEvalProgram(t, append(u.Clauses, numbers...), store)
+			if tt.wantErr {
+				// TODO comparing the store size, because the eval errors are ignored.
+				if s, w := store.EstimateFactCount(), len(numbers); s != w {
+					t.Errorf("eval(%v) changed the store, but it should have failed %d != %d, store: %v", tt.program, s, w, store)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("eval(%v) unexpected error: %v", tt.program, err)
+				return
+			}
+			if !store.Contains(tt.want) {
+				t.Errorf("expected fact %v in store %v", tt.want, store)
+			}
+		})
+	}
+}
+
 func BenchmarkJoin(b *testing.B) {
 	b.ReportAllocs()
 	for j := 0; j < b.N; j++ {

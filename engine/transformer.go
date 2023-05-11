@@ -29,13 +29,12 @@ func EvalTransform(
 	head ast.Atom,
 	transform ast.Transform,
 	input []ast.ConstSubstList,
-	emit func(atom ast.Atom) bool) {
+	emit func(atom ast.Atom) bool) error {
 
 	if transform.IsLetTransform() {
-		evalLet(head, transform, input, emit)
-	} else {
-		evalDo(head, transform, input, emit)
+		return evalLet(head, transform, input, emit)
 	}
+	return evalDo(head, transform, input, emit)
 }
 
 // evalLet evaluates a let transform. This consists of a number of let statements,
@@ -44,21 +43,19 @@ func evalLet(
 	head ast.Atom,
 	transform ast.Transform,
 	rows []ast.ConstSubstList,
-	emit func(atom ast.Atom) bool) {
-FactLoop:
+	emit func(atom ast.Atom) bool) error {
 	for _, init := range rows {
 		subst := init
 		for _, stmt := range transform.Statements {
 			con, err := functional.EvalApplyFn(stmt.Fn, subst)
 			if err != nil {
-				// If there is an error, we silently skip the row.
-				// TODO: bubble up the error.
-				continue FactLoop
+				return err
 			}
 			subst = subst.Extend(*stmt.Var, con)
 		}
 		emit(head.ApplySubst(subst).(ast.Atom))
 	}
+	return nil
 }
 
 type grouped struct {
@@ -72,7 +69,7 @@ func evalDo(
 	head ast.Atom,
 	transform ast.Transform,
 	input []ast.ConstSubstList,
-	emit func(atom ast.Atom) bool) {
+	emit func(atom ast.Atom) bool) error {
 
 	doStmt := transform.Statements[0]
 	switch doStmt.Fn.Function.Symbol {
@@ -99,7 +96,6 @@ func evalDo(
 			keyToGroup[h] = group
 		}
 		// Now apply reductions.
-	GroupLoop:
 		for _, group := range keyToGroup {
 			var subst ast.ConstSubstList
 			for i, v := range group.key {
@@ -108,8 +104,7 @@ func evalDo(
 			for _, stmt := range transform.Statements[1:] {
 				con, err := functional.EvalReduceFn(stmt.Fn, group.values)
 				if err != nil {
-					// If arguments are not numbers, we skip the row.
-					continue GroupLoop
+					return err
 				}
 				subst = subst.Extend(*stmt.Var, con)
 			}
@@ -117,4 +112,5 @@ func evalDo(
 		}
 	default:
 	}
+	return nil
 }

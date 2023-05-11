@@ -303,7 +303,7 @@ func (e *engine) eval() error {
 	}
 	// We reached the fixed point and can now apply "do-transforms".
 	for _, clause := range e.programInfo.Rules {
-		if clause.Transform == nil {
+		if clause.Transform == nil || clause.Transform.IsLetTransform() {
 			continue
 		}
 		internalPremise, ok := clause.Premises[0].(ast.Atom)
@@ -324,14 +324,16 @@ func (e *engine) eval() error {
 			return nil
 		})
 		var merr error
-		EvalTransform(clause.Head, *clause.Transform, substs, func(a ast.Atom) bool {
+		if err := EvalTransform(clause.Head, *clause.Transform, substs, func(a ast.Atom) bool {
 			a, err := functional.EvalAtom(a, ast.ConstSubstList{})
 			if err != nil {
 				merr = multierr.Append(merr, err)
 				return false
 			}
 			return e.store.Add(a)
-		})
+		}); err != nil {
+			return err
+		}
 		if merr != nil {
 			return merr
 		}
@@ -370,10 +372,12 @@ func (e *engine) oneStepEvalClause(clause ast.Clause) ([]ast.Atom, error) {
 			continue
 		}
 
-		EvalTransform(head, *clause.Transform, []ast.ConstSubstList{sol.AsConstSubstList()}, func(a ast.Atom) bool {
+		if err := EvalTransform(head, *clause.Transform, []ast.ConstSubstList{sol.AsConstSubstList()}, func(a ast.Atom) bool {
 			facts = append(facts, a)
 			return true
-		})
+		}); err != nil {
+			return nil, err
+		}
 		if e.options.totalFactLimit > 0 && e.store.EstimateFactCount() > e.options.totalFactLimit {
 			return nil, fmt.Errorf("fact size limit reached evaluting %q %d > %d", clause.Head.String(), e.store.EstimateFactCount(), e.options.totalFactLimit)
 		}

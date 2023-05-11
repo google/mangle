@@ -599,6 +599,10 @@ func TestTransformMax(t *testing.T) {
 			program: ` baz(Y) :- X = [0,1,2], Y = fn:max(X).`,
 			want:    atom("baz(2)"),
 		},
+		{
+			program: "baz(Y) :- X = [0,1,2], |> let Y = fn:max(X).",
+			want:    atom("baz(2)"),
+		},
 	} {
 		store := factstore.NewSimpleInMemoryStore()
 		u := unit(tt.program)
@@ -623,11 +627,6 @@ func TestTransformErrors(t *testing.T) {
 		{
 			program: "baz(Y) :- X = [0,1,2], Y = fn:collect(1).",
 			wantErr: "unknown function fn:collect",
-		},
-		{
-			// This is not supported yet.
-			program: "baz(Y) :- X = [0,1,2], |> let Y = fn:max(X).",
-			wantErr: "be an atom",
 		},
 		{
 			program: `num(1).
@@ -767,6 +766,56 @@ func TestArithmeticFunctions(t *testing.T) {
 				// TODO comparing the store size, because the eval errors are ignored.
 				if s, w := store.EstimateFactCount(), len(numbers); s != w {
 					t.Errorf("eval(%v) changed the store, but it should have failed %d != %d, store: %v", tt.program, s, w, store)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("eval(%v) unexpected error: %v", tt.program, err)
+				return
+			}
+			if !store.Contains(tt.want) {
+				t.Errorf("expected fact %v in store %v", tt.want, store)
+			}
+		})
+	}
+}
+
+func TestFunctions(t *testing.T) {
+	numbers := []ast.Clause{
+		clause(`zero(0).`),
+		clause(`one(1).`),
+		clause(`two(2).`),
+	}
+
+	for _, tt := range []struct {
+		program string
+		want    ast.Atom
+		wantErr bool
+	}{
+		{
+			program: `fun(O) :- one(I)|> let O = fn:div(I).`,
+			want:    atom("fun(1)"),
+		},
+		{
+			program: `fun(O) :- zero(Z)|> let O = fn:div(Z).`,
+			wantErr: true,
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:div(I, 2).`,
+			want:    atom("fun(0)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:div(2, I).`,
+			want:    atom("fun(2)"),
+		},
+	} {
+		t.Run(tt.program, func(t *testing.T) {
+			store := factstore.NewSimpleInMemoryStore()
+			u := unit(tt.program)
+			err := analyzeAndEvalProgram(t, append(u.Clauses, numbers...), store)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("eval(%v) did not fail, store: %v", tt.program, store)
 				}
 				return
 			}

@@ -763,9 +763,8 @@ func TestArithmeticFunctions(t *testing.T) {
 			u := unit(tt.program)
 			err := analyzeAndEvalProgram(t, append(u.Clauses, numbers...), store)
 			if tt.wantErr {
-				// TODO comparing the store size, because the eval errors are ignored.
-				if s, w := store.EstimateFactCount(), len(numbers); s != w {
-					t.Errorf("eval(%v) changed the store, but it should have failed %d != %d, store: %v", tt.program, s, w, store)
+				if err == nil {
+					t.Errorf("eval(%v) expected to fail, but it didn't, store: %v", tt.program, store)
 				}
 				return
 			}

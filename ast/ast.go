@@ -376,7 +376,7 @@ func (c Constant) NumberValue() (int64, error) {
 // Float64Value returns the float64 value of this constant, if it is of type float64.
 func (c Constant) Float64Value() (float64, error) {
 	if c.Type != Float64Type {
-		return 0, fmt.Errorf("not a number constant %v", c)
+		return 0, fmt.Errorf("not a float64 constant %v", c)
 	}
 	return math.Float64frombits(uint64(c.NumValue)), nil
 }

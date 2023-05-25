@@ -36,6 +36,18 @@ func atom(s string) ast.Atom {
 	return term.(ast.Atom)
 }
 
+func evalAtom(t *testing.T, str string) ast.Atom {
+	term, err := parse.Term(str)
+	if err != nil {
+		t.Fatalf("error parsing atom from %q: %v", str, err)
+	}
+	eval, err := functional.EvalAtom(term.(ast.Atom), nil)
+	if err != nil {
+		t.Fatalf("error eval atom from %v: %v", term, err)
+	}
+	return eval
+}
+
 func clause(str string) ast.Clause {
 	clause, err := parse.Clause(str)
 	if err != nil {
@@ -646,7 +658,7 @@ func TestTransformErrors(t *testing.T) {
 	}
 }
 
-func TestArithmeticFunctions(t *testing.T) {
+func TestFunctionEval(t *testing.T) {
 	numbers := []ast.Clause{
 		clause(`one(1).`),
 		clause(`f_one(1.0).`),
@@ -756,6 +768,342 @@ func TestArithmeticFunctions(t *testing.T) {
 		{
 			program: `fun(O) :- one(I) |> let O = fn:float:div(10, 2, 2.0).`,
 			want:    atom("fun(2.5)"),
+		},
+		{
+			program: `e(fn:min()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:min(1)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:min(1, 2)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:min([1, 2])).`,
+			want:    atom("e(1)"),
+		},
+		{
+			program: `e(fn:max()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:max(1)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:max(1, 2)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:max([1, 2])).`,
+			want:    atom("e(2)"),
+		},
+		{
+			program: `e(fn:float:min()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:float:min(1.0)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:float:min(1.1, 2.2)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:float:min([1.1, 2])).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:float:min([1.1, 2.2])).`,
+			want:    atom("e(1.1)"),
+		},
+		{
+			program: `e(fn:float:max()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:float:max(1.0)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:float:max(1.1, 2.2)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:float:max([1.1, 2])).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:float:max([1.1, 2.2])).`,
+			want:    atom("e(2.2)"),
+		},
+		{
+			program: `e(fn:sum()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:sum(1)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:sum(1, 2)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:sum([1, 2.2])).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:sum([1, 2])).`,
+			want:    atom("e(3)"),
+		},
+		{
+			program: `e(fn:float:sum()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:float:sum(1.1)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:float:sum(1.1, 3.3)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:float:sum([1, 3.3])).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:float:sum([1.1, 3.3])).`,
+			want:    atom("e(4.4)"),
+		},
+		{
+			program: `e(fn:list:append()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:append(1)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:append(1, 2)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:append(1, 2, 3)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:append([1, 2], 3)).`,
+			want:    evalAtom(t, "e([1, 2, 3])"),
+		},
+		{
+			program: `e(fn:list:contains()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:contains(1)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:contains(1, 2)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:contains(1, 2, 3)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:contains([1, 2], 2)).`,
+			want:    atom("e(/true)"),
+		},
+		{
+			program: `e(fn:list:cons()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:cons(1)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:cons(1, [2])).`,
+			want:    evalAtom(t, "e([1,2])"),
+		},
+		{
+			program: `e(fn:list:cons(1, 2)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:cons(1, 2, 3)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:pair()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:pair(1)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:pair(1, [2])).`,
+			want:    evalAtom(t, "e([1,2])"), // TODO: this is not expected
+		},
+		{
+			program: `e(fn:pair(1, 2)).`,
+			want:    evalAtom(t, "e(fn:pair(1,2))"),
+		},
+		{
+			program: `e(fn:pair(1, 2, 3)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:len()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:len(1)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:len(1, 2)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:len(1, 2, 3)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:len([1, 2])).`,
+			want:    atom("e(2)"),
+		},
+		{
+			program: `e(fn:list()).`,
+			want:    evalAtom(t, "e([])"),
+		},
+		{
+			program: `e(fn:list(1)).`,
+			want:    evalAtom(t, "e([1])"),
+		},
+		{
+			program: `e(fn:list(1, "x")).`,
+			want:    evalAtom(t, "e([1, 'x'])"),
+		},
+		{
+			program: `e(fn:tuple()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:tuple(1)).`,
+			want:    atom("e(1)"),
+		},
+		{
+			program: `e(fn:tuple(1, 2)).`,
+			want:    evalAtom(t, "e(fn:tuple(1, 2))"),
+		},
+		{
+			program: `e(fn:tuple(1, 2, 3)).`,
+			want:    evalAtom(t, "e(fn:tuple(1, fn:tuple(2, 3)))"),
+		},
+		{
+			program: `e(fn:tuple(1, 2, 3,4)).`,
+			want:    evalAtom(t, "e(fn:tuple(1, fn:tuple(2, fn:tuple(3,4))))"),
+		},
+		{
+			program: `e(fn:number:to_string()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:number:to_string(1, 2)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:number:to_string(1.1)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:number:to_string(1)).`,
+			want:    atom("e('1')"),
+		},
+		{
+			program: `e(fn:name:to_string()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:name:to_string(/a, /b)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:name:to_string(1)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:name:to_string(/abc)).`,
+			want:    atom("e('/abc')"),
+		},
+		{
+			program: `e(fn:string:concat()).`,
+			want:    atom("e('')"),
+		},
+		{
+			program: `e(fn:string:concat('a', 'b')).`,
+			want:    atom("e('ab')"),
+		},
+		{
+			program: `e(fn:string:concat([1, 2])).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:get()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:get([])).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:get([1, 2], 'a')).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:get(1, 2)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:list:get([1, 2], 1)).`,
+			want:    atom("e(2)"),
+		},
+		{
+			program: `e(fn:list:get([1, 2], 5)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:map:get()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:map:get(1)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:map:get(fn:map(1, 2), 1)).`,
+			want:    atom("e(2)"),
+		},
+		{
+			program: `e(fn:struct:get()).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:struct:get(1)).`,
+			wantErr: true,
+		},
+		{
+			program: `e(fn:struct:get(fn:struct(1, 2), 1)).`,
+			want:    atom("e(2)"),
 		},
 	} {
 		t.Run(tt.program, func(t *testing.T) {

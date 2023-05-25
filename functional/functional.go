@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	"go.uber.org/multierr"
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/symbols"
 )
@@ -81,6 +82,9 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 	}
 	switch applyFn.Function.Symbol {
 	case symbols.Append.Symbol:
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("expected 2 list arguments, got %d argument(s)", l)
+		}
 		list := evaluatedArgs[0]
 		if list.Type != ast.ListShape {
 			return ast.Constant{}, fmt.Errorf("expected list got %v (%v) in %v (subst %v)", evaluatedArgs[0], evaluatedArgs[0].Type, applyFn, subst)
@@ -95,14 +99,20 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		return ast.List(res), nil
 
 	case symbols.ListContains.Symbol: // fn:list:contains(List, Member)
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("expected 2 list arguments, got %d argument(s)", l)
+		}
 		list := evaluatedArgs[0]
 		elem := evaluatedArgs[1]
-		_, loopErr := list.ListValues(func(c ast.Constant) error {
+		err, loopErr := list.ListValues(func(c ast.Constant) error {
 			if c.Equals(elem) {
 				return errFound
 			}
 			return nil
 		}, func() error { return nil })
+		if err != nil {
+			return ast.Constant{}, err
+		}
 		if errors.Is(loopErr, errFound) {
 			return ast.TrueConstant, nil
 		}
@@ -112,16 +122,28 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		return ast.FalseConstant, nil
 
 	case symbols.Cons.Symbol:
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("expected 2 list arguments, got %d argument(s)", l)
+		}
 		fst := evaluatedArgs[0]
 		snd := evaluatedArgs[1]
+		if snd.Type != ast.ListShape {
+			return ast.Constant{}, fmt.Errorf("second argument has to be a list, got %v", snd.Type)
+		}
 		return ast.ListCons(&fst, &snd), nil
 
 	case symbols.Pair.Symbol:
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("expected 2 list arguments, got %d argument(s)", l)
+		}
 		fst := evaluatedArgs[0]
 		snd := evaluatedArgs[1]
 		return ast.Pair(&fst, &snd), nil
 
 	case symbols.Len.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
+		}
 		list := evaluatedArgs[0]
 		var length int64
 		err, _ := list.ListValues(func(c ast.Constant) error {
@@ -166,6 +188,9 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		if len(evaluatedArgs) == 1 {
 			return evaluatedArgs[0], nil
 		}
+		if l := len(evaluatedArgs); l == 0 {
+			return ast.Constant{}, fmt.Errorf("expected at least 1 argument, got %d argument(s)", l)
+		}
 		width := len(evaluatedArgs)
 		pair, err := EvalApplyFn(ast.ApplyFn{symbols.Pair, applyFn.Args[width-2:]}, subst)
 		if err != nil {
@@ -180,48 +205,63 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		return *tuple, nil
 
 	case symbols.Max.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
+		}
 		list := evaluatedArgs[0]
 		return evalMax(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if _, err = list.ListValues(cbNext, cbNil); err != nil {
-				return err
+			if err1, err2 := list.ListValues(cbNext, cbNil); err1 != nil || err2 != nil {
+				return multierr.Combine(err1, err2)
 			}
 			return nil
 		})
 
 	case symbols.FloatMax.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
+		}
 		list := evaluatedArgs[0]
 		if err != nil {
 			return ast.Constant{}, err
 		}
 		return evalFloatMax(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if _, err = list.ListValues(cbNext, cbNil); err != nil {
-				return err
+			if err1, err2 := list.ListValues(cbNext, cbNil); err1 != nil || err2 != nil {
+				return multierr.Combine(err1, err2)
 			}
 			return nil
 		})
 
 	case symbols.Min.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
+		}
 		list := evaluatedArgs[0]
 		if err != nil {
 			return ast.Constant{}, err
 		}
 		return evalMin(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if _, err = list.ListValues(cbNext, cbNil); err != nil {
-				return err
+			if err1, err2 := list.ListValues(cbNext, cbNil); err1 != nil || err2 != nil {
+				return multierr.Combine(err1, err2)
 			}
 			return nil
 		})
 
 	case symbols.FloatMin.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
+		}
 		list := evaluatedArgs[0]
 		return evalFloatMin(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if _, err = list.ListValues(cbNext, cbNil); err != nil {
-				return err
+			if err1, err2 := list.ListValues(cbNext, cbNil); err1 != nil || err2 != nil {
+				return multierr.Combine(err1, err2)
 			}
 			return nil
 		})
 
 	case symbols.NumberToString.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 argument, got %d argument(s)", l)
+		}
 		val := evaluatedArgs[0]
 		if val.Type != ast.NumberType {
 			return ast.Constant{}, fmt.Errorf("cannot convert to string: fn:number:to_string() only converts ast.NumberType type")
@@ -230,6 +270,9 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		return ast.String(ast.FormatNumber(val.NumValue)), nil
 
 	case symbols.Float64ToString.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 argument, got %d argument(s)", l)
+		}
 		val := evaluatedArgs[0]
 		if val.Type != ast.Float64Type {
 			return ast.Constant{}, fmt.Errorf("cannot convert to string: fn:float64:to_string() only converts ast.Float64Type type")
@@ -243,6 +286,9 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		return ast.String(strconv.FormatFloat(f, 'f', -1, 64)), nil
 
 	case symbols.NameToString.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 argument, got %d argument(s)", l)
+		}
 		val := evaluatedArgs[0]
 		if val.Type != ast.NameType {
 			return ast.Constant{}, fmt.Errorf("cannot convert to string: fn:name:to_string() only converts ast.NameType type")
@@ -262,30 +308,39 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		return ast.String(strings.Join(values, "")), nil
 
 	case symbols.Sum.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
+		}
 		list := evaluatedArgs[0]
 		if err != nil {
 			return ast.Constant{}, err
 		}
 		return evalSum(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if _, err = list.ListValues(cbNext, cbNil); err != nil {
-				return err
+			if err1, err2 := list.ListValues(cbNext, cbNil); err1 != nil || err2 != nil {
+				return multierr.Combine(err1, err2)
 			}
 			return nil
 		})
 
 	case symbols.FloatSum.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
+		}
 		list := evaluatedArgs[0]
 		if err != nil {
 			return ast.Constant{}, err
 		}
 		return evalFloatSum(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if _, err = list.ListValues(cbNext, cbNil); err != nil {
-				return err
+			if err1, err2 := list.ListValues(cbNext, cbNil); err1 != nil || err2 != nil {
+				return multierr.Combine(err1, err2)
 			}
 			return nil
 		})
 
 	case symbols.ListGet.Symbol:
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("expected 2 arguments, got %d argument(s)", l)
+		}
 		arg := evaluatedArgs[0]
 		if err != nil {
 			return ast.Constant{}, err
@@ -313,6 +368,9 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		return ast.Constant{}, fmt.Errorf("index out of bounds: %d", index)
 
 	case symbols.MapGet.Symbol:
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("expected 2 arguments, got %d argument(s)", l)
+		}
 		arg := evaluatedArgs[0] // map value
 		lookupKey := evaluatedArgs[1]
 		var res *ast.Constant
@@ -331,6 +389,9 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		return ast.Constant{}, fmt.Errorf("key does not exist: %v", lookupKey)
 
 	case symbols.StructGet.Symbol:
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("expected 2 arguments, got %d argument(s)", l)
+		}
 		arg := evaluatedArgs[0] // struct value
 		lookupField := evaluatedArgs[1]
 		var res *ast.Constant

@@ -1413,9 +1413,7 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 		case ast.StringType:
 			return ast.StringBound
 		case ast.NameType:
-			if z == ast.AnyBound || z == ast.StringBound || z == ast.NumberBound || z == ast.NameBound {
-				return z
-			}
+			// Find a name prefix type, or fall back to /name.
 			return nameTrie.PrefixName(z.Symbol)
 		case ast.ListShape:
 			var args []ast.BaseTerm

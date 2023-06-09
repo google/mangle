@@ -448,14 +448,14 @@ type MultiIndexedInMemoryStore struct {
 	// Predicates of arity zero.
 	constants map[ast.PredicateSym]ast.Atom
 
-	shardsByPredicate map[ast.PredicateSym]map[uint16]map[uint64]map[uint64]ast.Atom
+	shardsByPredicate map[ast.PredicateSym]map[uint16]map[uint64]map[uint64]*ast.Atom
 }
 
 // NewMultiIndexedInMemoryStore constructs a new MultiIndexedInMemoryStore.
 func NewMultiIndexedInMemoryStore() MultiIndexedInMemoryStore {
 	return MultiIndexedInMemoryStore{
 		make(map[ast.PredicateSym]ast.Atom),
-		make(map[ast.PredicateSym]map[uint16]map[uint64]map[uint64]ast.Atom),
+		make(map[ast.PredicateSym]map[uint16]map[uint64]map[uint64]*ast.Atom),
 	}
 }
 
@@ -463,7 +463,7 @@ func (s MultiIndexedInMemoryStore) getFactsOfFirstVariable(a ast.Atom, fn func(a
 	for _, shard := range s.shardsByPredicate[a.Predicate][0] {
 		for _, fact := range shard {
 			if matches(a.Args[1:], fact.Args[1:]) {
-				if err := fn(fact); err != nil {
+				if err := fn(*fact); err != nil {
 					return err
 				}
 			}
@@ -486,7 +486,7 @@ func (s MultiIndexedInMemoryStore) GetFacts(a ast.Atom, fn func(ast.Atom) error)
 			h := a.Args[i].Hash()
 			for _, fact := range s.shardsByPredicate[a.Predicate][uint16(i)][h] {
 				if matches(a.Args, fact.Args) {
-					if err := fn(fact); err != nil {
+					if err := fn(*fact); err != nil {
 						return err
 					}
 				}
@@ -510,11 +510,11 @@ func (s MultiIndexedInMemoryStore) Add(a ast.Atom) bool {
 	aHash := a.Hash()
 	shard, ok := s.shardsByPredicate[a.Predicate]
 	if !ok {
-		shard = make(map[uint16]map[uint64]map[uint64]ast.Atom)
+		shard = make(map[uint16]map[uint64]map[uint64]*ast.Atom)
 		s.shardsByPredicate[a.Predicate] = shard
 		for i := 0; i < a.Predicate.Arity; i++ {
 			iHash := a.Args[i].Hash()
-			shard[uint16(i)] = map[uint64]map[uint64]ast.Atom{iHash: {aHash: a}}
+			shard[uint16(i)] = map[uint64]map[uint64]*ast.Atom{iHash: {aHash: &a}}
 		}
 		return true
 	}
@@ -523,16 +523,16 @@ func (s MultiIndexedInMemoryStore) Add(a ast.Atom) bool {
 		iHash := a.Args[i].Hash()
 		params, ok := shard[uint16(i)]
 		if !ok {
-			shard[uint16(i)] = map[uint64]map[uint64]ast.Atom{iHash: {aHash: a}}
+			shard[uint16(i)] = map[uint64]map[uint64]*ast.Atom{iHash: {aHash: &a}}
 			added = true
 			continue
 		}
 		atoms, ok := params[iHash]
 		if !ok {
-			params[iHash] = map[uint64]ast.Atom{aHash: a}
+			params[iHash] = map[uint64]*ast.Atom{aHash: &a}
 			added = true
 		} else if _, ok := atoms[aHash]; !ok {
-			atoms[aHash] = a
+			atoms[aHash] = &a
 			added = true
 		}
 	}

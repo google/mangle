@@ -165,6 +165,9 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		return *list, nil
 
 	case symbols.Map.Symbol:
+		if l := len(evaluatedArgs); l%2 != 0 {
+			return ast.Constant{}, fmt.Errorf("expected even list argument, got %d argument(s)", l)
+		}
 		kvMap := make(map[*ast.Constant]*ast.Constant)
 		for i := 0; i < len(evaluatedArgs); i++ {
 			label := &evaluatedArgs[i]
@@ -175,6 +178,9 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		return *ast.Map(kvMap), nil
 
 	case symbols.Struct.Symbol:
+		if l := len(evaluatedArgs); l%2 != 0 {
+			return ast.Constant{}, fmt.Errorf("expected even list argument, got %d argument(s)", l)
+		}
 		kvMap := make(map[*ast.Constant]*ast.Constant)
 		for i := 0; i < len(evaluatedArgs); i++ {
 			label := &evaluatedArgs[i]

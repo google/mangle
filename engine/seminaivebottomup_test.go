@@ -1082,6 +1082,14 @@ func TestFunctionEval(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			program: `e(fn:map(0, 1)).`,
+			want:    evalAtom(t, `e(fn:map(0, 1)).`),
+		},
+		{
+			program: `e(fn:map(0)).`,
+			wantErr: true,
+		},
+		{
 			program: `e(fn:map:get()).`,
 			wantErr: true,
 		},
@@ -1092,6 +1100,14 @@ func TestFunctionEval(t *testing.T) {
 		{
 			program: `e(fn:map:get(fn:map(1, 2), 1)).`,
 			want:    atom("e(2)"),
+		},
+		{
+			program: `e(fn:struct(0, 1)).`,
+			want:    evalAtom(t, `e(fn:struct(0, 1)).`),
+		},
+		{
+			program: `e(fn:struct(0)).`,
+			wantErr: true,
 		},
 		{
 			program: `e(fn:struct:get()).`,

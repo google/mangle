@@ -834,13 +834,16 @@ func (a *Analyzer) checkFunctions(clause ast.Clause) error {
 
 // BoundsCheck checks whether the rules respect the bounds.
 func (bc *BoundsAnalyzer) BoundsCheck() error {
-	var preds []ast.PredicateSym
-
+	predMap := make(map[string]ast.PredicateSym)
 	for pred := range bc.programInfo.IdbPredicates {
-		preds = append(preds, pred)
+		predMap[pred.Symbol] = pred
 	}
 	for pred := range bc.initialFactMap {
-		preds = append(preds, pred)
+		predMap[pred.Symbol] = pred // overwrite ok
+	}
+	preds := make([]ast.PredicateSym, 0, len(predMap))
+	for _, v := range predMap {
+		preds = append(preds, v)
 	}
 	// Fix the order in which we do our checks.
 	sort.Slice(preds, func(i, j int) bool { return preds[i].Symbol < preds[j].Symbol })

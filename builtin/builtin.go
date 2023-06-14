@@ -63,14 +63,17 @@ var (
 		symbols.Append:       symbols.NewFunType(listOfX /* <= */, listOfX, varX),
 		symbols.Cons:         symbols.NewFunType(listOfX /* <= */, varX, listOfX),
 		symbols.Len:          symbols.NewFunType(ast.NumberBound /* <= */, listOfX),
-		symbols.List:         symbols.NewFunType(symbols.NewListType(varX) /* <= */, varX),
-		symbols.Some:         symbols.NewFunType(symbols.NewOptionType(varX) /* <= */, varX),
 		symbols.Pair:         symbols.NewFunType(symbols.NewPairType(varX, varY) /* <= */, varX, varY),
-		symbols.Tuple:        emptyType,
-		symbols.StructGet:    symbols.NewFunType(ast.AnyBound /* <= */, ast.AnyBound, ast.NameBound),
-
+		symbols.Some:         symbols.NewFunType(symbols.NewOptionType(varX) /* <= */, varX),
 		symbols.StringConcatenate: symbols.NewFunType(
 			ast.StringBound /* <= */, ast.AnyBound),
+		symbols.StructGet: symbols.NewFunType(ast.AnyBound /* <= */, ast.AnyBound, ast.NameBound),
+
+		// These "functions" (constructors) need special handling due to varargs.
+		symbols.List:   symbols.NewFunType(symbols.NewListType(varX) /* <= */, varX),
+		symbols.Map:    emptyType,
+		symbols.Tuple:  emptyType,
+		symbols.Struct: emptyType,
 	}
 
 	// ReducerFunctions has those built-in functions with are reducers.

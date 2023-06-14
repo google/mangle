@@ -111,12 +111,14 @@ func NewUnionType(elems ...ast.BaseTerm) ast.ApplyFn {
 
 // IsListTypeExpression returns true if tpe is a ListType.
 func IsListTypeExpression(tpe ast.BaseTerm) bool {
-	return *typeOp(tpe) == ListType
+	op := typeOp(tpe)
+	return op != nil && *op == ListType
 }
 
 // IsMapTypeExpression returns true if tpe is a MapType.
 func IsMapTypeExpression(tpe ast.BaseTerm) bool {
-	return *typeOp(tpe) == MapType
+	op := typeOp(tpe)
+	return op != nil && *op == MapType
 }
 
 // IsStructTypeExpression returns true if tpe is a StructType.

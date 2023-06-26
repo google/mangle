@@ -55,6 +55,17 @@ func TestStratificationPositive(t *testing.T) {
 		wantStrataOrder map[int][]ast.PredicateSym
 	}{
 		{
+			name: "Ingore built-in predicates",
+			program: func() (*ProgramInfo, error) {
+				return analyze([]ast.Clause{
+					clause("foo(X) :- :list:member(X, /a)."),
+				})
+			},
+			wantStrataOrder: map[int][]ast.PredicateSym{
+				0: {{"foo", 1}},
+			},
+		},
+		{
 			name: "Cycles are ok as long as they are positive",
 			program: func() (*ProgramInfo, error) {
 				return analyze([]ast.Clause{

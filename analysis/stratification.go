@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/google/mangle/ast"
+	"github.com/google/mangle/builtin"
 )
 
 // edgeMap represents the dependencies, i.e. those IDB predicate symbols q that
@@ -47,6 +48,9 @@ func makeDepGraph(program Program) depGraph {
 		for _, premise := range rule.Premises {
 			switch p := premise.(type) {
 			case ast.Atom:
+				if _, ok := builtin.Predicates[p.Predicate]; ok {
+					continue
+				}
 				if _, ok := program.EdbPredicates[p.Predicate]; !ok {
 					if rule.Transform == nil || rule.Transform.IsLetTransform() {
 						dep.addEdge(s, p.Predicate, false)

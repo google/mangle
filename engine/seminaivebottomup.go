@@ -268,6 +268,7 @@ func (e *engine) eval() error {
 	if e.deltaStore.EstimateFactCount() > 0 {
 		// Incremental rounds.
 		deltaRules := makeDeltaRules(e.programInfo.Decls, e.predToRules)
+		e.store.Merge(e.deltaStore)
 		for {
 			newDeltaStore := factstore.NewMultiIndexedInMemoryStore()
 			var incrementalFactAdded bool
@@ -296,7 +297,6 @@ func (e *engine) eval() error {
 			}
 			e.deltaStore = newDeltaStore
 			if !incrementalFactAdded {
-				e.store.Merge(e.deltaStore)
 				break
 			}
 		}
@@ -406,7 +406,6 @@ func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind)
 				solutions = append(solutions, *nsubst)
 			}
 			return solutions, nil
-
 		}
 		// Not a built-in predicate.
 		cb := func(fact ast.Atom) error {

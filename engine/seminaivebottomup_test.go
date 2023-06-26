@@ -328,6 +328,33 @@ func TestManyPaths(t *testing.T) {
 	}
 }
 
+func TestNonLinear(t *testing.T) {
+	store := factstore.NewSimpleInMemoryStore()
+	store.Add(atom("par(1, 2)"))
+	store.Add(atom("par(2, 3)"))
+
+	// Non-linear rule.
+	program := []ast.Clause{
+		clause("anc(X, Y) :- par(X, Y)."),
+		clause("anc(X, Y) :- anc(X, Z), anc(Z, Y)."),
+	}
+
+	if err := analyzeAndEvalProgram(t, program, store); err != nil {
+		t.Errorf("Program evaluation failed %v program %v", err, program)
+		return
+	}
+	expected := []ast.Atom{
+		atom("anc(1, 2)"),
+		atom("anc(2, 3)"),
+		atom("anc(1, 3)"),
+	}
+	for _, fact := range expected {
+		if !store.Contains(fact) {
+			t.Errorf("expected fact %v in store %v", fact, store)
+		}
+	}
+}
+
 func TestBuiltin(t *testing.T) {
 	store := factstore.NewSimpleInMemoryStore()
 	store.Add(ast.NewAtom("foo", ast.Number(1)))

@@ -978,7 +978,7 @@ func TestFunctionEval(t *testing.T) {
 		},
 		{
 			program: `e(fn:pair(1, [2])).`,
-			want:    evalAtom(t, "e([1,2])"), // TODO: this is not expected
+			want:    evalAtom(t, "e(fn:pair(1,[2]))"),
 		},
 		{
 			program: `e(fn:pair(1, 2)).`,

@@ -39,6 +39,10 @@ var (
 	fooBarList               = List([]Constant{fooName, barString})
 	barFooList               = List([]Constant{barString, fooName})
 	fooFooList               = List([]Constant{fooName, fooName})
+	fooPair                  = Pair(&fooName, nil)
+	fooList                  = List([]Constant{fooName})
+	fooBarMap                = Map(map[*Constant]*Constant{&fooName: &barString})
+	fooBarStruct             = Struct(map[*Constant]*Constant{&fooName: &barString})
 	mapExample               = Map(map[*Constant]*Constant{
 		&barString: &fooName,
 		&bazString: &barName})
@@ -112,6 +116,12 @@ func TestEqualsStructured(t *testing.T) {
 		right *Constant
 		want  bool
 	}{
+		{&fooPair, &fooList, false},
+		{&fooFooPair, &fooFooList, false},
+		{&fooPair, &fooName, false},
+		{&fooBarPair, fooBarMap, false},
+		{fooBarStruct, fooBarMap, false},
+		{&fooBarList, fooBarStruct, false},
 		{&fooBarPair, &fooBarPair, true},
 		{&fooBarPair, &barFooPair, false},
 		{&fooBarList, &barFooList, false},

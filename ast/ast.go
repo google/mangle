@@ -618,17 +618,20 @@ func hashBytes(s []byte) uint64 {
 // Computes a hash. The snd argument may be nil.
 func hashPair(fst, snd *Constant, tpe ConstantType) int64 {
 	left := fst.Hash()
-	switch tpe {
-	case MapShape:
-		left = left << 1
-	case StructShape:
-		left = left << 2
-	}
-	left = left<<19 - left
+	left = left << tpe
 	if snd == nil {
 		return int64(left)
 	}
-	return 2*int64(left) + 3*int64(snd.Hash())
+	right := snd.Hash()
+	return int64(szudzikElegantPair(left, right))
+}
+
+// Implements Szudzik's elegant pairing function (http://szudzik.com/ElegantPairing.pdf).
+func szudzikElegantPair(fst, snd uint64) uint64 {
+	if fst >= snd {
+		return fst*fst + fst + snd
+	}
+	return snd*snd + fst
 }
 
 // Hash returns a hash code for this constant

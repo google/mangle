@@ -111,6 +111,8 @@ COMMA : ',';
 BANG : '!';
 LESS : '<';
 LESSEQ : '<=';
+GREATER : '>';
+GREATEREQ : '>=';
 COLONDASH : ':-';
 NEWLINE : '\n';
 PIPEGREATER : '|>';

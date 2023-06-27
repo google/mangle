@@ -54,16 +54,30 @@ type FactStore interface {
 	Merge(ReadOnlyFactStore)
 }
 
+// InMemoryStore provides a simple implementation backed by a map from each predicate sym to a T value.
+type InMemoryStore[T any] struct {
+	constants         map[ast.PredicateSym]ast.Atom
+	shardsByPredicate map[ast.PredicateSym]T
+}
+
+// NewInMemoryStore constructs a new InMemoryStore.
+func NewInMemoryStore[T any]() InMemoryStore[T] {
+	return InMemoryStore[T]{
+		make(map[ast.PredicateSym]ast.Atom),
+		make(map[ast.PredicateSym]T),
+	}
+}
+
 // SimpleInMemoryStore provides a simple implementation backed by a two-level map.
 // For each predicate sym, we have a separate map, using numeric hash as key.
 type SimpleInMemoryStore struct {
-	factByPredicate map[ast.PredicateSym]map[uint64]ast.Atom
+	InMemoryStore[map[uint64]ast.Atom]
 }
 
 // String returns a readable debug string for this store.
 func (s SimpleInMemoryStore) String() string {
 	var sb strings.Builder
-	for _, m := range s.factByPredicate {
+	for _, m := range s.shardsByPredicate {
 		for _, v := range m {
 			sb.WriteString(v.String())
 			sb.WriteRune(' ')
@@ -76,7 +90,7 @@ func (s SimpleInMemoryStore) String() string {
 // ListPredicates returns a list of predicates.
 func (s SimpleInMemoryStore) ListPredicates() []ast.PredicateSym {
 	var r []ast.PredicateSym
-	for p := range s.factByPredicate {
+	for p := range s.shardsByPredicate {
 		r = append(r, p)
 	}
 	return r
@@ -84,12 +98,14 @@ func (s SimpleInMemoryStore) ListPredicates() []ast.PredicateSym {
 
 // NewSimpleInMemoryStore constructs a new SimpleInMemoryStore.
 func NewSimpleInMemoryStore() SimpleInMemoryStore {
-	return SimpleInMemoryStore{make(map[ast.PredicateSym]map[uint64]ast.Atom)}
+	return SimpleInMemoryStore{
+		NewInMemoryStore[map[uint64]ast.Atom](),
+	}
 }
 
 // GetFacts implementation that looks up facts from an in-memory map.
 func (s SimpleInMemoryStore) GetFacts(a ast.Atom, fn func(ast.Atom) error) error {
-	for _, fact := range s.factByPredicate[a.Predicate] {
+	for _, fact := range s.shardsByPredicate[a.Predicate] {
 		if matches(a.Args, fact.Args) {
 			if err := fn(fact); err != nil {
 				return err
@@ -102,7 +118,7 @@ func (s SimpleInMemoryStore) GetFacts(a ast.Atom, fn func(ast.Atom) error) error
 // EstimateFactCount returns the number of facts.
 func (s SimpleInMemoryStore) EstimateFactCount() int {
 	c := 0
-	for _, m := range s.factByPredicate {
+	for _, m := range s.shardsByPredicate {
 		c += len(m)
 	}
 	return c
@@ -111,21 +127,21 @@ func (s SimpleInMemoryStore) EstimateFactCount() int {
 // Add implements the FactStore interface by adding the fact to the backing map.
 func (s SimpleInMemoryStore) Add(a ast.Atom) bool {
 	key := a.Hash()
-	if atoms, ok := s.factByPredicate[a.Predicate]; ok {
+	if atoms, ok := s.shardsByPredicate[a.Predicate]; ok {
 		_, ok := atoms[key]
 		if !ok {
 			atoms[key] = a
 		}
 		return !ok
 	}
-	s.factByPredicate[a.Predicate] = map[uint64]ast.Atom{key: a}
+	s.shardsByPredicate[a.Predicate] = map[uint64]ast.Atom{key: a}
 	return true
 }
 
 // Contains returns true if this store contains this atom already.
 func (s SimpleInMemoryStore) Contains(a ast.Atom) bool {
 	key := a.Hash()
-	if atoms, ok := s.factByPredicate[a.Predicate]; ok {
+	if atoms, ok := s.shardsByPredicate[a.Predicate]; ok {
 		_, ok := atoms[key]
 		return ok
 	}
@@ -294,7 +310,7 @@ func (s TeeingStore) EstimateFactCount() int {
 
 // NewTeeingStore returns a new TeeingStore.
 func NewTeeingStore(base FactStore) TeeingStore {
-	return TeeingStore{base, NewMultiIndexedInMemoryStore()}
+	return TeeingStore{base, NewMultiIndexedArrayInMemoryStore()}
 }
 
 func matches(pattern []ast.BaseTerm, args []ast.BaseTerm) bool {
@@ -310,17 +326,13 @@ func matches(pattern []ast.BaseTerm, args []ast.BaseTerm) bool {
 // For each predicate sym, we have a separate map, using hash of the first argument and then
 // hash of the entire atom.
 type IndexedInMemoryStore struct {
-	// Predicates of arity zero.
-	constants map[ast.PredicateSym]ast.Atom
-
-	shardsByPredicate map[ast.PredicateSym]map[uint64]map[uint64]ast.Atom
+	InMemoryStore[map[uint64]map[uint64]ast.Atom]
 }
 
 // NewIndexedInMemoryStore constructs a new IndexedInMemoryStore.
 func NewIndexedInMemoryStore() IndexedInMemoryStore {
 	return IndexedInMemoryStore{
-		make(map[ast.PredicateSym]ast.Atom),
-		make(map[ast.PredicateSym]map[uint64]map[uint64]ast.Atom),
+		NewInMemoryStore[map[uint64]map[uint64]ast.Atom](),
 	}
 }
 
@@ -445,17 +457,13 @@ func (s IndexedInMemoryStore) ListPredicates() []ast.PredicateSym {
 // For each predicate sym, we have a separate map, using the index and the hash of the nth argument
 // and then hash of the entire atom.
 type MultiIndexedInMemoryStore struct {
-	// Predicates of arity zero.
-	constants map[ast.PredicateSym]ast.Atom
-
-	shardsByPredicate map[ast.PredicateSym]map[uint16]map[uint64]map[uint64]*ast.Atom
+	InMemoryStore[map[uint16]map[uint64]map[uint64]*ast.Atom]
 }
 
 // NewMultiIndexedInMemoryStore constructs a new MultiIndexedInMemoryStore.
 func NewMultiIndexedInMemoryStore() MultiIndexedInMemoryStore {
 	return MultiIndexedInMemoryStore{
-		make(map[ast.PredicateSym]ast.Atom),
-		make(map[ast.PredicateSym]map[uint16]map[uint64]map[uint64]*ast.Atom),
+		NewInMemoryStore[map[uint16]map[uint64]map[uint64]*ast.Atom](),
 	}
 }
 
@@ -585,6 +593,171 @@ func (s MultiIndexedInMemoryStore) Merge(other ReadOnlyFactStore) {
 
 // ListPredicates returns a list of predicates.
 func (s MultiIndexedInMemoryStore) ListPredicates() []ast.PredicateSym {
+	var r []ast.PredicateSym
+	for p := range s.constants {
+		r = append(r, p)
+	}
+	for p := range s.shardsByPredicate {
+		r = append(r, p)
+	}
+	return r
+}
+
+// MultiIndexedArrayInMemoryStore provides a simple implementation backed by a four-level map.
+// For each predicate sym, we have a separate map, using the index and the hash of the nth argument
+// and then hash of the entire atom, with the ultimate value being an array of Atoms.
+type MultiIndexedArrayInMemoryStore struct {
+	InMemoryStore[map[uint16]map[uint64]map[uint64][]*ast.Atom]
+}
+
+// NewMultiIndexedArrayInMemoryStore constructs a new MultiIndexedArrayInMemoryStore.
+func NewMultiIndexedArrayInMemoryStore() MultiIndexedArrayInMemoryStore {
+	return MultiIndexedArrayInMemoryStore{
+		NewInMemoryStore[map[uint16]map[uint64]map[uint64][]*ast.Atom](),
+	}
+}
+
+func (s MultiIndexedArrayInMemoryStore) getFactsOfFirstVariable(a ast.Atom, fn func(ast.Atom) error) error {
+	for _, shard := range s.shardsByPredicate[a.Predicate][0] {
+		for _, facts := range shard {
+			for _, fact := range facts {
+				if matches(a.Args, fact.Args) {
+					if err := fn(*fact); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// GetFacts implementation that looks up facts from an in-memory map.
+func (s MultiIndexedArrayInMemoryStore) GetFacts(a ast.Atom, fn func(ast.Atom) error) error {
+	if a.Predicate.Arity == 0 {
+		if a, ok := s.constants[a.Predicate]; ok {
+			return fn(a)
+		}
+		return nil
+	}
+	for i := 0; i < a.Predicate.Arity; i++ {
+		// Find a non variable parameter.
+		if _, ok := a.Args[i].(ast.Variable); !ok {
+			h := a.Args[i].Hash()
+			for _, facts := range s.shardsByPredicate[a.Predicate][uint16(i)][h] {
+				for _, fact := range facts {
+					if matches(a.Args, fact.Args) {
+						if err := fn(*fact); err != nil {
+							return err
+						}
+					}
+				}
+			}
+			return nil
+		}
+	}
+	return s.getFactsOfFirstVariable(a, fn)
+}
+
+// Add implements the FactStore interface by adding the fact to the backing map.
+func (s MultiIndexedArrayInMemoryStore) Add(a ast.Atom) bool {
+	if a.Predicate.Arity == 0 {
+		_, ok := s.constants[a.Predicate]
+		if !ok {
+			s.constants[a.Predicate] = a
+			return true
+		}
+		return false
+	}
+	aHash := a.Hash()
+	shard, ok := s.shardsByPredicate[a.Predicate]
+	if !ok {
+		shard = make(map[uint16]map[uint64]map[uint64][]*ast.Atom)
+		s.shardsByPredicate[a.Predicate] = shard
+		for i := 0; i < a.Predicate.Arity; i++ {
+			shard[uint16(i)] = make(map[uint64]map[uint64][]*ast.Atom)
+			iHash := a.Args[i].Hash()
+			shard[uint16(i)][iHash] = make(map[uint64][]*ast.Atom)
+			shard[uint16(i)][iHash][aHash] = append(shard[uint16(i)][iHash][aHash], &a)
+		}
+		return true
+	}
+	added := false
+	for i := 0; i < a.Predicate.Arity; i++ {
+		iHash := a.Args[i].Hash()
+		params, ok := shard[uint16(i)]
+		if !ok {
+			shard[uint16(i)] = make(map[uint64]map[uint64][]*ast.Atom)
+			shard[uint16(i)][iHash] = make(map[uint64][]*ast.Atom)
+			shard[uint16(i)][iHash][aHash] = append(shard[uint16(i)][iHash][aHash], &a)
+			added = true
+			continue
+		}
+		atoms, ok := params[iHash]
+		if !ok {
+			params[iHash] = make(map[uint64][]*ast.Atom)
+			params[iHash][aHash] = append(params[iHash][aHash], &a)
+			added = true
+		} else if _, ok := atoms[aHash]; !ok {
+			atoms[aHash] = append(atoms[aHash], &a)
+			added = true
+		}
+	}
+	return added
+}
+
+// Contains returns true if this store contains this atom already.
+func (s MultiIndexedArrayInMemoryStore) Contains(a ast.Atom) bool {
+	if a.Predicate.Arity == 0 {
+		_, ok := s.constants[a.Predicate]
+		return ok
+	}
+	shard, ok := s.shardsByPredicate[a.Predicate]
+	if !ok {
+		return false
+	}
+	params, ok := shard[0]
+	if !ok {
+		return false
+	}
+	h := a.Args[0].Hash()
+	atoms, ok := params[h]
+	if !ok {
+		return false
+	}
+	for _, fact := range atoms[a.Hash()] {
+		if a.Equals(*fact) {
+			return true
+		}
+	}
+	return false
+}
+
+// EstimateFactCount returns the number of facts.
+func (s MultiIndexedArrayInMemoryStore) EstimateFactCount() int {
+	c := len(s.constants)
+	for _, s := range s.shardsByPredicate {
+		for _, m := range s[0] {
+			for _, facts := range m {
+				c += len(facts)
+			}
+		}
+	}
+	return c
+}
+
+// Merge adds all facts from other to this fact store.
+func (s MultiIndexedArrayInMemoryStore) Merge(other ReadOnlyFactStore) {
+	for _, pred := range other.ListPredicates() {
+		other.GetFacts(ast.NewQuery(pred), func(fact ast.Atom) error {
+			s.Add(fact)
+			return nil
+		})
+	}
+}
+
+// ListPredicates returns a list of predicates.
+func (s MultiIndexedArrayInMemoryStore) ListPredicates() []ast.PredicateSym {
 	var r []ast.PredicateSym
 	for p := range s.constants {
 		r = append(r, p)

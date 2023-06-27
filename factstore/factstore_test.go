@@ -49,6 +49,7 @@ func TestAddContains(t *testing.T) {
 		NewSimpleInMemoryStore(),
 		NewIndexedInMemoryStore(),
 		NewMultiIndexedInMemoryStore(),
+		NewMultiIndexedArrayInMemoryStore(),
 		NewMergedStore([]FactStore{NewSimpleInMemoryStore()}, NewSimpleInMemoryStore())} {
 		t.Run(fmt.Sprintf("%T", fs), func(*testing.T) {
 			tests := []ast.Atom{

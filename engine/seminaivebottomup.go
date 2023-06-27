@@ -120,7 +120,7 @@ func EvalProgramWithStats(programInfo *analysis.ProgramInfo, store factstore.Fac
 	if opts.createdFactLimit > 0 {
 		opts.totalFactLimit = store.EstimateFactCount() + opts.createdFactLimit
 	}
-	e := &engine{store, factstore.NewMultiIndexedInMemoryStore(), programInfo, strata,
+	e := &engine{store, factstore.NewMultiIndexedArrayInMemoryStore(), programInfo, strata,
 		predToStratum, predToRules, predToDecl, stats, opts}
 	if err := e.evalStrata(); err != nil {
 		return Stats{}, err
@@ -160,7 +160,7 @@ func (e *engine) evalStrata() error {
 		start := time.Now()
 		e := engine{
 			store:         e.store,
-			deltaStore:    factstore.NewMultiIndexedInMemoryStore(),
+			deltaStore:    factstore.NewMultiIndexedArrayInMemoryStore(),
 			programInfo:   &analysis.ProgramInfo{stratifiedProgram.EdbPredicates, stratifiedProgram.IdbPredicates, nil, stratifiedProgram.Rules, stratumDecls},
 			predToStratum: e.predToStratum,
 			predToRules:   e.predToRules,
@@ -270,7 +270,7 @@ func (e *engine) eval() error {
 		deltaRules := makeDeltaRules(e.programInfo.Decls, e.predToRules)
 		e.store.Merge(e.deltaStore)
 		for {
-			newDeltaStore := factstore.NewMultiIndexedInMemoryStore()
+			newDeltaStore := factstore.NewMultiIndexedArrayInMemoryStore()
 			var incrementalFactAdded bool
 			for _, predDeltaRule := range deltaRules {
 				for _, deltaRule := range predDeltaRule {

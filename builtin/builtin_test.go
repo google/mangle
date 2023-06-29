@@ -116,7 +116,7 @@ func TestLessThanOrEqual(t *testing.T) {
 			t.Fatal(err)
 		}
 		if len(nsubst) != 1 || nsubst[0] != &emptySubst {
-			t.Errorf("LessThan: expected same subst %v %v %v", atom, nsubst, &emptySubst)
+			t.Errorf("LessThanOrEqual: expected same subst %v %v %v", atom, nsubst, &emptySubst)
 		}
 		if got != test.want {
 			t.Errorf("abs: for atom %v expected %v got %v.", atom, test.want, got)
@@ -131,6 +131,80 @@ func TestLessThanOrEqualError(t *testing.T) {
 	}
 
 	invalid := ast.NewAtom(":le", ast.Number(2), ast.Number(2), ast.Number(2))
+	if got, _, err := Decide(invalid, &emptySubst); err == nil { // if no error
+		t.Errorf("Decide(%v) = %v want error", invalid, got)
+	}
+}
+
+func TestGreaterThan(t *testing.T) {
+	tests := []struct {
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
+	}{
+		{ast.Number(2), ast.Number(1), true},
+		{ast.Number(1), ast.Number(1), false},
+		{ast.Number(1), ast.Number(2), false},
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":gt", test.left, test.right)
+		got, nsubst, err := Decide(atom, &emptySubst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(nsubst) != 1 || nsubst[0] != &emptySubst {
+			t.Errorf("GreaterThan: expected same subst %v %v %v", atom, nsubst, &emptySubst)
+		}
+		if got != test.want {
+			t.Errorf("GreaterThan: for atom %v got %v want %v.", atom, got, test.want)
+		}
+	}
+}
+
+func TestGreaterThanError(t *testing.T) {
+	atom := ast.NewAtom(":gt", ast.String("hello"), ast.Number(2))
+	if got, _, err := Decide(atom, &emptySubst); err == nil { // if no error
+		t.Errorf("Decide(%v) = %v want error", atom, got)
+	}
+
+	invalid := ast.NewAtom(":gt", ast.Number(2), ast.Number(2), ast.Number(2))
+	if got, _, err := Decide(invalid, &emptySubst); err == nil { // if no error
+		t.Errorf("Decide(%v) = %v want error", invalid, got)
+	}
+}
+
+func TestGreaterThanOrEqual(t *testing.T) {
+	tests := []struct {
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
+	}{
+		{ast.Number(2), ast.Number(1), true},
+		{ast.Number(1), ast.Number(1), true},
+		{ast.Number(1), ast.Number(2), false},
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":ge", test.left, test.right)
+		got, nsubst, err := Decide(atom, &emptySubst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(nsubst) != 1 || nsubst[0] != &emptySubst {
+			t.Errorf("GreaterThanOrEqual: expected same subst %v %v %v", atom, nsubst, &emptySubst)
+		}
+		if got != test.want {
+			t.Errorf("abs: for atom %v expected %v got %v.", atom, test.want, got)
+		}
+	}
+}
+
+func TestGreaterThanOrEqualError(t *testing.T) {
+	atom := ast.NewAtom(":ge", ast.String("hello"), ast.Number(2))
+	if got, _, err := Decide(atom, &emptySubst); err == nil { // if no error
+		t.Errorf("Decide(%v) = %v want error", atom, got)
+	}
+
+	invalid := ast.NewAtom(":ge", ast.Number(2), ast.Number(2), ast.Number(2))
 	if got, _, err := Decide(invalid, &emptySubst); err == nil { // if no error
 		t.Errorf("Decide(%v) = %v want error", invalid, got)
 	}

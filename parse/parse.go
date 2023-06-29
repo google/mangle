@@ -371,7 +371,7 @@ func (p Parser) VisitLiteralOrFml(ctx *gen.LiteralOrFmlContext) any {
 		}
 		return ast.NegAtom{atom}
 	}
-	if ctx.EQ() == nil && ctx.BANGEQ() == nil && ctx.LESS() == nil && ctx.LESSEQ() == nil {
+	if ctx.EQ() == nil && ctx.BANGEQ() == nil && ctx.LESS() == nil && ctx.LESSEQ() == nil && ctx.GREATER() == nil && ctx.GREATEREQ() == nil {
 		if ok {
 			return atom
 		}
@@ -398,7 +398,13 @@ func (p Parser) VisitLiteralOrFml(ctx *gen.LiteralOrFmlContext) any {
 	if ctx.LESS() != nil {
 		return ast.NewAtom(":lt", leftBase, rightBase)
 	}
-	return ast.NewAtom(":le", leftBase, rightBase)
+	if ctx.LESSEQ() != nil {
+		return ast.NewAtom(":le", leftBase, rightBase)
+	}
+	if ctx.GREATER() != nil {
+		return ast.NewAtom(":gt", leftBase, rightBase)
+	}
+	return ast.NewAtom(":ge", leftBase, rightBase)
 }
 
 // VisitVar visits a parse tree produced by MangleParser#Var.

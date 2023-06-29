@@ -37,6 +37,12 @@ var (
 	// Le is the less-than-or-equal relation on numbers.
 	Le = ast.PredicateSym{":le", 2}
 
+	// Gt is the greater-than relation on numbers.
+	Gt = ast.PredicateSym{":gt", 2}
+
+	// Ge is the greater-than-or-equal relation on numbers.
+	Ge = ast.PredicateSym{":ge", 2}
+
 	// MatchPair mode(+, -, -) matches a pair to its elements.
 	MatchPair = ast.PredicateSym{":match_pair", 3}
 

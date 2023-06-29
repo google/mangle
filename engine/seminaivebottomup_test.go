@@ -364,6 +364,9 @@ func TestBuiltin(t *testing.T) {
 		clause("lt_two(X) :- foo(X), X < 2."),
 		clause("le_two(X) :- foo(X), X <= 2."),
 		clause("two_le(X) :- foo(X), 2 <= X."),
+		clause("gt_two(X) :- foo(X), X > 2."),
+		clause("ge_two(X) :- foo(X), X >= 2."),
+		clause("two_ge(X) :- foo(X), 2 >= X."),
 		clause("within_ten(X) :- foo(X), :within_distance(10, X, 2)."),
 	}
 	if err := analyzeAndEvalProgram(t, program, store); err != nil {
@@ -375,6 +378,10 @@ func TestBuiltin(t *testing.T) {
 		atom("le_two(1)"),
 		atom("le_two(2)"),
 		atom("two_le(2)"),
+		atom("gt_two(11)"),
+		atom("ge_two(11)"),
+		atom("ge_two(2)"),
+		atom("two_ge(2)"),
 		atom("within_ten(11)"),
 	}
 

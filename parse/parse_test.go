@@ -553,14 +553,24 @@ func TestParseLiteralOrFormulaPositive(t *testing.T) {
 			want: ast.Ineq{name("/foo"), ast.Variable{"Y"}},
 		},
 		{
-			name: "builtin",
+			name: "builtin :lt",
 			str:  "0 < 1",
 			want: ast.NewAtom(":lt", ast.Number(0), ast.Number(1)),
 		},
 		{
-			name: "builtin 2",
+			name: "builtin :le",
 			str:  "0 <= 1",
 			want: ast.NewAtom(":le", ast.Number(0), ast.Number(1)),
+		},
+		{
+			name: "builtin :gt",
+			str:  "1 > 0",
+			want: ast.NewAtom(":gt", ast.Number(1), ast.Number(0)),
+		},
+		{
+			name: "builtin :ge",
+			str:  "1 >= 0",
+			want: ast.NewAtom(":ge", ast.Number(1), ast.Number(0)),
 		},
 		{
 			name: "atom (trailing comma)",

@@ -33,6 +33,8 @@ var (
 		symbols.StartsWith:     {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Lt:             {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Le:             {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.Gt:             {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.Ge:             {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.ListMember:     {ast.ArgModeOutput, ast.ArgModeInput},
 		symbols.WithinDistance: {ast.ArgModeInput, ast.ArgModeInput, ast.ArgModeInput},
 		symbols.MatchPair:      {ast.ArgModeInput, ast.ArgModeOutput, ast.ArgModeOutput},
@@ -176,6 +178,25 @@ func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, []*unionfind.Union
 			return false, nil, err
 		}
 		return nums[0] <= nums[1], []*unionfind.UnionFind{subst}, nil
+
+	case symbols.Gt.Symbol:
+		if len(atom.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate '>': %v", atom.Args)
+		}
+		nums, err := getNumberValues(atom.Args)
+		if err != nil {
+			return false, nil, err
+		}
+		return nums[0] > nums[1], []*unionfind.UnionFind{subst}, nil
+	case symbols.Ge.Symbol:
+		if len(atom.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate '>=': %v", atom.Args)
+		}
+		nums, err := getNumberValues(atom.Args)
+		if err != nil {
+			return false, nil, err
+		}
+		return nums[0] >= nums[1], []*unionfind.UnionFind{subst}, nil
 
 	case symbols.ListMember.Symbol: // :list:member(Member, List)
 		evaluatedArg, err := functional.EvalExpr(atom.Args[1], subst)

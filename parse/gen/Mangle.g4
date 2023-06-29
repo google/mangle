@@ -65,7 +65,7 @@ letStmt
     ;
     
 literalOrFml
-   : term (('=' | '!=' | '<' | '<=') term)?
+   : term ((EQ | BANGEQ | LESS | LESSEQ | GREATER | GREATEREQ) term)?
    | '!'term
    ;
 

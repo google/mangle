@@ -85,6 +85,7 @@ var (
 		symbols.CollectDistinct: symbols.NewFunType(listOfX /* <= */, listOfX),
 		symbols.PickAny:         symbols.NewFunType(varX /* <= */, listOfX),
 		symbols.Max:             symbols.NewFunType(ast.NumberBound /* <= */, listOfNum),
+		symbols.Min:             symbols.NewFunType(ast.NumberBound /* <= */, listOfNum),
 		symbols.Sum:             symbols.NewFunType(ast.NumberBound /* <= */, listOfNum),
 		symbols.Count:           symbols.NewFunType(ast.NumberBound /* <= */, listOfX),
 	}

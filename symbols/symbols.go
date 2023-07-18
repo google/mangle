@@ -735,3 +735,8 @@ func LowerBound(typeExprs []ast.BaseTerm) ast.BaseTerm {
 	}
 	return typeExpr
 }
+
+// CreateListType applies given type to a list.
+func CreateListType(bound ast.Constant) ast.ApplyFn {
+	return ast.ApplyFn{ListType, []ast.BaseTerm{bound}}
+}

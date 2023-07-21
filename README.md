@@ -127,23 +127,22 @@ graph LR
 
 ## Building
 
-If you want to build from source, you need to set up  ANTLR first,
-which requires Java runtime environment.
+Get the dependencies (see [go.mod](go.mod)) and build the library:
+
+```
+go get ./...
+go build ./...
+```
+### Regenerating the parser sources
+
+If you want to regenerate the parser sources, you need to set up ANTLR first.
+This requires Java runtime environment. This should only be necessary if
+you require a different version of the antlr runtime for some reason.
 
 ```
 wget http://www.antlr.org/download/antlr-4.11.1-complete.jar
 alias antlr='java -jar $PWD/antlr-4.11.1-complete.jar'
-```
-
-Then you can generate the parser sources
-```
 antlr -Dlanguage=Go -package gen -o ./ parse/gen/Mangle.g4 -visitor
-```
-
-... and finally get the dependencies (see [go.mod](go.mod)) and build the library:
-```
-go get ./...
-go build ./...
 ```
 
 ## Contributing

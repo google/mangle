@@ -106,7 +106,7 @@ func NewSimpleInMemoryStore() SimpleInMemoryStore {
 // GetFacts implementation that looks up facts from an in-memory map.
 func (s SimpleInMemoryStore) GetFacts(a ast.Atom, fn func(ast.Atom) error) error {
 	for _, fact := range s.shardsByPredicate[a.Predicate] {
-		if matches(a.Args, fact.Args) {
+		if Matches(a.Args, fact.Args) {
 			if err := fn(fact); err != nil {
 				return err
 			}
@@ -313,7 +313,7 @@ func NewTeeingStore(base FactStore) TeeingStore {
 	return TeeingStore{base, NewMultiIndexedArrayInMemoryStore()}
 }
 
-func matches(pattern []ast.BaseTerm, args []ast.BaseTerm) bool {
+func Matches(pattern []ast.BaseTerm, args []ast.BaseTerm) bool {
 	for i, t := range pattern {
 		if _, ok := t.(ast.Constant); ok && !t.Equals(args[i]) {
 			return false
@@ -339,7 +339,7 @@ func NewIndexedInMemoryStore() IndexedInMemoryStore {
 func (s IndexedInMemoryStore) getFactsOfFirstVariable(a ast.Atom, fn func(ast.Atom) error) error {
 	for _, shard := range s.shardsByPredicate[a.Predicate] {
 		for _, fact := range shard {
-			if matches(a.Args[1:], fact.Args[1:]) {
+			if Matches(a.Args[1:], fact.Args[1:]) {
 				if err := fn(fact); err != nil {
 					return err
 				}
@@ -362,7 +362,7 @@ func (s IndexedInMemoryStore) GetFacts(a ast.Atom, fn func(ast.Atom) error) erro
 	}
 	h := a.Args[0].Hash()
 	for _, fact := range s.shardsByPredicate[a.Predicate][h] {
-		if matches(a.Args, fact.Args) {
+		if Matches(a.Args, fact.Args) {
 			if err := fn(fact); err != nil {
 				return err
 			}
@@ -470,7 +470,7 @@ func NewMultiIndexedInMemoryStore() MultiIndexedInMemoryStore {
 func (s MultiIndexedInMemoryStore) getFactsOfFirstVariable(a ast.Atom, fn func(ast.Atom) error) error {
 	for _, shard := range s.shardsByPredicate[a.Predicate][0] {
 		for _, fact := range shard {
-			if matches(a.Args[1:], fact.Args[1:]) {
+			if Matches(a.Args[1:], fact.Args[1:]) {
 				if err := fn(*fact); err != nil {
 					return err
 				}
@@ -493,7 +493,7 @@ func (s MultiIndexedInMemoryStore) GetFacts(a ast.Atom, fn func(ast.Atom) error)
 		if _, ok := a.Args[i].(ast.Variable); !ok {
 			h := a.Args[i].Hash()
 			for _, fact := range s.shardsByPredicate[a.Predicate][uint16(i)][h] {
-				if matches(a.Args, fact.Args) {
+				if Matches(a.Args, fact.Args) {
 					if err := fn(*fact); err != nil {
 						return err
 					}
@@ -621,7 +621,7 @@ func (s MultiIndexedArrayInMemoryStore) getFactsOfFirstVariable(a ast.Atom, fn f
 	for _, shard := range s.shardsByPredicate[a.Predicate][0] {
 		for _, facts := range shard {
 			for _, fact := range facts {
-				if matches(a.Args, fact.Args) {
+				if Matches(a.Args, fact.Args) {
 					if err := fn(*fact); err != nil {
 						return err
 					}
@@ -646,7 +646,7 @@ func (s MultiIndexedArrayInMemoryStore) GetFacts(a ast.Atom, fn func(ast.Atom) e
 			h := a.Args[i].Hash()
 			for _, facts := range s.shardsByPredicate[a.Predicate][uint16(i)][h] {
 				for _, fact := range facts {
-					if matches(a.Args, fact.Args) {
+					if Matches(a.Args, fact.Args) {
 						if err := fn(*fact); err != nil {
 							return err
 						}

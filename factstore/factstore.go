@@ -18,6 +18,7 @@ package factstore
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/google/mangle/ast"
 )
@@ -766,4 +767,65 @@ func (s MultiIndexedArrayInMemoryStore) ListPredicates() []ast.PredicateSym {
 		r = append(r, p)
 	}
 	return r
+}
+
+// ConcurrentFactStore is an implementation of FactStore that allows multiple concurrent
+// operations on it. The operations are protected by a read-write lock so multiple read
+// operations like Contains or GetFacts can run concurrently, but only one write
+// operation like Add or Merge can run at a time. Also, read operations block on running
+// write operations.
+// ConcurrentFactStore forwards all its operations to an underlying base FactStore.
+type ConcurrentFactStore struct {
+	mutex *sync.RWMutex
+	base  FactStore
+}
+
+// Ensure that ConcurrentFactStore implements the FactStore interface.
+var _ FactStore = NewConcurrentFactStore(NewSimpleInMemoryStore())
+
+// Add implementation that adds to the base store after acquiring a write lock.
+func (s ConcurrentFactStore) Add(a ast.Atom) bool {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	return s.base.Add(a)
+}
+
+// Contains implementation that checks base store after acquiring a read lock.
+func (s ConcurrentFactStore) Contains(a ast.Atom) bool {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.base.Contains(a)
+}
+
+// GetFacts implementation that queries the base store after acquiring a read lock.
+func (s ConcurrentFactStore) GetFacts(a ast.Atom, fn func(ast.Atom) error) error {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.base.GetFacts(a, fn)
+}
+
+// Merge implementation that adds to the base store after acquiring a write lock.
+func (s ConcurrentFactStore) Merge(other ReadOnlyFactStore) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.base.Merge(other)
+}
+
+// ListPredicates returns a list of predicates in the base store after acquiring a read lock.
+func (s ConcurrentFactStore) ListPredicates() []ast.PredicateSym {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.base.ListPredicates()
+}
+
+// EstimateFactCount returns the number of facts in the base store after acquiring a read lock.
+func (s ConcurrentFactStore) EstimateFactCount() int {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.base.EstimateFactCount()
+}
+
+// NewConcurrentFactStore returns a new ConcurrentFactStore that wraps the given FactStore.
+func NewConcurrentFactStore(base FactStore) ConcurrentFactStore {
+	return ConcurrentFactStore{&sync.RWMutex{}, base}
 }

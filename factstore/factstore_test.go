@@ -50,7 +50,8 @@ func TestAddContains(t *testing.T) {
 		NewIndexedInMemoryStore(),
 		NewMultiIndexedInMemoryStore(),
 		NewMultiIndexedArrayInMemoryStore(),
-		NewMergedStore([]FactStore{NewSimpleInMemoryStore()}, NewSimpleInMemoryStore())} {
+		NewMergedStore([]FactStore{NewSimpleInMemoryStore()}, NewSimpleInMemoryStore()),
+		NewConcurrentFactStore(NewSimpleInMemoryStore())} {
 		t.Run(fmt.Sprintf("%T", fs), func(*testing.T) {
 			tests := []ast.Atom{
 				atom("baz()"),

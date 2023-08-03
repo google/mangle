@@ -136,6 +136,14 @@ func TestAddContains(t *testing.T) {
 			if got, want := fs.EstimateFactCount(), len(tests); got != want {
 				t.Errorf("EstimateFactCount() = %d want %d", got, want)
 			}
+
+			other := NewSimpleInMemoryStore()
+			other.Add(atom("foo(/bar)"))
+			other.Add(atom("foo(/new)"))
+			fs.Merge(other)
+			if got, want := fs.EstimateFactCount(), len(tests)+1; got != want {
+				t.Errorf("EstimateFactCount() = %d want %d", got, want)
+			}
 		})
 	}
 }

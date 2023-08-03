@@ -610,16 +610,18 @@ func (s MultiIndexedInMemoryStore) ListPredicates() []ast.PredicateSym {
 // and then hash of the entire atom, with the ultimate value being an array of Atoms.
 type MultiIndexedArrayInMemoryStore struct {
 	InMemoryStore[map[uint16]map[uint64]map[uint64][]*ast.Atom]
+	count int
 }
 
 // NewMultiIndexedArrayInMemoryStore constructs a new MultiIndexedArrayInMemoryStore.
-func NewMultiIndexedArrayInMemoryStore() MultiIndexedArrayInMemoryStore {
-	return MultiIndexedArrayInMemoryStore{
-		NewInMemoryStore[map[uint16]map[uint64]map[uint64][]*ast.Atom](),
+func NewMultiIndexedArrayInMemoryStore() *MultiIndexedArrayInMemoryStore {
+	return &MultiIndexedArrayInMemoryStore{
+		InMemoryStore: NewInMemoryStore[map[uint16]map[uint64]map[uint64][]*ast.Atom](),
+		count:         0,
 	}
 }
 
-func (s MultiIndexedArrayInMemoryStore) getFactsOfFirstVariable(a ast.Atom, fn func(ast.Atom) error) error {
+func (s *MultiIndexedArrayInMemoryStore) getFactsOfFirstVariable(a ast.Atom, fn func(ast.Atom) error) error {
 	for _, shard := range s.shardsByPredicate[a.Predicate][0] {
 		for _, facts := range shard {
 			for _, fact := range facts {
@@ -635,7 +637,7 @@ func (s MultiIndexedArrayInMemoryStore) getFactsOfFirstVariable(a ast.Atom, fn f
 }
 
 // GetFacts implementation that looks up facts from an in-memory map.
-func (s MultiIndexedArrayInMemoryStore) GetFacts(a ast.Atom, fn func(ast.Atom) error) error {
+func (s *MultiIndexedArrayInMemoryStore) GetFacts(a ast.Atom, fn func(ast.Atom) error) error {
 	if a.Predicate.Arity == 0 {
 		if a, ok := s.constants[a.Predicate]; ok {
 			return fn(a)
@@ -662,7 +664,15 @@ func (s MultiIndexedArrayInMemoryStore) GetFacts(a ast.Atom, fn func(ast.Atom) e
 }
 
 // Add implements the FactStore interface by adding the fact to the backing map.
-func (s MultiIndexedArrayInMemoryStore) Add(a ast.Atom) bool {
+func (s *MultiIndexedArrayInMemoryStore) Add(a ast.Atom) bool {
+	added := s.addAtom(a)
+	if added {
+		s.count++
+	}
+	return added
+}
+
+func (s *MultiIndexedArrayInMemoryStore) addAtom(a ast.Atom) bool {
 	if a.Predicate.Arity == 0 {
 		_, ok := s.constants[a.Predicate]
 		if !ok {
@@ -709,7 +719,7 @@ func (s MultiIndexedArrayInMemoryStore) Add(a ast.Atom) bool {
 }
 
 // Contains returns true if this store contains this atom already.
-func (s MultiIndexedArrayInMemoryStore) Contains(a ast.Atom) bool {
+func (s *MultiIndexedArrayInMemoryStore) Contains(a ast.Atom) bool {
 	if a.Predicate.Arity == 0 {
 		_, ok := s.constants[a.Predicate]
 		return ok
@@ -736,20 +746,12 @@ func (s MultiIndexedArrayInMemoryStore) Contains(a ast.Atom) bool {
 }
 
 // EstimateFactCount returns the number of facts.
-func (s MultiIndexedArrayInMemoryStore) EstimateFactCount() int {
-	c := len(s.constants)
-	for _, s := range s.shardsByPredicate {
-		for _, m := range s[0] {
-			for _, facts := range m {
-				c += len(facts)
-			}
-		}
-	}
-	return c
+func (s *MultiIndexedArrayInMemoryStore) EstimateFactCount() int {
+	return s.count
 }
 
 // Merge adds all facts from other to this fact store.
-func (s MultiIndexedArrayInMemoryStore) Merge(other ReadOnlyFactStore) {
+func (s *MultiIndexedArrayInMemoryStore) Merge(other ReadOnlyFactStore) {
 	for _, pred := range other.ListPredicates() {
 		other.GetFacts(ast.NewQuery(pred), func(fact ast.Atom) error {
 			s.Add(fact)
@@ -759,7 +761,7 @@ func (s MultiIndexedArrayInMemoryStore) Merge(other ReadOnlyFactStore) {
 }
 
 // ListPredicates returns a list of predicates.
-func (s MultiIndexedArrayInMemoryStore) ListPredicates() []ast.PredicateSym {
+func (s *MultiIndexedArrayInMemoryStore) ListPredicates() []ast.PredicateSym {
 	var r []ast.PredicateSym
 	for p := range s.constants {
 		r = append(r, p)

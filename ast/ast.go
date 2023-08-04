@@ -198,7 +198,7 @@ type Constant struct {
 	Symbol string
 
 	// For NumberType, the number value (int64 or the bytes of a float64).
-	// For PairShape and ListShape, it contains a hash code of the value.
+	// For other types it contains a hash code of the value.
 	NumValue int64
 
 	// For a pair constant, the first component.
@@ -231,12 +231,12 @@ func Name(symbol string) (Constant, error) {
 			return Constant{}, fmt.Errorf("constant symbol \"%s\" contains empty part", symbol)
 		}
 	}
-	return Constant{NameType, symbol, 0, nil, nil}, nil
+	return Constant{NameType, symbol, int64(hashBytes([]byte(symbol))), nil, nil}, nil
 }
 
 // String constructs a "constant symbol" that contains an arbitrary string.
 func String(str string) Constant {
-	return Constant{StringType, str, 0, nil, nil}
+	return Constant{StringType, str, int64(hashBytes([]byte(str))), nil, nil}
 }
 
 // Number constructs a constant symbol that contains a number.
@@ -636,9 +636,6 @@ func szudzikElegantPair(fst, snd uint64) uint64 {
 
 // Hash returns a hash code for this constant
 func (c Constant) Hash() uint64 {
-	if c.Type == StringType || c.Type == NameType {
-		return hashBytes([]byte(c.Symbol))
-	}
 	return uint64(c.NumValue)
 }
 

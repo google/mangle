@@ -664,11 +664,17 @@ func (p PredicateSym) IsInternalPredicate() bool {
 }
 
 func (p PredicateSym) String() string {
-	var args []string
+	var sb strings.Builder
+	sb.WriteString(p.Symbol)
+	sb.WriteRune('(')
 	for i := 0; i < p.Arity; i++ {
-		args = append(args, fmt.Sprintf("%c", 'A'+i))
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		fmt.Fprintf(&sb, "A%d", i)
 	}
-	return fmt.Sprintf("%s(%s)", p.Symbol, strings.Join(args, ", "))
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 // IsBuiltin returns true if this predicate symbol is for a built-in predicate.
@@ -761,7 +767,7 @@ func (a Atom) Equals(u Term) bool {
 
 // Hash returns a hash code for this atom.
 func (a Atom) Hash() uint64 {
-	return hashTerm(a.Predicate.String(), a.Args)
+	return hashTerm(a.Predicate.Symbol, a.Args)
 }
 
 // ApplySubst returns the result of applying given substitution to this atom.
@@ -838,11 +844,17 @@ type FunctionSym struct {
 }
 
 func (f FunctionSym) String() string {
-	var args []string
+	var sb strings.Builder
+	sb.WriteString(f.Symbol)
+	sb.WriteRune('(')
 	for i := 0; i < f.Arity; i++ {
-		args = append(args, fmt.Sprintf("%c", 'V'+i))
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		fmt.Fprintf(&sb, "V%d", i)
 	}
-	return fmt.Sprintf("%s(%s)", f.Symbol, strings.Join(args, ", "))
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 // Transform represents a transformation of the relation of a clause. e.g. fn:max or fn:group_by

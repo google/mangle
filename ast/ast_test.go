@@ -240,7 +240,7 @@ func TestHash(t *testing.T) {
 func TestAtomHash(t *testing.T) {
 	a := NewAtom("bar", String("foo"))
 	h := fnv.New64()
-	h.Write([]byte(a.Predicate.String()))
+	h.Write([]byte(a.Predicate.Symbol))
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, a.Args[0].(Constant).Hash())
 	h.Write(b)

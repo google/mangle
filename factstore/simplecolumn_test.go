@@ -54,27 +54,27 @@ baz 0 1
 foo 1 2
 bar 3 5
 qaz 3 2
-%2Fzzz
 %60%0A%2Fbar%60
-%5B%2Fabc%5D
+%2Fzzz
 %5B%2Fabc%2C%20%2Fdef%5D
-%2Fr
+%5B%2Fabc%5D
 %2Fg
+%2Fr
 %2Ft
-4
 5
-1
+4
 3
+1
 2
 %2Fdef
 %2Fdef
-%2Fz
 %2Fh
+%2Fz
 %2Ff
-%5B%2Fdef%20%3A%20345%2C%20%2Fabc%20%3A%20123%5D
 %7B%2Fdef%20%3A%20678%2C%20%2Fabc%20%3A%20456%7D
-10
+%5B%2Fdef%20%3A%20345%2C%20%2Fabc%20%3A%20123%5D
 20
+10
 %2Fdef
 %2Fdef
 `

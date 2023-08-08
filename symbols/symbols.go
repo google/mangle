@@ -31,6 +31,9 @@ var (
 	// StartsWith matches string constants that have a given prefix.
 	StartsWith = ast.PredicateSym{":starts_with", 2}
 
+	// EndsWith matches string constants that have a given suffix.
+	EndsWith = ast.PredicateSym{":ends_with", 2}
+
 	// Lt is the less-than relation on numbers.
 	Lt = ast.PredicateSym{":lt", 2}
 
@@ -195,6 +198,7 @@ var (
 	BuiltinRelations = map[ast.PredicateSym]ast.BaseTerm{
 		MatchPrefix: NewRelType(NewListType(ast.Variable{"X"}), ast.NameBound),
 		StartsWith:  NewRelType(NewListType(ast.Variable{"X"}), ast.StringBound),
+		EndsWith:    NewRelType(NewListType(ast.Variable{"X"}), ast.StringBound),
 		// TODO: support float64
 		Lt:       NewRelType(ast.NumberBound, ast.NumberBound),
 		Le:       NewRelType(ast.NumberBound, ast.NumberBound),

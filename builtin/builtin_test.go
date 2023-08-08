@@ -290,7 +290,31 @@ func TestStartsWith(t *testing.T) {
 			t.Fatal(err)
 		}
 		if got != test.want {
-			t.Errorf("TestMatchPrefix(%v): got %v want %v", atom, got, test.want)
+			t.Errorf("TestStartsWith(%v): got %v want %v", atom, got, test.want)
+		}
+	}
+}
+
+func TestEndsWith(t *testing.T) {
+	tests := []struct {
+		scrutinee ast.Constant
+		pattern   ast.Constant
+		want      bool
+	}{
+		{ast.String("foo/bar"), ast.String("bar"), true},
+		{ast.String("foo"), ast.String("foo"), true},
+		{ast.String("foo"), ast.String("dfoo"), false},
+		{ast.String("foo/bar"), ast.String("foo"), false},
+		{ast.String("foo"), ast.String(""), true},
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":ends_with", test.scrutinee, test.pattern)
+		got, _, err := Decide(atom, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("TestEndsWith(%v): got %v want %v", atom, got, test.want)
 		}
 	}
 }

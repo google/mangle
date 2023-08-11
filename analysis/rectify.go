@@ -22,7 +22,6 @@ func RectifyAtom(atom ast.Atom, usedVars VarList) (ast.Atom, []ast.Term, []ast.V
 	var fml []ast.Term
 	makeFresh := func(i int, arg ast.BaseTerm) {
 		fresh := ast.FreshVariable(used)
-		used[fresh] = true
 		freshVars = append(freshVars, fresh)
 		newArgs[i] = fresh
 		fml = append(fml, ast.Eq{fresh, arg})

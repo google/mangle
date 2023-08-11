@@ -1083,6 +1083,7 @@ func FreshVariable(used map[Variable]bool) Variable {
 			i++
 			continue
 		}
+		used[v] = true
 		return v
 	}
 }
@@ -1101,7 +1102,6 @@ func ReplaceWildcards(used map[Variable]bool, term Term) Term {
 			return t
 		}
 		v := FreshVariable(used)
-		used[v] = true
 		return v
 	case ApplyFn:
 		args := make([]BaseTerm, len(t.Args))

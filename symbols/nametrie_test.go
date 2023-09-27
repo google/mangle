@@ -112,3 +112,19 @@ func TestPrefixTrie(t *testing.T) {
 		}
 	}
 }
+
+func TestCollect(t *testing.T) {
+	nameTrie := NewNameTrie()
+	someType, err := ast.Name("/something/something")
+	if err != nil {
+		t.Fatalf("ast.Name(%v) failed: %v", "/something/something", err)
+	}
+	nameTrie.Collect(ast.ApplyFn{Function: List, Args: []ast.BaseTerm{
+		ast.ApplyFn{Function: Pair, Args: []ast.BaseTerm{ast.StringBound, someType}},
+	}})
+	got := nameTrie.PrefixName("/something/something/foo")
+	// The type of `/something/something/foo` is `/something/something`.
+	if !someType.Equals(got) {
+		t.Errorf("TestCollect prefix: got %v from trie, want %v", got, someType)
+	}
+}

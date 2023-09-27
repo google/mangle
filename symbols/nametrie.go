@@ -42,22 +42,24 @@ func NewNameTrie() NameTrie {
 // Collect traverses a type expression and extracts names.
 // Base type expressions are ignored.
 func (n NameTrie) Collect(typeExpr ast.BaseTerm) {
-	if c, ok := typeExpr.(ast.Constant); ok {
-		if IsBaseTypeExpression(c) {
-			return
+	walk := func(typeExpr ast.BaseTerm) {
+		switch x := typeExpr.(type) {
+		case ast.Constant:
+			if IsBaseTypeExpression(x) {
+				return
+			}
+			if x.Type == ast.NameType {
+				parts := strings.Split(x.Symbol, "/")
+				n.Add(parts[1:])
+			}
+		case ast.ApplyFn:
+			for _, arg := range x.Args {
+				n.Collect(arg)
+			}
+		default:
 		}
-		if c.Type != ast.NameType {
-			// At this point, string constants "predicate" have been replaced
-			// with the appropriate type expression. So this should not happen.
-			return
-		}
-		parts := strings.Split(c.Symbol, "/")
-		n.Add(parts[1:])
-		return
 	}
-	for _, arg := range typeArgs(typeExpr) {
-		n.Collect(arg)
-	}
+	walk(typeExpr)
 }
 
 // Add adds a part sequence to this trie.

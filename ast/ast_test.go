@@ -267,6 +267,11 @@ func TestString(t *testing.T) {
 			"52",
 		},
 		{
+			"float constant",
+			Float64(52.34),
+			"52.34",
+		},
+		{
 			"pair constant",
 			fooBarPair,
 			`</foo; "bar">`,

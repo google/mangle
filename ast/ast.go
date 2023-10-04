@@ -22,6 +22,7 @@ import (
 	"math"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -71,7 +72,7 @@ func FormatNumber(num int64) string {
 
 // FormatFloat64 turns a float64 constant into a string.
 func FormatFloat64(floatNum float64) string {
-	return fmt.Sprintf("%f", floatNum)
+	return strconv.FormatFloat(floatNum, 'f', -1, 64)
 }
 
 // Term represents the building blocks of datalog programs, namely constants, variables, atoms,

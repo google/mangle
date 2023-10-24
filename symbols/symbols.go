@@ -29,10 +29,10 @@ var (
 	MatchPrefix = ast.PredicateSym{":match_prefix", 2}
 
 	// StartsWith matches string constants that have a given prefix.
-	StartsWith = ast.PredicateSym{":starts_with", 2}
+	StartsWith = ast.PredicateSym{":string:starts_with", 2}
 
 	// EndsWith matches string constants that have a given suffix.
-	EndsWith = ast.PredicateSym{":ends_with", 2}
+	EndsWith = ast.PredicateSym{":string:ends_with", 2}
 
 	// Contains matches string constants that contain the given string.
 	Contains = ast.PredicateSym{":string:contains", 2}

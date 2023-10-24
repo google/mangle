@@ -293,11 +293,11 @@ func match(pattern ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.Union
 
 	case symbols.StartsWith.Symbol:
 		if len(pattern.Args) != 2 {
-			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':starts_with': %v", pattern.Args)
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':string:starts_with': %v", pattern.Args)
 		}
 		pat, ok := pattern.Args[1].(ast.Constant)
 		if !ok || pat.Type != ast.StringType {
-			return false, nil, fmt.Errorf("2nd arguments must be string constant for ':starts_with': %v", pattern)
+			return false, nil, fmt.Errorf("2nd arguments must be string constant for ':string:starts_with': %v", pattern)
 		}
 		str, ok := evaluatedArg.(ast.Constant)
 		if !ok || str.Type != ast.StringType {
@@ -307,11 +307,11 @@ func match(pattern ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.Union
 
 	case symbols.EndsWith.Symbol:
 		if len(pattern.Args) != 2 {
-			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':ends_with': %v", pattern.Args)
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':string:ends_with': %v", pattern.Args)
 		}
 		pat, ok := pattern.Args[1].(ast.Constant)
 		if !ok || pat.Type != ast.StringType {
-			return false, nil, fmt.Errorf("2nd arguments must be string constant for ':ends_with': %v", pattern)
+			return false, nil, fmt.Errorf("2nd arguments must be string constant for ':string:ends_with': %v", pattern)
 		}
 		str, ok := evaluatedArg.(ast.Constant)
 		if !ok || str.Type != ast.StringType {

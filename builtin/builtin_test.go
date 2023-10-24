@@ -284,7 +284,7 @@ func TestStartsWith(t *testing.T) {
 		{ast.String("foo"), ast.String(""), true},
 	}
 	for _, test := range tests {
-		atom := ast.NewAtom(":starts_with", test.scrutinee, test.pattern)
+		atom := ast.NewAtom(":string:starts_with", test.scrutinee, test.pattern)
 		got, _, err := Decide(atom, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -308,7 +308,7 @@ func TestEndsWith(t *testing.T) {
 		{ast.String("foo"), ast.String(""), true},
 	}
 	for _, test := range tests {
-		atom := ast.NewAtom(":ends_with", test.scrutinee, test.pattern)
+		atom := ast.NewAtom(":string:ends_with", test.scrutinee, test.pattern)
 		got, _, err := Decide(atom, nil)
 		if err != nil {
 			t.Fatal(err)

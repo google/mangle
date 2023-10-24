@@ -34,6 +34,9 @@ var (
 	// EndsWith matches string constants that have a given suffix.
 	EndsWith = ast.PredicateSym{":ends_with", 2}
 
+	// Contains matches string constants that contain the given string.
+	Contains = ast.PredicateSym{":string:contains", 2}
+
 	// Lt is the less-than relation on numbers.
 	Lt = ast.PredicateSym{":lt", 2}
 
@@ -199,6 +202,7 @@ var (
 		MatchPrefix: NewRelType(NewListType(ast.Variable{"X"}), ast.NameBound),
 		StartsWith:  NewRelType(NewListType(ast.Variable{"X"}), ast.StringBound),
 		EndsWith:    NewRelType(NewListType(ast.Variable{"X"}), ast.StringBound),
+		Contains:    NewRelType(ast.StringBound, ast.StringBound),
 		// TODO: support float64
 		Lt:       NewRelType(ast.NumberBound, ast.NumberBound),
 		Le:       NewRelType(ast.NumberBound, ast.NumberBound),

@@ -680,6 +680,12 @@ func TestBoundsAnalyzer(t *testing.T) {
 			makeSimpleDecl(atom("foo(X)"), name("/bar")),
 			makeSimpleDecl(atom("boo(X)"), symbols.NewUnionType(name("/bar"), name("/bazzz"))),
 		}),
+		newBoundsTestCase(t, []ast.Clause{
+			clause(`foo(X) :- bar(X), :string:contains(X, "baz").`),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("foo(X)"), ast.StringBound),
+			makeSimpleDecl(atom("bar(X)"), ast.StringBound),
+		}),
 	}
 	for _, test := range tests {
 		bc, err := newBoundsAnalyzer(&test.programInfo, symbols.NewNameTrie(), nil, test.rulesMap)

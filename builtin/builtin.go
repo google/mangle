@@ -32,6 +32,7 @@ var (
 		symbols.MatchPrefix:    {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.StartsWith:     {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.EndsWith:       {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.Contains:       {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Lt:             {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Le:             {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Gt:             {ast.ArgModeInput, ast.ArgModeInput},
@@ -146,6 +147,8 @@ func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, []*unionfind.Union
 	case symbols.StartsWith.Symbol:
 		fallthrough
 	case symbols.EndsWith.Symbol:
+		fallthrough
+	case symbols.Contains.Symbol:
 		fallthrough
 	case symbols.MatchPrefix.Symbol:
 		fallthrough
@@ -315,6 +318,20 @@ func match(pattern ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.Union
 			return false, nil, nil
 		}
 		return strings.HasSuffix(str.Symbol, pat.Symbol), subst, nil
+
+	case symbols.Contains.Symbol:
+		if len(pattern.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':string:contains': %v", pattern.Args)
+		}
+		pat, ok := pattern.Args[1].(ast.Constant)
+		if !ok || pat.Type != ast.StringType {
+			return false, nil, fmt.Errorf("2nd arguments must be string constant for ':string:contains': %v", pattern)
+		}
+		str, ok := evaluatedArg.(ast.Constant)
+		if !ok || str.Type != ast.StringType {
+			return false, nil, nil
+		}
+		return strings.Contains(str.Symbol, pat.Symbol), subst, nil
 
 	case symbols.MatchPair.Symbol:
 		if len(pattern.Args) != 3 {

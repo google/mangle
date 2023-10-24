@@ -681,6 +681,18 @@ func TestBoundsAnalyzer(t *testing.T) {
 			makeSimpleDecl(atom("boo(X)"), symbols.NewUnionType(name("/bar"), name("/bazzz"))),
 		}),
 		newBoundsTestCase(t, []ast.Clause{
+			clause(`foo(X) :- bar(X), :string:starts_with(X, "baz").`),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("foo(X)"), ast.StringBound),
+			makeSimpleDecl(atom("bar(X)"), ast.StringBound),
+		}),
+		newBoundsTestCase(t, []ast.Clause{
+			clause(`foo(X) :- bar(X), :string:ends_with(X, "baz").`),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("foo(X)"), ast.StringBound),
+			makeSimpleDecl(atom("bar(X)"), ast.StringBound),
+		}),
+		newBoundsTestCase(t, []ast.Clause{
 			clause(`foo(X) :- bar(X), :string:contains(X, "baz").`),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X)"), ast.StringBound),

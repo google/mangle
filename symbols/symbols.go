@@ -199,9 +199,9 @@ var (
 
 	// BuiltinRelations maps each builtin predicate to its argument range list
 	BuiltinRelations = map[ast.PredicateSym]ast.BaseTerm{
-		MatchPrefix: NewRelType(NewListType(ast.Variable{"X"}), ast.NameBound),
-		StartsWith:  NewRelType(NewListType(ast.Variable{"X"}), ast.StringBound),
-		EndsWith:    NewRelType(NewListType(ast.Variable{"X"}), ast.StringBound),
+		MatchPrefix: NewRelType(ast.NameBound, ast.NameBound),
+		StartsWith:  NewRelType(ast.StringBound, ast.StringBound),
+		EndsWith:    NewRelType(ast.StringBound, ast.StringBound),
 		Contains:    NewRelType(ast.StringBound, ast.StringBound),
 		// TODO: support float64
 		Lt:       NewRelType(ast.NumberBound, ast.NumberBound),

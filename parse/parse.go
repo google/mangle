@@ -128,7 +128,7 @@ func Unit(reader io.Reader) (SourceUnit, error) {
 		return SourceUnit{}, err
 	}
 	defer p.reset()
-	tree := p.parser.Start()
+	tree := p.parser.Start_()
 	if err := p.error(); err != nil {
 		return SourceUnit{}, err
 	}
@@ -665,16 +665,16 @@ func (p *Parser) SyntaxError(recognizer antlr.Recognizer, offendingSymbol any, l
 }
 
 // ReportAmbiguity implements error listener interface.
-func (p *Parser) ReportAmbiguity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex int, exact bool, ambigAlts *antlr.BitSet, configs antlr.ATNConfigSet) {
+func (p *Parser) ReportAmbiguity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex int, exact bool, ambigAlts *antlr.BitSet, configs *antlr.ATNConfigSet) {
 	// Intentional
 }
 
 // ReportAttemptingFullContext implements error listener interface.
-func (p *Parser) ReportAttemptingFullContext(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex int, conflictingAlts *antlr.BitSet, configs antlr.ATNConfigSet) {
+func (p *Parser) ReportAttemptingFullContext(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex int, conflictingAlts *antlr.BitSet, configs *antlr.ATNConfigSet) {
 	// Intentional
 }
 
 // ReportContextSensitivity  implements error listener interface.
-func (p *Parser) ReportContextSensitivity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex, prediction int, configs antlr.ATNConfigSet) {
+func (p *Parser) ReportContextSensitivity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex, prediction int, configs *antlr.ATNConfigSet) {
 	// Intentional
 }

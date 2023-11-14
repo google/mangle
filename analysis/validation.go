@@ -17,11 +17,11 @@
 package analysis
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
 
+	"go.uber.org/multierr"
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/builtin"
 	"github.com/google/mangle/functional"
@@ -237,7 +237,7 @@ func (a *Analyzer) Analyze(program []ast.Clause) (*ProgramInfo, error) {
 	for p, d := range a.decl {
 		globalDecls[p] = d
 		if errs := CheckDecl(d); errs != nil {
-			return nil, errors.Join(errs...)
+			return nil, multierr.Combine(errs...)
 		}
 	}
 	desugaredDecls, err := symbols.CheckAndDesugar(globalDecls)

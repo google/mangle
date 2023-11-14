@@ -101,6 +101,15 @@ func EvalProgramWithStats(programInfo *analysis.ProgramInfo, store factstore.Fac
 	if err != nil {
 		return Stats{}, fmt.Errorf("stratification: %w", err)
 	}
+	return EvalStratifiedProgramWithStats(programInfo, strata, predToStratum, store, options...)
+}
+
+// EvalStratifiedProgramWithStats evaluates a given stratified program on the given facts,
+// modifying the fact store in the process.
+func EvalStratifiedProgramWithStats(programInfo *analysis.ProgramInfo,
+	strata []analysis.Nodeset, predToStratum map[ast.PredicateSym]int,
+	store factstore.FactStore, options ...EvalOption) (Stats, error) {
+
 	predToRules := make(map[ast.PredicateSym][]ast.Clause)
 	predToDecl := make(map[ast.PredicateSym]*ast.Decl)
 	for _, clause := range programInfo.Rules {

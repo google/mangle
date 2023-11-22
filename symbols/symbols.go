@@ -195,6 +195,7 @@ var (
 	}
 
 	// EmptyType is a type without members.
+	// TODO: replace with /bot
 	EmptyType = ast.ApplyFn{UnionType, nil}
 
 	// BuiltinRelations maps each builtin predicate to its argument range list
@@ -474,7 +475,7 @@ func CheckFunTypeExpression(ctx map[ast.Variable]ast.BaseTerm, expr ast.ApplyFn)
 
 // SetConforms returns true if |- left <: right for set expression.
 func SetConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
-	if left.Equals(right) || right.Equals(ast.AnyBound) {
+	if left.Equals(right) || right.Equals(ast.AnyBound) || left.Equals(ast.BotBound) {
 		return true
 	}
 	if leftTuple, ok := left.(ast.ApplyFn); ok && leftTuple.Function.Symbol == RelType.Symbol {
@@ -511,7 +512,7 @@ func SetConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
 // TypeConforms returns true if ctx |- left <: right.
 // The arguments left and right cannot be RelType or UnionType
 func TypeConforms(ctx map[ast.Variable]ast.BaseTerm, left ast.BaseTerm, right ast.BaseTerm) bool {
-	if left.Equals(right) || right.Equals(ast.AnyBound) {
+	if left.Equals(right) || right.Equals(ast.AnyBound) || left.Equals(ast.BotBound) {
 		return true
 	}
 	if leftConst, ok := left.(ast.Constant); ok {

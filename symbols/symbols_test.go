@@ -210,12 +210,19 @@ func TestSetConforms(t *testing.T) {
 		want  bool
 	}{
 		{ast.NameBound, ast.AnyBound, true},
+		{ast.BotBound, ast.AnyBound, true},
+		{ast.AnyBound, ast.BotBound, false},
 		{ast.NameBound, ast.NameBound, true},
 		{name("/foo"), name("/foo"), true},
 		{name("/foo"), ast.NameBound, true},
 		{name("/true"), NewUnionType(name("/true"), name("/false")), true},
 		{ast.NameBound, name("/foo"), false},
 		{NewUnionType(name("/true"), name("/false")), name("/true"), false},
+		{
+			NewListType(ast.BotBound),
+			NewListType(ast.NumberBound),
+			true,
+		},
 		{
 			NewMapType(ast.AnyBound, ast.NumberBound),
 			NewMapType(ast.StringBound, ast.NumberBound),
@@ -269,6 +276,11 @@ func TestSetConforms(t *testing.T) {
 		{
 			NewRelType(ast.StringBound, ast.NumberBound),
 			NewRelType(ast.AnyBound, ast.NumberBound),
+			true,
+		},
+		{
+			NewRelType(ast.StringBound, NewListType(ast.BotBound)),
+			NewRelType(ast.StringBound, NewListType(ast.StringBound)),
 			true,
 		},
 		{

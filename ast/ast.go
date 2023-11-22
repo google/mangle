@@ -29,6 +29,9 @@ import (
 // AnyBound is a type expression that has all values as elements.
 var AnyBound Constant
 
+// BotBound is a type expression that has no elements.
+var BotBound Constant
+
 // Float64Bound is a type expression that has all float64s as elements.
 var Float64Bound Constant
 
@@ -57,6 +60,7 @@ var FalseConstant Constant
 
 func init() {
 	AnyBound, _ = Name("/any")
+	BotBound, _ = Name("/bot")
 	Float64Bound, _ = Name("/float64")
 	NameBound, _ = Name("/name")
 	NumberBound, _ = Name("/number")

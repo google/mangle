@@ -28,6 +28,8 @@ func IsBaseTypeExpression(c ast.Constant) bool {
 	switch c {
 	case ast.AnyBound:
 		return true
+	case ast.BotBound:
+		return true
 	case ast.Float64Bound:
 		return true
 	case ast.NumberBound:

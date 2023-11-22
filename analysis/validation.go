@@ -1458,7 +1458,7 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 		switch z.Function.Symbol {
 		case symbols.List.Symbol:
 			if len(z.Args) == 0 {
-				return ast.ApplyFn{symbols.ListType, []ast.BaseTerm{ast.AnyBound}}
+				return ast.ApplyFn{symbols.ListType, []ast.BaseTerm{ast.BotBound}}
 			}
 			var argTypes []ast.BaseTerm
 			for _, arg := range z.Args {

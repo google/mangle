@@ -23,7 +23,7 @@ import (
 	"strings"
 	"sync"
 
-	antlr "github.com/antlr/antlr4/runtime/Go/antlr/v4"
+	antlr "github.com/antlr4-go/antlr/v4"
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/parse/gen"
 	"github.com/google/mangle/symbols"

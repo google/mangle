@@ -1,13 +1,12 @@
-// Code generated from java-escape by ANTLR 4.11.1. DO NOT EDIT.
+// Code generated from ../parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
 package gen
 
 import (
 	"fmt"
+	"github.com/antlr4-go/antlr/v4"
 	"sync"
 	"unicode"
-
-	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 )
 
 // Suppress unused import error
@@ -22,41 +21,41 @@ type MangleLexer struct {
 	// TODO: EOF string
 }
 
-var manglelexerLexerStaticData struct {
+var MangleLexerLexerStaticData struct {
 	once                   sync.Once
 	serializedATN          []int32
-	channelNames           []string
-	modeNames              []string
-	literalNames           []string
-	symbolicNames          []string
-	ruleNames              []string
-	predictionContextCache *antlr.PredictionContextCache
+	ChannelNames           []string
+	ModeNames              []string
+	LiteralNames           []string
+	SymbolicNames          []string
+	RuleNames              []string
+	PredictionContextCache *antlr.PredictionContextCache
 	atn                    *antlr.ATN
 	decisionToDFA          []*antlr.DFA
 }
 
 func manglelexerLexerInit() {
-	staticData := &manglelexerLexerStaticData
-	staticData.channelNames = []string{
+	staticData := &MangleLexerLexerStaticData
+	staticData.ChannelNames = []string{
 		"DEFAULT_TOKEN_CHANNEL", "HIDDEN",
 	}
-	staticData.modeNames = []string{
+	staticData.ModeNames = []string{
 		"DEFAULT_MODE",
 	}
-	staticData.literalNames = []string{
+	staticData.LiteralNames = []string{
 		"", "'.'", "'descr'", "'inclusion'", "':'", "'{'", "'}'", "", "", "'Package'",
 		"'Use'", "'Decl'", "'bound'", "'let'", "'do'", "'('", "')'", "'['",
 		"']'", "'='", "'!='", "','", "'!'", "'<'", "'<='", "'>'", "'>='", "':-'",
 		"'\\n'", "'|>'",
 	}
-	staticData.symbolicNames = []string{
+	staticData.SymbolicNames = []string{
 		"", "", "", "", "", "", "", "WHITESPACE", "COMMENT", "PACKAGE", "USE",
 		"DECL", "BOUND", "LET", "DO", "LPAREN", "RPAREN", "LBRACKET", "RBRACKET",
 		"EQ", "BANGEQ", "COMMA", "BANG", "LESS", "LESSEQ", "GREATER", "GREATEREQ",
 		"COLONDASH", "NEWLINE", "PIPEGREATER", "NUMBER", "FLOAT", "VARIABLE",
 		"NAME", "CONSTANT", "STRING",
 	}
-	staticData.ruleNames = []string{
+	staticData.RuleNames = []string{
 		"T__0", "T__1", "T__2", "T__3", "T__4", "T__5", "WHITESPACE", "COMMENT",
 		"PACKAGE", "USE", "DECL", "BOUND", "LET", "DO", "LPAREN", "RPAREN",
 		"LBRACKET", "RBRACKET", "EQ", "BANGEQ", "COMMA", "BANG", "LESS", "LESSEQ",
@@ -66,7 +65,7 @@ func manglelexerLexerInit() {
 		"SHORT_STRING", "LONG_STRING", "LONG_STRING_ITEM", "LONG_STRING_CHAR",
 		"STRING_ESCAPE_SEQ",
 	}
-	staticData.predictionContextCache = antlr.NewPredictionContextCache()
+	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
 		4, 0, 35, 354, 6, -1, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2,
 		4, 7, 4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2,
@@ -246,7 +245,7 @@ func manglelexerLexerInit() {
 // NewMangleLexer(). You can call this function if you wish to initialize the static state ahead
 // of time.
 func MangleLexerInit() {
-	staticData := &manglelexerLexerStaticData
+	staticData := &MangleLexerLexerStaticData
 	staticData.once.Do(manglelexerLexerInit)
 }
 
@@ -255,13 +254,13 @@ func NewMangleLexer(input antlr.CharStream) *MangleLexer {
 	MangleLexerInit()
 	l := new(MangleLexer)
 	l.BaseLexer = antlr.NewBaseLexer(input)
-	staticData := &manglelexerLexerStaticData
-	l.Interpreter = antlr.NewLexerATNSimulator(l, staticData.atn, staticData.decisionToDFA, staticData.predictionContextCache)
-	l.channelNames = staticData.channelNames
-	l.modeNames = staticData.modeNames
-	l.RuleNames = staticData.ruleNames
-	l.LiteralNames = staticData.literalNames
-	l.SymbolicNames = staticData.symbolicNames
+	staticData := &MangleLexerLexerStaticData
+	l.Interpreter = antlr.NewLexerATNSimulator(l, staticData.atn, staticData.decisionToDFA, staticData.PredictionContextCache)
+	l.channelNames = staticData.ChannelNames
+	l.modeNames = staticData.ModeNames
+	l.RuleNames = staticData.RuleNames
+	l.LiteralNames = staticData.LiteralNames
+	l.SymbolicNames = staticData.SymbolicNames
 	l.GrammarFileName = "Mangle.g4"
 	// TODO: l.EOF = antlr.TokenEOF
 

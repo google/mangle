@@ -3,9 +3,9 @@
 ## Built-in predicates
 
 The value of two expressions `Left`, `Right` can be compared:
+
 - equality `Left = Right`
 - inequality `Left != Right`.
-
 - less than `Left < Right` (numeric)
 - less than or equal `Left <= Right`
 

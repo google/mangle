@@ -39,10 +39,18 @@ func RewriteClause(decls map[ast.PredicateSym]*ast.Decl, clause ast.Clause) ast.
 	}
 	boundVars := VarList{}
 	var premises []ast.Term
+	var delayNegAtom []ast.Term
+	var delayVars []map[ast.Variable]bool
 	for _, p := range clause.Premises {
+		needsDelay := false
 		switch p := p.(type) {
 		case ast.Atom:
-			_, _, _, defVars := RectifyAtom(p, boundVars)
+			defVarMap := make(map[ast.Variable]bool)
+			ast.AddVars(p, defVarMap)
+			defVars := make([]ast.Variable, 0, len(defVarMap))
+			for v := range defVarMap {
+				defVars = append(defVars, v)
+			}
 			if decl, ok := decls[p.Predicate]; ok {
 				if prefix, ok := decl.Reflects(); ok {
 					// A predicate that reflects a name prefix type can be rewritten when the
@@ -60,8 +68,40 @@ func RewriteClause(decls map[ast.PredicateSym]*ast.Decl, clause ast.Clause) ast.
 			m := boundVars.AsMap()
 			ast.AddVars(p, m)
 			boundVars = NewVarList(m)
+
+		case ast.NegAtom:
+			varToBind := map[ast.Variable]bool{}
+			negVars := make(map[ast.Variable]bool)
+			ast.AddVars(p, negVars)
+			for v := range negVars {
+				if boundVars.Find(v) == -1 {
+					varToBind[v] = true
+				}
+			}
+			if len(varToBind) > 0 {
+				needsDelay = true
+				delayNegAtom = append(delayNegAtom, p)
+				delayVars = append(delayVars, varToBind)
+			}
 		}
-		premises = append(premises, p)
+		if !needsDelay {
+			var toRemove []int
+			premises = append(premises, p)
+		delayTerms:
+			for i, vars := range delayVars {
+				for v := range vars {
+					if boundVars.Find(v) == -1 {
+						continue delayTerms
+					}
+				}
+				premises = append(premises, delayNegAtom[i])
+				toRemove = append([]int{i}, toRemove...)
+			}
+			for i := range toRemove {
+				delayNegAtom = append(delayNegAtom[:i], delayNegAtom[i+1:]...)
+				delayVars = append(delayVars[:i], delayVars[i+1:]...)
+			}
+		}
 	}
 	return ast.Clause{Head: clause.Head, Premises: premises, Transform: clause.Transform}
 }

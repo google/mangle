@@ -185,6 +185,52 @@ func TestNegation(t *testing.T) {
 	}
 }
 
+func TestNegationOrder(t *testing.T) {
+	store := factstore.NewSimpleInMemoryStore()
+	negationProgram := []ast.Clause{
+		clause("even(0)."),
+		clause("even(2)."),
+		clause("even(4)."),
+		clause("even(6)."),
+		clause("third(0)."),
+		clause("third(3)."),
+		clause("third(6)."),
+		clause("even_third(X):- even(X), third(X)."),
+		clause("even_not_third(X):- even(X), !third(X)."),
+		clause("not_even_third(X):- !even(X), third(X)."),
+	}
+	if err := analyzeAndEvalProgram(t, negationProgram, store); err != nil {
+		t.Errorf("Program evaluation failed %v program %v", err, program)
+		return
+	}
+	expected := []ast.Atom{
+		atom("even_third(0)"),
+		atom("even_third(6)"),
+		atom("even_not_third(2)"),
+		atom("even_not_third(4)"),
+		atom("not_even_third(3)"),
+	}
+	for _, fact := range expected {
+		if !store.Contains(fact) {
+			t.Errorf("expected fact %v in store %v", fact, store)
+		}
+	}
+
+	notExpected := []ast.Atom{
+		atom("even_third(2)"),
+		atom("even_third(3)"),
+		atom("even_not_third(0)"),
+		atom("even_not_third(6)"),
+		atom("not_even_third(0)"),
+		atom("not_even_third(6)"),
+	}
+	for _, fact := range notExpected {
+		if store.Contains(fact) {
+			t.Errorf("did not expect fact %v in store %v", fact, store)
+		}
+	}
+}
+
 func rulesByPredicate(rules []ast.Clause) map[ast.PredicateSym][]ast.Clause {
 	predToRules := make(map[ast.PredicateSym][]ast.Clause)
 	for _, rule := range rules {

@@ -17,6 +17,7 @@ package analysis
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/mangle/ast"
 )
 
@@ -90,5 +91,27 @@ func TestRewriteClauseDefinedPreviously(t *testing.T) {
 	want := atom(":match_prefix(X, /bar)")
 	if len(got.Premises) != 2 || !got.Premises[1].Equals(want) {
 		t.Errorf("RewriteClause(%v, %v)=%v want %v", decls, clause, got, want)
+	}
+}
+
+func TestRewriteClauseDelayNegAtoms(t *testing.T) {
+	clause := ast.Clause{
+		Head:     atom("foo(X)"),
+		Premises: []ast.Term{ast.NegAtom{Atom: atom("bar(X)")}, atom("baz(Y, X)")}}
+	got := RewriteClause(nil, clause)
+	wantPremises := []ast.Term{atom("baz(Y, X)"), ast.NegAtom{Atom: atom("bar(X)")}}
+	if diff := cmp.Diff(wantPremises, got.Premises); diff != "" {
+		t.Errorf("RewriteClause(nil, %v)=%v want %v", clause, got, clause)
+	}
+}
+
+func TestRewriteClauseDelayNegAtomsUnchanged(t *testing.T) {
+	clause := ast.Clause{
+		Head:     atom("foo(X)"),
+		Premises: []ast.Term{atom("faz(X)"), ast.NegAtom{Atom: atom("bar(X)")}, atom("baz(Y, X)")}}
+	got := RewriteClause(nil, clause)
+	wantPremises := clause.Premises
+	if diff := cmp.Diff(wantPremises, got.Premises); diff != "" {
+		t.Errorf("RewriteClause(nil, %v)=%v want %v", clause, got, clause)
 	}
 }

@@ -44,7 +44,7 @@ func evalAtom(s string) ast.Atom {
 	return eval
 }
 
-func TestAddContains(t *testing.T) {
+func TestAddContainsRemove(t *testing.T) {
 	for _, fs := range []FactStore{
 		NewSimpleInMemoryStore(),
 		NewIndexedInMemoryStore(),
@@ -70,16 +70,32 @@ func TestAddContains(t *testing.T) {
 			}
 			for _, atom := range tests {
 				if got := fs.Add(atom); !got {
-					t.Errorf("for %v expected %v got %v", atom, true, got)
+					t.Errorf("Add(%v)=%v want %v", atom, got, true)
 				}
 				if !fs.Contains(atom) {
-					t.Errorf("expected %v to be present store %v", atom, fs)
+					t.Errorf("Contains(%v)=true want false, store %v", atom, fs)
 				}
 				if got := fs.Add(atom); got {
-					t.Errorf("for %v expected %v got %v", atom, false, got)
+					t.Errorf("Add(%v)=%v want %v", atom, got, false)
+				}
+				if fsr, ok := fs.(FactStoreWithRemove); ok {
+					if got := fsr.Remove(atom); !got {
+						t.Errorf("Remove(%v)=false want true", atom)
+					}
+					if got := fsr.Remove(atom); got {
+						t.Errorf("2nd Remove(%v)=true want false", atom)
+					}
+					if fsr.Contains(atom) {
+						t.Errorf("Contains(%v)=true want false, store %v", atom, fs)
+					}
+					if got := fsr.Add(atom); !got {
+						t.Errorf("2nd Add(%v)=false want true", atom)
+					}
+					if !fsr.Contains(atom) {
+						t.Fatalf("after 2nd Add: Contains(%v)=false want true, store %v", atom, fs)
+					}
 				}
 			}
-
 			for _, tt := range []struct {
 				atom string
 				want stringset.Set
@@ -132,7 +148,6 @@ func TestAddContains(t *testing.T) {
 					}
 				})
 			}
-
 			if got, want := fs.EstimateFactCount(), len(tests); got != want {
 				t.Errorf("EstimateFactCount() = %d want %d", got, want)
 			}

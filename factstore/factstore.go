@@ -48,11 +48,29 @@ type ReadOnlyFactStore interface {
 type FactStore interface {
 	ReadOnlyFactStore
 
-	// Add adds an atom to a store and returns true if the fact didn't exist before.
+	// Add adds a fact to the store and returns true if it didn't exist before.
 	Add(ast.Atom) bool
 
 	// Merge merges contents of given store.
 	Merge(ReadOnlyFactStore)
+}
+
+// FactStoreWithRemove is a FactStore that supports fact removal.
+//
+// This low-level functionality is intended to be used by the engine,
+// to be invoked for facts that can be removed safely.
+//
+// If this factstore contains the result of evaluating rules, beware that
+// removing a fact may lose the property that all facts are either
+// from the extensional database or consequences of applying rules.
+//
+// Also, implementations that are backed by readonly store may not properly
+// support removing facts from those stores.
+type FactStoreWithRemove interface {
+	FactStore
+
+	// Removes a fact from the store and returns true if that fact was present.
+	Remove(ast.Atom) bool
 }
 
 // InMemoryStore provides a simple implementation backed by a map from each predicate sym to a T value.
@@ -74,6 +92,8 @@ func NewInMemoryStore[T any]() InMemoryStore[T] {
 type SimpleInMemoryStore struct {
 	InMemoryStore[map[uint64]ast.Atom]
 }
+
+var _ FactStoreWithRemove = SimpleInMemoryStore{}
 
 // String returns a readable debug string for this store.
 func (s SimpleInMemoryStore) String() string {
@@ -139,6 +159,21 @@ func (s SimpleInMemoryStore) Add(a ast.Atom) bool {
 	return true
 }
 
+// Remove removes the fact from the backing map.
+func (s SimpleInMemoryStore) Remove(a ast.Atom) bool {
+	key := a.Hash()
+	if atoms, ok := s.shardsByPredicate[a.Predicate]; ok {
+		if _, ok := atoms[key]; ok {
+			delete(atoms, key)
+			if len(atoms) == 0 {
+				delete(s.shardsByPredicate, a.Predicate)
+			}
+			return true
+		}
+	}
+	return false
+}
+
 // Contains returns true if this store contains this atom already.
 func (s SimpleInMemoryStore) Contains(a ast.Atom) bool {
 	key := a.Hash()
@@ -164,6 +199,7 @@ func (s SimpleInMemoryStore) Merge(other ReadOnlyFactStore) {
 // all writes to a single one. It is advisable that the read stores are
 // disjoint, otherwise it may well happen that GetFacts will invoke the
 // callback with a fact multiple times.
+// MergedStore supports Remove for its write store.
 type MergedStore struct {
 	readStore  []ReadOnlyFactStore
 	writeStore FactStore
@@ -245,7 +281,7 @@ func NewMergedStore[T ReadOnlyFactStore](readStores []T, writeStore FactStore) F
 	return MergedStore{readOnlyStores, writeStore}
 }
 
-// Ensure that TeeingStore implements the FactStore interface.
+// Ensure that MergedStore implements the FactStore interface.
 var _ FactStore = MergedStore{nil, NewSimpleInMemoryStore()}
 
 // TeeingStore is an implementation of FactStore that directs all writes to
@@ -253,11 +289,11 @@ var _ FactStore = MergedStore{nil, NewSimpleInMemoryStore()}
 // the output store.
 type TeeingStore struct {
 	base FactStore
-	Out  FactStore
+	Out  FactStoreWithRemove
 }
 
 // Ensure that TeeingStore implements the FactStore interface.
-var _ FactStore = TeeingStore{NewSimpleInMemoryStore(), NewSimpleInMemoryStore()}
+var _ FactStoreWithRemove = TeeingStore{NewSimpleInMemoryStore(), NewSimpleInMemoryStore()}
 
 // Add implementation that adds to the output store.
 func (s TeeingStore) Add(atom ast.Atom) bool {
@@ -265,6 +301,11 @@ func (s TeeingStore) Add(atom ast.Atom) bool {
 		return true
 	}
 	return s.Out.Add(atom)
+}
+
+// Remove implementation that removes from output store.
+func (s TeeingStore) Remove(atom ast.Atom) bool {
+	return s.Out.Remove(atom)
 }
 
 // Contains implementation that checks both stores.
@@ -398,6 +439,32 @@ func (s IndexedInMemoryStore) Add(a ast.Atom) bool {
 	}
 	if _, ok := atoms[key]; !ok {
 		atoms[key] = a
+		return true
+	}
+	return false
+}
+
+// Remove removes the fact to the backing map.
+func (s IndexedInMemoryStore) Remove(a ast.Atom) bool {
+	if a.Predicate.Arity == 0 {
+		if _, ok := s.constants[a.Predicate]; ok {
+			delete(s.constants, a.Predicate)
+			return true
+		}
+		return false
+	}
+	h := a.Args[0].Hash()
+	shard, ok := s.shardsByPredicate[a.Predicate]
+	if !ok {
+		return false
+	}
+	key := a.Hash()
+	atoms, ok := shard[h]
+	if !ok {
+		return false
+	}
+	if _, ok := atoms[key]; ok {
+		delete(atoms, key)
 		return true
 	}
 	return false
@@ -549,6 +616,39 @@ func (s MultiIndexedInMemoryStore) Add(a ast.Atom) bool {
 	return added
 }
 
+// Remove implementation for FactStoreWithRemove.
+func (s MultiIndexedInMemoryStore) Remove(a ast.Atom) bool {
+	if a.Predicate.Arity == 0 {
+		if _, ok := s.constants[a.Predicate]; ok {
+			delete(s.constants, a.Predicate)
+			return true
+		}
+		return false
+	}
+	aHash := a.Hash()
+	shard, ok := s.shardsByPredicate[a.Predicate]
+	if !ok {
+		return false
+	}
+	removed := false
+	for i := 0; i < a.Predicate.Arity; i++ {
+		iHash := a.Args[i].Hash()
+		params, ok := shard[uint16(i)]
+		if !ok {
+			return false
+		}
+		atoms, ok := params[iHash]
+		if !ok {
+			return false
+		}
+		if _, ok := atoms[aHash]; ok {
+			delete(atoms, aHash)
+			removed = true
+		}
+	}
+	return removed
+}
+
 // Contains returns true if this store contains this atom already.
 func (s MultiIndexedInMemoryStore) Contains(a ast.Atom) bool {
 	if a.Predicate.Arity == 0 {
@@ -613,6 +713,8 @@ type MultiIndexedArrayInMemoryStore struct {
 	count int
 }
 
+var _ FactStoreWithRemove = NewMultiIndexedInMemoryStore()
+
 // NewMultiIndexedArrayInMemoryStore constructs a new MultiIndexedArrayInMemoryStore.
 func NewMultiIndexedArrayInMemoryStore() *MultiIndexedArrayInMemoryStore {
 	return &MultiIndexedArrayInMemoryStore{
@@ -672,6 +774,15 @@ func (s *MultiIndexedArrayInMemoryStore) Add(a ast.Atom) bool {
 	return added
 }
 
+// Remove removes the fact from the backing map.
+func (s *MultiIndexedArrayInMemoryStore) Remove(a ast.Atom) bool {
+	removed := s.removeAtom(a)
+	if removed {
+		s.count--
+	}
+	return removed
+}
+
 func (s *MultiIndexedArrayInMemoryStore) addAtom(a ast.Atom) bool {
 	if a.Predicate.Arity == 0 {
 		_, ok := s.constants[a.Predicate]
@@ -695,6 +806,7 @@ func (s *MultiIndexedArrayInMemoryStore) addAtom(a ast.Atom) bool {
 		return true
 	}
 	added := false
+nextArg:
 	for i := 0; i < a.Predicate.Arity; i++ {
 		iHash := a.Args[i].Hash()
 		params, ok := shard[uint16(i)]
@@ -710,12 +822,60 @@ func (s *MultiIndexedArrayInMemoryStore) addAtom(a ast.Atom) bool {
 			params[iHash] = make(map[uint64][]*ast.Atom)
 			params[iHash][aHash] = append(params[iHash][aHash], &a)
 			added = true
-		} else if _, ok := atoms[aHash]; !ok {
+		} else {
+			aList, ok := atoms[aHash]
+			if !ok {
+				atoms[aHash] = []*ast.Atom{&a}
+				added = true
+				continue
+			}
+			for _, atom := range aList {
+				if a.Equals(*atom) {
+					continue nextArg
+				}
+			}
 			atoms[aHash] = append(atoms[aHash], &a)
 			added = true
 		}
 	}
 	return added
+}
+
+func (s *MultiIndexedArrayInMemoryStore) removeAtom(a ast.Atom) bool {
+	if a.Predicate.Arity == 0 {
+		if _, ok := s.constants[a.Predicate]; ok {
+			delete(s.constants, a.Predicate)
+			return true
+		}
+		return false
+	}
+	aHash := a.Hash()
+	shard, ok := s.shardsByPredicate[a.Predicate]
+	if !ok {
+		return false
+	}
+	removed := false
+	for i := 0; i < a.Predicate.Arity; i++ {
+		iHash := a.Args[i].Hash()
+		params, ok := shard[uint16(i)]
+		if !ok {
+			continue
+		}
+		atoms, ok := params[iHash]
+		if !ok {
+			continue
+		}
+		if _, ok := atoms[aHash]; ok {
+			for j, atom := range atoms[aHash] {
+				if a.Equals(*atom) {
+					atoms[aHash] = append(atoms[aHash][:j], atoms[aHash][j+1:]...)
+					removed = true
+					break
+				}
+			}
+		}
+	}
+	return removed
 }
 
 // Contains returns true if this store contains this atom already.
@@ -780,7 +940,7 @@ func (s *MultiIndexedArrayInMemoryStore) ListPredicates() []ast.PredicateSym {
 // ConcurrentFactStore forwards all its operations to an underlying base FactStore.
 type ConcurrentFactStore struct {
 	mutex *sync.RWMutex
-	base  FactStore
+	base  FactStoreWithRemove
 }
 
 // Ensure that ConcurrentFactStore implements the FactStore interface.
@@ -791,6 +951,13 @@ func (s ConcurrentFactStore) Add(a ast.Atom) bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.base.Add(a)
+}
+
+// Remove implementation that removes from the base store after acquiring a write lock.
+func (s ConcurrentFactStore) Remove(a ast.Atom) bool {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	return s.base.Remove(a)
 }
 
 // Contains implementation that checks base store after acquiring a read lock.
@@ -829,6 +996,6 @@ func (s ConcurrentFactStore) EstimateFactCount() int {
 }
 
 // NewConcurrentFactStore returns a new ConcurrentFactStore that wraps the given FactStore.
-func NewConcurrentFactStore(base FactStore) ConcurrentFactStore {
+func NewConcurrentFactStore(base FactStoreWithRemove) ConcurrentFactStore {
 	return ConcurrentFactStore{&sync.RWMutex{}, base}
 }

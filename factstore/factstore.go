@@ -55,6 +55,16 @@ type FactStore interface {
 	Merge(ReadOnlyFactStore)
 }
 
+// GetAllFacts streams all facts in a store.
+func GetAllFacts(fs FactStore, fn func(ast.Atom) error) error {
+	for _, pred := range fs.ListPredicates() {
+		if err := fs.GetFacts(ast.NewQuery(pred), fn); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // FactStoreWithRemove is a FactStore that supports fact removal.
 //
 // This low-level functionality is intended to be used by the engine,

@@ -90,12 +90,18 @@ func asMap(preds []ast.PredicateSym) map[ast.PredicateSym]ast.Decl {
 	return m
 }
 
+func analyzeAndEvalProgram(t *testing.T, clauses []ast.Clause, store factstore.SimpleInMemoryStore, options ...EvalOption) error {
+	t.Helper()
+	return analyzeAndEvalProgramWithDecls(t, clauses, nil, store, options...)
+}
+
 // analyzeAndEvalProgram analyzes and evaluates a given program on the given facts, modifying the
 // fact store in the process.
 // Analysis considers only predicates that are found in the store.
-func analyzeAndEvalProgram(t *testing.T, clauses []ast.Clause, store factstore.SimpleInMemoryStore, options ...EvalOption) error {
+func analyzeAndEvalProgramWithDecls(t *testing.T, clauses []ast.Clause, decls []ast.Decl, store factstore.SimpleInMemoryStore, options ...EvalOption) error {
 	t.Helper()
-	programInfo, err := analysis.AnalyzeOneUnit(parse.SourceUnit{Clauses: clauses}, asMap(store.ListPredicates()))
+	programInfo, err := analysis.AnalyzeOneUnit(
+		parse.SourceUnit{Clauses: clauses, Decls: decls}, asMap(store.ListPredicates()))
 	if err != nil {
 		return fmt.Errorf("analysis: %w", err)
 	}

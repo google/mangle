@@ -37,14 +37,14 @@ const bufSize = 4096
 type sourceFragment struct {
 	units      []parse.SourceUnit
 	program    *analysis.ProgramInfo
-	checkpoint factstore.FactStore
+	checkpoint factstore.FactStoreWithRemove
 }
 
 // Interpreter is an interactive interpreter.
 type Interpreter struct {
 	out   io.Writer
 	root  string
-	store factstore.FactStore
+	store factstore.FactStoreWithRemove
 	// List of source paths that were loaded, in the order they were loaded.
 	src []string
 	// Maps source path sets to source fragment. A path set is comma-separated list of paths.
@@ -368,7 +368,7 @@ func (i *Interpreter) Loop() error {
 // This is used for customizing the interpreter.
 // TODO: Add optional path parameter so the user can ::pop individual
 // preloaded sources.
-func (i *Interpreter) Preload(units []parse.SourceUnit, store factstore.FactStore, knownPredicates map[ast.PredicateSym]ast.Decl) error {
+func (i *Interpreter) Preload(units []parse.SourceUnit, store factstore.FactStoreWithRemove, knownPredicates map[ast.PredicateSym]ast.Decl) error {
 	i.store = store
 	for sym, decl := range knownPredicates {
 		i.knownPredicates[sym] = decl

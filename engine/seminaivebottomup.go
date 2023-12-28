@@ -27,7 +27,6 @@ import (
 	"go.uber.org/multierr"
 	"github.com/google/mangle/analysis"
 	"github.com/google/mangle/ast"
-	"github.com/google/mangle/builtin"
 	"github.com/google/mangle/factstore"
 	"github.com/google/mangle/functional"
 	"github.com/google/mangle/rewrite"
@@ -68,7 +67,7 @@ type EvalOptions struct {
 // EvalOption affects the way the evaluation is performed.
 type EvalOption func(*EvalOptions)
 
-// WithCreatedFactLimit is an evalution option that limits the maximum number of facts created during evaluation.
+// WithCreatedFactLimit is an evaluation option that limits the maximum number of facts created during evaluation.
 func WithCreatedFactLimit(limit int) EvalOption {
 	return func(o *EvalOptions) { o.createdFactLimit = limit }
 }
@@ -255,6 +254,98 @@ func makeDeltaRules(decls map[ast.PredicateSym]*ast.Decl, predToRules map[ast.Pr
 	return predToDeltaRules
 }
 
+func (e *engine) hasMergePredicate(pred ast.PredicateSym) (ast.FunDep, ast.PredicateSym, bool) {
+	decl := e.predToDecl[pred]
+	if decl == nil {
+		return ast.FunDep{}, ast.PredicateSym{}, false
+	}
+	fundeps := decl.FunDeps()
+	if len(fundeps) != 1 {
+		return ast.FunDep{}, ast.PredicateSym{}, false
+	}
+	_, mergePred := decl.MergePredicate()
+	return fundeps[0], mergePred, true
+}
+
+var mergePredMode = []ast.ArgMode{ast.ArgModeInput, ast.ArgModeInput, ast.ArgModeOutput}
+
+// mergeDelta updates e.store with facts from e.deltaStore.
+// For facts with custom lattice join operations, replaces facts instead of adding.
+func (e *engine) mergeDelta() error {
+	err := factstore.GetAllFacts(e.deltaStore, func(fact ast.Atom) error {
+		pred := fact.Predicate
+		fundep, mergePred, ok := e.hasMergePredicate(pred)
+		if !ok {
+			// Default case: just add the new fact.
+			e.store.Add(fact)
+			return nil
+		}
+
+		// Merge-predicate case: add fact or replace existing fact.
+		// TODO: Generalize to merge predicate with n * 3 columns.
+		if len(fundep.Target) != 1 {
+			return fmt.Errorf("merging with |target vars| != 1 not implemented: %v", fundep.Target)
+		}
+		targetColumn := fundep.Target[0]
+
+		// Query existing facts whose columns agree on fundep.Source values.
+		queryArgs := make([]ast.BaseTerm, pred.Arity, pred.Arity)
+		for i := 0; i < pred.Arity; i++ {
+			queryArgs[i] = ast.Variable{"_"}
+		}
+		for i := range fundep.Source {
+			queryArgs[i] = fact.Args[i]
+		}
+		queryExisting := ast.Atom{pred, queryArgs}
+		existing := false
+		e.store.GetFacts(queryExisting, func(existingFact ast.Atom) error {
+			existing = true
+			if fact.Equals(existingFact) {
+				return nil // nothing to do.
+			}
+
+			// Evaluate merge predicate (top-down) to construct replacement fact.
+			merged := false
+
+			// Prepare top-down query with merge predicate.
+			mergeQuery := ast.Atom{Predicate: mergePred, Args: []ast.BaseTerm{
+				existingFact.Args[targetColumn],
+
+				fact.Args[targetColumn],
+				ast.Variable{"_"},
+			}}
+			err := e.newContext().EvalQuery(mergeQuery, mergePredMode, unionfind.New(), func(mergeFact ast.Atom) error {
+				merged = true
+				value := mergeFact.Args[2]
+				fact.Args[fundep.Target[0]] = value
+				if !existingFact.Equals(fact) {
+					if storeWithRemove, ok := e.store.(factstore.FactStoreWithRemove); ok {
+						storeWithRemove.Remove(existingFact)
+					}
+					e.store.Add(fact)
+					return errBreak
+				}
+				return nil
+			})
+			if err == errBreak {
+				return nil // Already added.
+			}
+			if err != nil && err != errBreak {
+				return err
+			}
+			if !merged {
+				e.store.Add(fact) // fact and existingFact are incomparable.
+			}
+			return nil
+		})
+		if !existing {
+			e.store.Add(fact)
+		}
+		return nil
+	})
+	return err
+}
+
 func (e *engine) eval() error {
 	predicateAllowList := *e.options.predicateAllowList
 	// First round.
@@ -277,7 +368,9 @@ func (e *engine) eval() error {
 	if e.deltaStore.EstimateFactCount() > 0 {
 		// Incremental rounds.
 		deltaRules := makeDeltaRules(e.programInfo.Decls, e.predToRules)
-		e.store.Merge(e.deltaStore)
+		if err := e.mergeDelta(); err != nil {
+			return err
+		}
 		for {
 			newDeltaStore := factstore.NewMultiIndexedArrayInMemoryStore()
 			var incrementalFactAdded bool
@@ -300,7 +393,9 @@ func (e *engine) eval() error {
 					}
 				}
 			}
-			e.store.Merge(e.deltaStore)
+			if err := e.mergeDelta(); err != nil {
+				return err
+			}
 			if e.options.totalFactLimit > 0 && e.store.EstimateFactCount() > e.options.totalFactLimit {
 				return fmt.Errorf("fact size limit reached %d > %d", e.store.EstimateFactCount(), e.options.totalFactLimit)
 			}
@@ -353,6 +448,12 @@ func (e *engine) eval() error {
 // Evaluates clause (a rule), by scanning known facts for each premise and producing
 // a solution (conjunctive query, similar to a join).
 func (e *engine) oneStepEvalClause(clause ast.Clause) ([]ast.Atom, error) {
+	pred := clause.Head.Predicate
+	decl := e.predToDecl[pred]
+	if decl != nil && decl.DeferredPredicate() {
+		return nil, nil
+	}
+
 	var solutions = []unionfind.UnionFind{unionfind.New()}
 	for _, term := range clause.Premises {
 		var newsolutions []unionfind.UnionFind
@@ -396,81 +497,35 @@ func (e *engine) oneStepEvalClause(clause ast.Clause) ([]ast.Atom, error) {
 
 // Evaluates a single premise atom by scanning facts.
 func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind) ([]unionfind.UnionFind, error) {
-	var solutions []unionfind.UnionFind
 	switch p := premise.(type) {
 	case ast.Atom:
-		p, err := functional.EvalAtom(p, subst)
-		if err != nil {
-			return nil, err
-		}
-		if p.Predicate.IsBuiltin() {
-			ok, nsubsts, err := builtin.Decide(p, &subst)
-			if err != nil {
-				return nil, err
-			}
-			if !ok {
-				return nil, nil // no solution
-			}
-			for _, nsubst := range nsubsts {
-				solutions = append(solutions, *nsubst)
-			}
-			return solutions, nil
-		}
-		// Not a built-in predicate.
-		cb := func(fact ast.Atom) error {
-			// TODO: This could be made a lot more efficient by using a persistent
-			// data structure for composing the unionfind substitutions.
-			if newsubst, err := unionfind.UnifyTermsExtend(p.Args, fact.Args, subst); err == nil {
-				solutions = append(solutions, newsubst)
-			}
-			return nil
-		}
+		var lookupFn func(p ast.Atom, cb func(ast.Atom) error) error
 		if isDeltaPredicate(p.Predicate) {
-			e.deltaStore.GetFacts(makeNormalAtom(p), cb)
+			lookupFn = func(p ast.Atom, cb func(ast.Atom) error) error {
+				return e.deltaStore.GetFacts(makeNormalAtom(p), cb)
+			}
 		} else {
-			e.store.GetFacts(p, cb)
+			lookupFn = e.store.GetFacts
 		}
-		return solutions, nil
+		decl := e.predToDecl[p.Predicate]
+		if decl != nil && decl.DeferredPredicate() {
+			return e.newContext().EvalPremise(p, subst)
+		}
+		return premiseAtom(p, lookupFn, subst)
 
 	case ast.NegAtom:
-		n, err := functional.EvalAtom(p.Atom, subst)
-		if err != nil {
-			return nil, err
-		}
+		return premiseNegAtom(p.Atom, e.store, subst)
 
-		// If we find a single fact that unifies, then subst is not a solution.
-		err = e.store.GetFacts(n, func(fact ast.Atom) error {
-			if _, err := unionfind.UnifyTermsExtend(n.Args, fact.Args, subst); err == nil {
-				solutions = nil
-				return errBreak
-			}
-			return nil
-		})
-		if err == nil {
-			return []unionfind.UnionFind{subst}, nil
-		}
 	case ast.Eq:
-		left, right, err := functional.EvalBaseTermPair(p.Left, p.Right, subst)
-		if err != nil {
-			return nil, err
-		}
-		p = ast.Eq{left, right}
-		nsubst, err := unionfind.UnifyTermsExtend([]ast.BaseTerm{p.Left}, []ast.BaseTerm{p.Right}, subst)
-		if err != nil {
-			return nil, nil // Ignore error
-		}
-		return []unionfind.UnionFind{nsubst}, nil
+		return premiseEq(p.Left, p.Right, subst)
 
 	case ast.Ineq:
-		left, right, err := functional.EvalBaseTermPair(p.Left, p.Right, subst)
-		if err != nil {
-			return nil, err
-		}
-		p = ast.Ineq{left, right}
-		if _, err := unionfind.UnifyTermsExtend([]ast.BaseTerm{p.Left}, []ast.BaseTerm{p.Right}, subst); err != nil {
-			// TODO: Check that error is indeed "cannot unify."
-			return []unionfind.UnionFind{subst}, nil
-		}
+		return premiseIneq(p.Left, p.Right, subst)
+
 	}
 	return nil, nil
+}
+
+func (e *engine) newContext() QueryContext {
+	return QueryContext{PredToRules: e.predToRules, PredToDecl: e.predToDecl, Store: e.store}
 }

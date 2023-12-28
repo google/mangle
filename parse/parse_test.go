@@ -127,12 +127,15 @@ func TestParseDecl(t *testing.T) {
 		{
 			name: "one decl descr bound",
 			str: `Decl foo(X,Y)
-			        descr[doc("a foo predicate")]
+			        descr[doc("a foo predicate"), fundep([X], [Y])]
 						  bound[/string, /string].`,
 			want: []ast.Decl{makeDecl(t,
 				ast.NewAtom("foo", ast.Variable{"X"}, ast.Variable{"Y"}),
 				[]ast.Atom{
 					ast.NewAtom("doc", ast.String("a foo predicate")),
+					ast.NewAtom("fundep",
+						ast.ApplyFn{Function: symbols.List, Args: []ast.BaseTerm{ast.Variable{"X"}}},
+						ast.ApplyFn{Function: symbols.List, Args: []ast.BaseTerm{ast.Variable{"Y"}}}),
 				},
 				[]ast.BoundDecl{
 					ast.NewBoundDecl(ast.StringBound, ast.StringBound),

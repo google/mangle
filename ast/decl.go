@@ -38,6 +38,12 @@ const (
 	DescrName = "name"
 	// DescrDesugared is a descriptor used internally to mark desugared declarations.
 	DescrDesugared = "desugared"
+	// DescrFunDep is a descriptor for a functional dependency.
+	DescrFunDep = "fundep"
+	// DescrMergePredicate is a descriptor for a merge predicate.
+	DescrMergePredicate = "merge"
+	// DescrDeferredPredicate is a descriptor for a deferred predicate.
+	DescrDeferredPredicate = "deferred"
 )
 
 // Decl is a declaration.
@@ -233,6 +239,97 @@ func (d Decl) Reflects() (Constant, bool) {
 		}
 	})
 	return c, found
+}
+
+// FunDep represents a functional dependency for the components
+// of this relation.
+type FunDep struct {
+	Source []int
+	Target []int
+}
+
+// FunDeps returns functional dependencies.
+func (d Decl) FunDeps() []FunDep {
+	var fds []FunDep
+	d.findDescr(DescrFunDep, func(a Atom) {
+		if len(a.Args) != 2 {
+			return
+		}
+		var srcVars []int
+		if srcListApply, ok := (a.Args)[0].(ApplyFn); ok && srcListApply.Function.Symbol == "fn:list" {
+			for _, srcVar := range srcListApply.Args {
+				if srcVar, ok := srcVar.(Variable); ok {
+					for j, declVar := range d.DeclaredAtom.Args {
+						if declVar == srcVar {
+							srcVars = append(srcVars, j)
+						}
+					}
+				}
+			}
+		}
+		var tgtVars []int
+		if tgtListApply, ok := (a.Args)[1].(ApplyFn); ok && tgtListApply.Function.Symbol == "fn:list" {
+			for _, tgtVar := range tgtListApply.Args {
+				if tgtVar, ok := tgtVar.(Variable); ok {
+					for j, declVar := range d.DeclaredAtom.Args {
+						if declVar == tgtVar {
+							tgtVars = append(tgtVars, j)
+						}
+					}
+				}
+			}
+		}
+		fds = append(fds, FunDep{srcVars, tgtVars})
+	})
+	return fds
+}
+
+// DeferredPredicate returns true if this predicate has the deferred marker.
+func (d Decl) DeferredPredicate() bool {
+	return d.findDescr(DescrDeferredPredicate, nil)
+}
+
+// MergePredicate returns the information from the merge predicate descriptor.
+//
+// A merge predicate is a three-place.
+func (d Decl) MergePredicate() ([]int, PredicateSym) {
+	bad := false
+	var indices []int
+	var mergePred PredicateSym
+	d.findDescr(DescrMergePredicate, func(a Atom) {
+		if len(a.Args) != 2 {
+			bad = true
+			return
+		}
+		var tgtVars []int
+		if tgtListApply, ok := (a.Args)[0].(ApplyFn); ok && tgtListApply.Function.Symbol == "fn:list" {
+			for _, tgtVar := range tgtListApply.Args {
+				if tgtVar, ok := tgtVar.(Variable); ok {
+					for j, declVar := range d.DeclaredAtom.Args {
+						if declVar == tgtVar {
+							tgtVars = append(tgtVars, j)
+						}
+					}
+				}
+			}
+		}
+		predNameConstant, ok := (a.Args)[1].(Constant)
+		if !ok {
+			bad = true
+			return
+		}
+		predName, err := predNameConstant.StringValue()
+		if err != nil {
+			bad = true
+			return
+		}
+		indices = tgtVars
+		mergePred = PredicateSym{predName, 2*len(tgtVars) + 1}
+	})
+	if bad {
+		return nil, PredicateSym{}
+	}
+	return indices, mergePred
 }
 
 // BoundDecl is a bound declaration for the arguments of a predicate.

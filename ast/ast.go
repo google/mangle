@@ -41,6 +41,9 @@ var NameBound Constant
 // StringBound is a type expression that has all strings as elements.
 var StringBound Constant
 
+// BytesBound is a type expression that has all bytestrings as elements.
+var BytesBound Constant
+
 // NumberBound is a type expression that has all numbers as elements.
 var NumberBound Constant
 
@@ -65,6 +68,7 @@ func init() {
 	NameBound, _ = Name("/name")
 	NumberBound, _ = Name("/number")
 	StringBound, _ = Name("/string")
+	BytesBound, _ = Name("/bytes")
 	TrueConstant, _ = Name("/true")
 	FalseConstant, _ = Name("/false")
 }
@@ -174,6 +178,8 @@ const (
 	NameType ConstantType = iota
 	// StringType is the type of string constants.
 	StringType
+	// BytesType is the type of byte strings.
+	BytesType
 	// NumberType is the type of number (int64) constants.
 	NumberType
 	// Float64Type is the type of float64 constants.
@@ -197,9 +203,8 @@ type Constant struct {
 	// The (runtime) type of this constant.
 	Type ConstantType
 
-	// String representation of the symbol.
-	// For a structured name "/foo/bar", for a string `/"content"`.
-	// For a struct (proto), the deterministically marshalled bytes.
+	// If Type \in {StringType, BytesType}, the data itself.
+	// Otherwise, a string representation.
 	Symbol string
 
 	// For NumberType, the number value (int64 or the bytes of a float64).
@@ -239,9 +244,14 @@ func Name(symbol string) (Constant, error) {
 	return Constant{NameType, symbol, int64(hashBytes([]byte(symbol))), nil, nil}, nil
 }
 
-// String constructs a "constant symbol" that contains an arbitrary string.
+// String constructs a string constant.
 func String(str string) Constant {
 	return Constant{StringType, str, int64(hashBytes([]byte(str))), nil, nil}
+}
+
+// Bytes constructs a byte string constant.
+func Bytes(bytes []byte) Constant {
+	return Constant{BytesType, string(bytes), int64(hashBytes(bytes)), nil, nil}
 }
 
 // Number constructs a constant symbol that contains a number.
@@ -459,15 +469,19 @@ func (c Constant) isTerm() {
 func (c Constant) String() string {
 	switch c.Type {
 	case NameType:
-		return c.Symbol
+		return string(c.Symbol)
 	case StringType:
-		str := c.Symbol
-		if strings.ContainsRune(str, '\n') {
-			return fmt.Sprintf("`%s`", str)
+		s, err := Escape(c.Symbol, false /* isBytes */)
+		if err != nil {
+			return "<bad>"
 		}
-		str = strings.ReplaceAll(str, `\`, `\\`)
-		str = strings.ReplaceAll(str, `"`, `\"`)
-		return fmt.Sprintf(`"%s"`, str)
+		return fmt.Sprintf(`"%s"`, s)
+	case BytesType:
+		s, err := Escape(c.Symbol, true /* isBytes */)
+		if err != nil {
+			return "<bad>"
+		}
+		return fmt.Sprintf(`b"%s"`, s)
 	case NumberType:
 		return FormatNumber(c.NumValue)
 	case Float64Type:
@@ -567,6 +581,8 @@ func (c Constant) Equals(u Term) bool {
 	case NameType:
 		fallthrough
 	case StringType:
+		return c.Symbol == uconst.Symbol
+	case BytesType:
 		return c.Symbol == uconst.Symbol
 	case NumberType:
 		fallthrough

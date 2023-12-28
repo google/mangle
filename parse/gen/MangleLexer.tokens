@@ -33,6 +33,7 @@ VARIABLE=32
 NAME=33
 CONSTANT=34
 STRING=35
+BYTESTRING=36
 '.'=1
 'descr'=2
 'inclusion'=3

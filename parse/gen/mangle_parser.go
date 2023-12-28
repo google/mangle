@@ -1,4 +1,4 @@
-// Code generated from ../parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
+// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
 package gen // Mangle
 import (
@@ -42,7 +42,7 @@ func mangleParserInit() {
 		"DECL", "BOUND", "LET", "DO", "LPAREN", "RPAREN", "LBRACKET", "RBRACKET",
 		"EQ", "BANGEQ", "COMMA", "BANG", "LESS", "LESSEQ", "GREATER", "GREATEREQ",
 		"COLONDASH", "NEWLINE", "PIPEGREATER", "NUMBER", "FLOAT", "VARIABLE",
-		"NAME", "CONSTANT", "STRING",
+		"NAME", "CONSTANT", "STRING", "BYTESTRING",
 	}
 	staticData.RuleNames = []string{
 		"start", "program", "packageDecl", "useDecl", "decl", "descrBlock",
@@ -51,7 +51,7 @@ func mangleParserInit() {
 	}
 	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
-		4, 1, 35, 248, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 1, 36, 249, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
 		4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2, 10, 7,
 		10, 2, 11, 7, 11, 2, 12, 7, 12, 2, 13, 7, 13, 2, 14, 7, 14, 2, 15, 7, 15,
 		1, 0, 1, 0, 1, 0, 1, 1, 3, 1, 37, 8, 1, 1, 1, 5, 1, 40, 8, 1, 10, 1, 12,
@@ -67,22 +67,22 @@ func mangleParserInit() {
 		9, 10, 3, 10, 136, 8, 10, 1, 10, 1, 10, 1, 10, 5, 10, 141, 8, 10, 10, 10,
 		12, 10, 144, 9, 10, 3, 10, 146, 8, 10, 1, 11, 1, 11, 1, 11, 1, 11, 1, 11,
 		1, 12, 1, 12, 1, 12, 3, 12, 156, 8, 12, 1, 12, 1, 12, 3, 12, 160, 8, 12,
-		1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 5,
-		13, 172, 8, 13, 10, 13, 12, 13, 175, 9, 13, 1, 13, 3, 13, 178, 8, 13, 1,
-		13, 1, 13, 1, 13, 1, 13, 1, 13, 5, 13, 185, 8, 13, 10, 13, 12, 13, 188,
-		9, 13, 1, 13, 3, 13, 191, 8, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1,
-		13, 1, 13, 5, 13, 200, 8, 13, 10, 13, 12, 13, 203, 9, 13, 1, 13, 1, 13,
-		1, 13, 1, 13, 3, 13, 209, 8, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1,
-		13, 1, 13, 5, 13, 218, 8, 13, 10, 13, 12, 13, 221, 9, 13, 1, 13, 1, 13,
-		1, 13, 1, 13, 3, 13, 227, 8, 13, 1, 13, 3, 13, 230, 8, 13, 1, 14, 1, 14,
-		1, 15, 1, 15, 1, 15, 1, 15, 5, 15, 238, 8, 15, 10, 15, 12, 15, 241, 9,
-		15, 1, 15, 3, 15, 244, 8, 15, 1, 15, 1, 15, 1, 15, 0, 0, 16, 0, 2, 4, 6,
-		8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 0, 1, 2, 0, 19, 20, 23,
-		26, 270, 0, 32, 1, 0, 0, 0, 2, 36, 1, 0, 0, 0, 4, 51, 1, 0, 0, 0, 6, 58,
+		1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1,
+		13, 5, 13, 173, 8, 13, 10, 13, 12, 13, 176, 9, 13, 1, 13, 3, 13, 179, 8,
+		13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 5, 13, 186, 8, 13, 10, 13, 12, 13,
+		189, 9, 13, 1, 13, 3, 13, 192, 8, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13,
+		1, 13, 1, 13, 5, 13, 201, 8, 13, 10, 13, 12, 13, 204, 9, 13, 1, 13, 1,
+		13, 1, 13, 1, 13, 3, 13, 210, 8, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13,
+		1, 13, 1, 13, 5, 13, 219, 8, 13, 10, 13, 12, 13, 222, 9, 13, 1, 13, 1,
+		13, 1, 13, 1, 13, 3, 13, 228, 8, 13, 1, 13, 3, 13, 231, 8, 13, 1, 14, 1,
+		14, 1, 15, 1, 15, 1, 15, 1, 15, 5, 15, 239, 8, 15, 10, 15, 12, 15, 242,
+		9, 15, 1, 15, 3, 15, 245, 8, 15, 1, 15, 1, 15, 1, 15, 0, 0, 16, 0, 2, 4,
+		6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 0, 1, 2, 0, 19, 20, 23,
+		26, 272, 0, 32, 1, 0, 0, 0, 2, 36, 1, 0, 0, 0, 4, 51, 1, 0, 0, 0, 6, 58,
 		1, 0, 0, 0, 8, 65, 1, 0, 0, 0, 10, 81, 1, 0, 0, 0, 12, 84, 1, 0, 0, 0,
 		14, 99, 1, 0, 0, 0, 16, 102, 1, 0, 0, 0, 18, 109, 1, 0, 0, 0, 20, 145,
-		1, 0, 0, 0, 22, 147, 1, 0, 0, 0, 24, 159, 1, 0, 0, 0, 26, 229, 1, 0, 0,
-		0, 28, 231, 1, 0, 0, 0, 30, 233, 1, 0, 0, 0, 32, 33, 3, 2, 1, 0, 33, 34,
+		1, 0, 0, 0, 22, 147, 1, 0, 0, 0, 24, 159, 1, 0, 0, 0, 26, 230, 1, 0, 0,
+		0, 28, 232, 1, 0, 0, 0, 30, 234, 1, 0, 0, 0, 32, 33, 3, 2, 1, 0, 33, 34,
 		5, 0, 0, 1, 34, 1, 1, 0, 0, 0, 35, 37, 3, 4, 2, 0, 36, 35, 1, 0, 0, 0,
 		36, 37, 1, 0, 0, 0, 37, 41, 1, 0, 0, 0, 38, 40, 3, 6, 3, 0, 39, 38, 1,
 		0, 0, 0, 40, 43, 1, 0, 0, 0, 41, 39, 1, 0, 0, 0, 41, 42, 1, 0, 0, 0, 42,
@@ -127,41 +127,41 @@ func mangleParserInit() {
 		7, 0, 0, 0, 154, 156, 3, 26, 13, 0, 155, 153, 1, 0, 0, 0, 155, 156, 1,
 		0, 0, 0, 156, 160, 1, 0, 0, 0, 157, 158, 5, 22, 0, 0, 158, 160, 3, 26,
 		13, 0, 159, 152, 1, 0, 0, 0, 159, 157, 1, 0, 0, 0, 160, 25, 1, 0, 0, 0,
-		161, 230, 5, 32, 0, 0, 162, 230, 5, 34, 0, 0, 163, 230, 5, 30, 0, 0, 164,
-		230, 5, 31, 0, 0, 165, 230, 5, 35, 0, 0, 166, 167, 5, 33, 0, 0, 167, 173,
-		5, 15, 0, 0, 168, 169, 3, 26, 13, 0, 169, 170, 5, 21, 0, 0, 170, 172, 1,
-		0, 0, 0, 171, 168, 1, 0, 0, 0, 172, 175, 1, 0, 0, 0, 173, 171, 1, 0, 0,
-		0, 173, 174, 1, 0, 0, 0, 174, 177, 1, 0, 0, 0, 175, 173, 1, 0, 0, 0, 176,
-		178, 3, 26, 13, 0, 177, 176, 1, 0, 0, 0, 177, 178, 1, 0, 0, 0, 178, 179,
-		1, 0, 0, 0, 179, 230, 5, 16, 0, 0, 180, 186, 5, 17, 0, 0, 181, 182, 3,
-		26, 13, 0, 182, 183, 5, 21, 0, 0, 183, 185, 1, 0, 0, 0, 184, 181, 1, 0,
-		0, 0, 185, 188, 1, 0, 0, 0, 186, 184, 1, 0, 0, 0, 186, 187, 1, 0, 0, 0,
-		187, 190, 1, 0, 0, 0, 188, 186, 1, 0, 0, 0, 189, 191, 3, 26, 13, 0, 190,
-		189, 1, 0, 0, 0, 190, 191, 1, 0, 0, 0, 191, 192, 1, 0, 0, 0, 192, 230,
-		5, 18, 0, 0, 193, 201, 5, 17, 0, 0, 194, 195, 3, 26, 13, 0, 195, 196, 5,
-		4, 0, 0, 196, 197, 3, 26, 13, 0, 197, 198, 5, 21, 0, 0, 198, 200, 1, 0,
-		0, 0, 199, 194, 1, 0, 0, 0, 200, 203, 1, 0, 0, 0, 201, 199, 1, 0, 0, 0,
-		201, 202, 1, 0, 0, 0, 202, 208, 1, 0, 0, 0, 203, 201, 1, 0, 0, 0, 204,
-		205, 3, 26, 13, 0, 205, 206, 5, 4, 0, 0, 206, 207, 3, 26, 13, 0, 207, 209,
-		1, 0, 0, 0, 208, 204, 1, 0, 0, 0, 208, 209, 1, 0, 0, 0, 209, 210, 1, 0,
-		0, 0, 210, 230, 5, 18, 0, 0, 211, 219, 5, 5, 0, 0, 212, 213, 3, 26, 13,
-		0, 213, 214, 5, 4, 0, 0, 214, 215, 3, 26, 13, 0, 215, 216, 5, 21, 0, 0,
-		216, 218, 1, 0, 0, 0, 217, 212, 1, 0, 0, 0, 218, 221, 1, 0, 0, 0, 219,
-		217, 1, 0, 0, 0, 219, 220, 1, 0, 0, 0, 220, 226, 1, 0, 0, 0, 221, 219,
-		1, 0, 0, 0, 222, 223, 3, 26, 13, 0, 223, 224, 5, 4, 0, 0, 224, 225, 3,
-		26, 13, 0, 225, 227, 1, 0, 0, 0, 226, 222, 1, 0, 0, 0, 226, 227, 1, 0,
-		0, 0, 227, 228, 1, 0, 0, 0, 228, 230, 5, 6, 0, 0, 229, 161, 1, 0, 0, 0,
-		229, 162, 1, 0, 0, 0, 229, 163, 1, 0, 0, 0, 229, 164, 1, 0, 0, 0, 229,
-		165, 1, 0, 0, 0, 229, 166, 1, 0, 0, 0, 229, 180, 1, 0, 0, 0, 229, 193,
-		1, 0, 0, 0, 229, 211, 1, 0, 0, 0, 230, 27, 1, 0, 0, 0, 231, 232, 3, 26,
-		13, 0, 232, 29, 1, 0, 0, 0, 233, 239, 5, 17, 0, 0, 234, 235, 3, 28, 14,
-		0, 235, 236, 5, 21, 0, 0, 236, 238, 1, 0, 0, 0, 237, 234, 1, 0, 0, 0, 238,
-		241, 1, 0, 0, 0, 239, 237, 1, 0, 0, 0, 239, 240, 1, 0, 0, 0, 240, 243,
-		1, 0, 0, 0, 241, 239, 1, 0, 0, 0, 242, 244, 3, 28, 14, 0, 243, 242, 1,
-		0, 0, 0, 243, 244, 1, 0, 0, 0, 244, 245, 1, 0, 0, 0, 245, 246, 5, 18, 0,
-		0, 246, 31, 1, 0, 0, 0, 32, 36, 41, 46, 48, 54, 61, 68, 73, 77, 91, 95,
-		105, 114, 118, 122, 132, 135, 142, 145, 155, 159, 173, 177, 186, 190, 201,
-		208, 219, 226, 229, 239, 243,
+		161, 231, 5, 32, 0, 0, 162, 231, 5, 34, 0, 0, 163, 231, 5, 30, 0, 0, 164,
+		231, 5, 31, 0, 0, 165, 231, 5, 35, 0, 0, 166, 231, 5, 36, 0, 0, 167, 168,
+		5, 33, 0, 0, 168, 174, 5, 15, 0, 0, 169, 170, 3, 26, 13, 0, 170, 171, 5,
+		21, 0, 0, 171, 173, 1, 0, 0, 0, 172, 169, 1, 0, 0, 0, 173, 176, 1, 0, 0,
+		0, 174, 172, 1, 0, 0, 0, 174, 175, 1, 0, 0, 0, 175, 178, 1, 0, 0, 0, 176,
+		174, 1, 0, 0, 0, 177, 179, 3, 26, 13, 0, 178, 177, 1, 0, 0, 0, 178, 179,
+		1, 0, 0, 0, 179, 180, 1, 0, 0, 0, 180, 231, 5, 16, 0, 0, 181, 187, 5, 17,
+		0, 0, 182, 183, 3, 26, 13, 0, 183, 184, 5, 21, 0, 0, 184, 186, 1, 0, 0,
+		0, 185, 182, 1, 0, 0, 0, 186, 189, 1, 0, 0, 0, 187, 185, 1, 0, 0, 0, 187,
+		188, 1, 0, 0, 0, 188, 191, 1, 0, 0, 0, 189, 187, 1, 0, 0, 0, 190, 192,
+		3, 26, 13, 0, 191, 190, 1, 0, 0, 0, 191, 192, 1, 0, 0, 0, 192, 193, 1,
+		0, 0, 0, 193, 231, 5, 18, 0, 0, 194, 202, 5, 17, 0, 0, 195, 196, 3, 26,
+		13, 0, 196, 197, 5, 4, 0, 0, 197, 198, 3, 26, 13, 0, 198, 199, 5, 21, 0,
+		0, 199, 201, 1, 0, 0, 0, 200, 195, 1, 0, 0, 0, 201, 204, 1, 0, 0, 0, 202,
+		200, 1, 0, 0, 0, 202, 203, 1, 0, 0, 0, 203, 209, 1, 0, 0, 0, 204, 202,
+		1, 0, 0, 0, 205, 206, 3, 26, 13, 0, 206, 207, 5, 4, 0, 0, 207, 208, 3,
+		26, 13, 0, 208, 210, 1, 0, 0, 0, 209, 205, 1, 0, 0, 0, 209, 210, 1, 0,
+		0, 0, 210, 211, 1, 0, 0, 0, 211, 231, 5, 18, 0, 0, 212, 220, 5, 5, 0, 0,
+		213, 214, 3, 26, 13, 0, 214, 215, 5, 4, 0, 0, 215, 216, 3, 26, 13, 0, 216,
+		217, 5, 21, 0, 0, 217, 219, 1, 0, 0, 0, 218, 213, 1, 0, 0, 0, 219, 222,
+		1, 0, 0, 0, 220, 218, 1, 0, 0, 0, 220, 221, 1, 0, 0, 0, 221, 227, 1, 0,
+		0, 0, 222, 220, 1, 0, 0, 0, 223, 224, 3, 26, 13, 0, 224, 225, 5, 4, 0,
+		0, 225, 226, 3, 26, 13, 0, 226, 228, 1, 0, 0, 0, 227, 223, 1, 0, 0, 0,
+		227, 228, 1, 0, 0, 0, 228, 229, 1, 0, 0, 0, 229, 231, 5, 6, 0, 0, 230,
+		161, 1, 0, 0, 0, 230, 162, 1, 0, 0, 0, 230, 163, 1, 0, 0, 0, 230, 164,
+		1, 0, 0, 0, 230, 165, 1, 0, 0, 0, 230, 166, 1, 0, 0, 0, 230, 167, 1, 0,
+		0, 0, 230, 181, 1, 0, 0, 0, 230, 194, 1, 0, 0, 0, 230, 212, 1, 0, 0, 0,
+		231, 27, 1, 0, 0, 0, 232, 233, 3, 26, 13, 0, 233, 29, 1, 0, 0, 0, 234,
+		240, 5, 17, 0, 0, 235, 236, 3, 28, 14, 0, 236, 237, 5, 21, 0, 0, 237, 239,
+		1, 0, 0, 0, 238, 235, 1, 0, 0, 0, 239, 242, 1, 0, 0, 0, 240, 238, 1, 0,
+		0, 0, 240, 241, 1, 0, 0, 0, 241, 244, 1, 0, 0, 0, 242, 240, 1, 0, 0, 0,
+		243, 245, 3, 28, 14, 0, 244, 243, 1, 0, 0, 0, 244, 245, 1, 0, 0, 0, 245,
+		246, 1, 0, 0, 0, 246, 247, 5, 18, 0, 0, 247, 31, 1, 0, 0, 0, 32, 36, 41,
+		46, 48, 54, 61, 68, 73, 77, 91, 95, 105, 114, 118, 122, 132, 135, 142,
+		145, 155, 159, 174, 178, 187, 191, 202, 209, 220, 227, 230, 240, 244,
 	}
 	deserializer := antlr.NewATNDeserializer(nil)
 	staticData.atn = deserializer.Deserialize(staticData.serializedATN)
@@ -235,6 +235,7 @@ const (
 	MangleParserNAME        = 33
 	MangleParserCONSTANT    = 34
 	MangleParserSTRING      = 35
+	MangleParserBYTESTRING  = 36
 )
 
 // MangleParser rules.
@@ -652,7 +653,7 @@ func (p *MangleParser) Program() (localctx IProgramContext) {
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	for (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&67645868064) != 0 {
+	for (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&136365344800) != 0 {
 		p.SetState(46)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
@@ -666,7 +667,7 @@ func (p *MangleParser) Program() (localctx IProgramContext) {
 				p.Decl()
 			}
 
-		case MangleParserT__4, MangleParserLBRACKET, MangleParserNUMBER, MangleParserFLOAT, MangleParserVARIABLE, MangleParserNAME, MangleParserCONSTANT, MangleParserSTRING:
+		case MangleParserT__4, MangleParserLBRACKET, MangleParserNUMBER, MangleParserFLOAT, MangleParserVARIABLE, MangleParserNAME, MangleParserCONSTANT, MangleParserSTRING, MangleParserBYTESTRING:
 			{
 				p.SetState(45)
 				p.Clause()
@@ -1621,7 +1622,7 @@ func (p *MangleParser) BoundsBlock() (localctx IBoundsBlockContext) {
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&67645866016) != 0 {
+	if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&136365342752) != 0 {
 		{
 			p.SetState(94)
 			p.Term()
@@ -2789,7 +2790,7 @@ func (p *MangleParser) LiteralOrFml() (localctx ILiteralOrFmlContext) {
 	}
 
 	switch p.GetTokenStream().LA(1) {
-	case MangleParserT__4, MangleParserLBRACKET, MangleParserNUMBER, MangleParserFLOAT, MangleParserVARIABLE, MangleParserNAME, MangleParserCONSTANT, MangleParserSTRING:
+	case MangleParserT__4, MangleParserLBRACKET, MangleParserNUMBER, MangleParserFLOAT, MangleParserVARIABLE, MangleParserNAME, MangleParserCONSTANT, MangleParserSTRING, MangleParserBYTESTRING:
 		p.EnterOuterAlt(localctx, 1)
 		{
 			p.SetState(152)
@@ -2946,6 +2947,50 @@ func (s *StrContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case MangleVisitor:
 		return t.VisitStr(s)
+
+	default:
+		return t.VisitChildren(s)
+	}
+}
+
+type BStrContext struct {
+	TermContext
+}
+
+func NewBStrContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *BStrContext {
+	var p = new(BStrContext)
+
+	InitEmptyTermContext(&p.TermContext)
+	p.parser = parser
+	p.CopyAll(ctx.(*TermContext))
+
+	return p
+}
+
+func (s *BStrContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *BStrContext) BYTESTRING() antlr.TerminalNode {
+	return s.GetToken(MangleParserBYTESTRING, 0)
+}
+
+func (s *BStrContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(MangleListener); ok {
+		listenerT.EnterBStr(s)
+	}
+}
+
+func (s *BStrContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(MangleListener); ok {
+		listenerT.ExitBStr(s)
+	}
+}
+
+func (s *BStrContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+	switch t := visitor.(type) {
+	case MangleVisitor:
+		return t.VisitBStr(s)
 
 	default:
 		return t.VisitChildren(s)
@@ -3519,7 +3564,7 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 
 	var _alt int
 
-	p.SetState(229)
+	p.SetState(230)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -3587,10 +3632,22 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 		}
 
 	case 6:
-		localctx = NewApplContext(p, localctx)
+		localctx = NewBStrContext(p, localctx)
 		p.EnterOuterAlt(localctx, 6)
 		{
 			p.SetState(166)
+			p.Match(MangleParserBYTESTRING)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+
+	case 7:
+		localctx = NewApplContext(p, localctx)
+		p.EnterOuterAlt(localctx, 7)
+		{
+			p.SetState(167)
 			p.Match(MangleParserNAME)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3598,14 +3655,14 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 			}
 		}
 		{
-			p.SetState(167)
+			p.SetState(168)
 			p.Match(MangleParserLPAREN)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
-		p.SetState(173)
+		p.SetState(174)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -3617,11 +3674,11 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 		for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
 			if _alt == 1 {
 				{
-					p.SetState(168)
+					p.SetState(169)
 					p.Term()
 				}
 				{
-					p.SetState(169)
+					p.SetState(170)
 					p.Match(MangleParserCOMMA)
 					if p.HasError() {
 						// Recognition error - abort rule
@@ -3630,7 +3687,7 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 				}
 
 			}
-			p.SetState(175)
+			p.SetState(176)
 			p.GetErrorHandler().Sync(p)
 			if p.HasError() {
 				goto errorExit
@@ -3640,22 +3697,22 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 				goto errorExit
 			}
 		}
-		p.SetState(177)
+		p.SetState(178)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
 		}
 		_la = p.GetTokenStream().LA(1)
 
-		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&67645866016) != 0 {
+		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&136365342752) != 0 {
 			{
-				p.SetState(176)
+				p.SetState(177)
 				p.Term()
 			}
 
 		}
 		{
-			p.SetState(179)
+			p.SetState(180)
 			p.Match(MangleParserRPAREN)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3663,18 +3720,18 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 			}
 		}
 
-	case 7:
+	case 8:
 		localctx = NewListContext(p, localctx)
-		p.EnterOuterAlt(localctx, 7)
+		p.EnterOuterAlt(localctx, 8)
 		{
-			p.SetState(180)
+			p.SetState(181)
 			p.Match(MangleParserLBRACKET)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
-		p.SetState(186)
+		p.SetState(187)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -3686,11 +3743,11 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 		for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
 			if _alt == 1 {
 				{
-					p.SetState(181)
+					p.SetState(182)
 					p.Term()
 				}
 				{
-					p.SetState(182)
+					p.SetState(183)
 					p.Match(MangleParserCOMMA)
 					if p.HasError() {
 						// Recognition error - abort rule
@@ -3699,7 +3756,7 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 				}
 
 			}
-			p.SetState(188)
+			p.SetState(189)
 			p.GetErrorHandler().Sync(p)
 			if p.HasError() {
 				goto errorExit
@@ -3709,22 +3766,22 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 				goto errorExit
 			}
 		}
-		p.SetState(190)
+		p.SetState(191)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
 		}
 		_la = p.GetTokenStream().LA(1)
 
-		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&67645866016) != 0 {
+		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&136365342752) != 0 {
 			{
-				p.SetState(189)
+				p.SetState(190)
 				p.Term()
 			}
 
 		}
 		{
-			p.SetState(192)
+			p.SetState(193)
 			p.Match(MangleParserRBRACKET)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3732,18 +3789,18 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 			}
 		}
 
-	case 8:
+	case 9:
 		localctx = NewMapContext(p, localctx)
-		p.EnterOuterAlt(localctx, 8)
+		p.EnterOuterAlt(localctx, 9)
 		{
-			p.SetState(193)
+			p.SetState(194)
 			p.Match(MangleParserLBRACKET)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
-		p.SetState(201)
+		p.SetState(202)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -3755,11 +3812,11 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 		for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
 			if _alt == 1 {
 				{
-					p.SetState(194)
+					p.SetState(195)
 					p.Term()
 				}
 				{
-					p.SetState(195)
+					p.SetState(196)
 					p.Match(MangleParserT__3)
 					if p.HasError() {
 						// Recognition error - abort rule
@@ -3767,11 +3824,11 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 					}
 				}
 				{
-					p.SetState(196)
+					p.SetState(197)
 					p.Term()
 				}
 				{
-					p.SetState(197)
+					p.SetState(198)
 					p.Match(MangleParserCOMMA)
 					if p.HasError() {
 						// Recognition error - abort rule
@@ -3780,7 +3837,7 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 				}
 
 			}
-			p.SetState(203)
+			p.SetState(204)
 			p.GetErrorHandler().Sync(p)
 			if p.HasError() {
 				goto errorExit
@@ -3790,20 +3847,20 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 				goto errorExit
 			}
 		}
-		p.SetState(208)
+		p.SetState(209)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
 		}
 		_la = p.GetTokenStream().LA(1)
 
-		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&67645866016) != 0 {
+		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&136365342752) != 0 {
 			{
-				p.SetState(204)
+				p.SetState(205)
 				p.Term()
 			}
 			{
-				p.SetState(205)
+				p.SetState(206)
 				p.Match(MangleParserT__3)
 				if p.HasError() {
 					// Recognition error - abort rule
@@ -3811,13 +3868,13 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 				}
 			}
 			{
-				p.SetState(206)
+				p.SetState(207)
 				p.Term()
 			}
 
 		}
 		{
-			p.SetState(210)
+			p.SetState(211)
 			p.Match(MangleParserRBRACKET)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3825,18 +3882,18 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 			}
 		}
 
-	case 9:
+	case 10:
 		localctx = NewStructContext(p, localctx)
-		p.EnterOuterAlt(localctx, 9)
+		p.EnterOuterAlt(localctx, 10)
 		{
-			p.SetState(211)
+			p.SetState(212)
 			p.Match(MangleParserT__4)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
-		p.SetState(219)
+		p.SetState(220)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -3848,11 +3905,11 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 		for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
 			if _alt == 1 {
 				{
-					p.SetState(212)
+					p.SetState(213)
 					p.Term()
 				}
 				{
-					p.SetState(213)
+					p.SetState(214)
 					p.Match(MangleParserT__3)
 					if p.HasError() {
 						// Recognition error - abort rule
@@ -3860,11 +3917,11 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 					}
 				}
 				{
-					p.SetState(214)
+					p.SetState(215)
 					p.Term()
 				}
 				{
-					p.SetState(215)
+					p.SetState(216)
 					p.Match(MangleParserCOMMA)
 					if p.HasError() {
 						// Recognition error - abort rule
@@ -3873,7 +3930,7 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 				}
 
 			}
-			p.SetState(221)
+			p.SetState(222)
 			p.GetErrorHandler().Sync(p)
 			if p.HasError() {
 				goto errorExit
@@ -3883,20 +3940,20 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 				goto errorExit
 			}
 		}
-		p.SetState(226)
+		p.SetState(227)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
 		}
 		_la = p.GetTokenStream().LA(1)
 
-		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&67645866016) != 0 {
+		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&136365342752) != 0 {
 			{
-				p.SetState(222)
+				p.SetState(223)
 				p.Term()
 			}
 			{
-				p.SetState(223)
+				p.SetState(224)
 				p.Match(MangleParserT__3)
 				if p.HasError() {
 					// Recognition error - abort rule
@@ -3904,13 +3961,13 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 				}
 			}
 			{
-				p.SetState(224)
+				p.SetState(225)
 				p.Term()
 			}
 
 		}
 		{
-			p.SetState(228)
+			p.SetState(229)
 			p.Match(MangleParserT__5)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -4032,7 +4089,7 @@ func (p *MangleParser) Atom() (localctx IAtomContext) {
 	p.EnterRule(localctx, 28, MangleParserRULE_atom)
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(231)
+		p.SetState(232)
 		p.Term()
 	}
 
@@ -4196,14 +4253,14 @@ func (p *MangleParser) Atoms() (localctx IAtomsContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(233)
+		p.SetState(234)
 		p.Match(MangleParserLBRACKET)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
 		}
 	}
-	p.SetState(239)
+	p.SetState(240)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -4215,11 +4272,11 @@ func (p *MangleParser) Atoms() (localctx IAtomsContext) {
 	for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
 		if _alt == 1 {
 			{
-				p.SetState(234)
+				p.SetState(235)
 				p.Atom()
 			}
 			{
-				p.SetState(235)
+				p.SetState(236)
 				p.Match(MangleParserCOMMA)
 				if p.HasError() {
 					// Recognition error - abort rule
@@ -4228,7 +4285,7 @@ func (p *MangleParser) Atoms() (localctx IAtomsContext) {
 			}
 
 		}
-		p.SetState(241)
+		p.SetState(242)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -4238,22 +4295,22 @@ func (p *MangleParser) Atoms() (localctx IAtomsContext) {
 			goto errorExit
 		}
 	}
-	p.SetState(243)
+	p.SetState(244)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&67645866016) != 0 {
+	if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&136365342752) != 0 {
 		{
-			p.SetState(242)
+			p.SetState(243)
 			p.Atom()
 		}
 
 	}
 	{
-		p.SetState(245)
+		p.SetState(246)
 		p.Match(MangleParserRBRACKET)
 		if p.HasError() {
 			// Recognition error - abort rule

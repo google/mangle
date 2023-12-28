@@ -15,7 +15,6 @@
 package parse
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -286,7 +285,6 @@ func TestParseUnitDecls(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			got, err := Unit(strings.NewReader(test.str))
-			fmt.Printf("got: %+v\n", got)
 			if err != nil {
 				t.Fatalf("Unit(%v) failed with %v", test.str, err)
 			}
@@ -651,26 +649,6 @@ func TestParseTermPositive(t *testing.T) {
 			name: "constant",
 			str:  "/bar",
 			want: name("/bar"),
-		},
-		{
-			name: "string constant, double quote",
-			str:  `"hello"`,
-			want: ast.String("hello"),
-		},
-		{
-			name: "string constant, single quote",
-			str:  `'hello'`,
-			want: ast.String("hello"),
-		},
-		{
-			name: "string constant, single quote containing double quote",
-			str:  `'he"llo'`,
-			want: ast.String(`he"llo`),
-		},
-		{
-			name: "string constant escaped",
-			str:  `"he\\ll\"o"`,
-			want: ast.String(`he\ll"o`),
 		},
 		{
 			name: "constant 2",

@@ -1,4 +1,4 @@
-// Code generated from ../parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
+// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
 package gen // Mangle
 import "github.com/antlr4-go/antlr/v4"
@@ -127,6 +127,12 @@ func (s *BaseMangleListener) EnterStr(ctx *StrContext) {}
 
 // ExitStr is called when production Str is exited.
 func (s *BaseMangleListener) ExitStr(ctx *StrContext) {}
+
+// EnterBStr is called when production BStr is entered.
+func (s *BaseMangleListener) EnterBStr(ctx *BStrContext) {}
+
+// ExitBStr is called when production BStr is exited.
+func (s *BaseMangleListener) ExitBStr(ctx *BStrContext) {}
 
 // EnterAppl is called when production Appl is entered.
 func (s *BaseMangleListener) EnterAppl(ctx *ApplContext) {}

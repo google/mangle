@@ -189,6 +189,8 @@ func (p *Parser) Visit(tree antlr.ParseTree) any {
 		return p.VisitFloat(tree.(*gen.FloatContext))
 	case *gen.StrContext:
 		return p.VisitStr(tree.(*gen.StrContext))
+	case *gen.BStrContext:
+		return p.VisitBStr(tree.(*gen.BStrContext))
 	case *gen.ApplContext:
 		return p.VisitAppl(tree.(*gen.ApplContext))
 	case *gen.MapContext:
@@ -446,9 +448,24 @@ func (p Parser) VisitFloat(ctx *gen.FloatContext) any {
 func (p Parser) VisitStr(ctx *gen.StrContext) any {
 	text := ctx.STRING().GetText()
 	text = text[1 : len(text)-1]
-	text = strings.ReplaceAll(text, `\"`, `"`)
-	text = strings.ReplaceAll(text, `\\`, `\`)
+	text, err := ast.Unescape(text, false /* isBytes */)
+	if err != nil {
+		p.errors.Add(err.Error(), ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
+		return ast.String("<BAD>")
+	}
 	return ast.String(text)
+}
+
+// VisitBStr visits a parse tree produced by MangleParser#BStr.
+func (p Parser) VisitBStr(ctx *gen.BStrContext) any {
+	text := ctx.BYTESTRING().GetText()
+	text = text[2 : len(text)-1]
+	text, err := ast.Unescape(text, true /* isBytes */)
+	if err != nil {
+		p.errors.Add(err.Error(), ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
+		return ast.Bytes([]byte("<BAD>"))
+	}
+	return ast.Bytes([]byte(text))
 }
 
 // VisitAppl visits a parse tree produced by MangleParser#Appl.

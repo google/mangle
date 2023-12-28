@@ -292,7 +292,7 @@ func (sc SimpleColumn) WriteTo(store ReadOnlyFactStore, w io.Writer) error {
 					return fmt.Errorf("malformed fact: %v predicate arity %d: %w", f, p.Arity, ErrWrongArgument)
 				}
 				// line h + k: <column: argument x_j for fact k>
-				if _, err := fmt.Fprint(w, percentEscape(f.Args[i].String())); err != nil {
+				if _, err := fmt.Fprint(w, f.Args[i].String()); err != nil {
 					return err
 				}
 				if _, err := fmt.Fprintln(w); err != nil {

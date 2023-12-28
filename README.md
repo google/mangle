@@ -136,12 +136,11 @@ go build ./...
 ### Regenerating the parser sources
 
 If you want to regenerate the parser sources, you need to set up ANTLR first.
-This requires Java runtime environment. This should only be necessary if
-you require a different version of the antlr runtime for some reason.
+This requires a Java runtime environment.
 
 ```
-wget http://www.antlr.org/download/antlr-4.11.1-complete.jar
-alias antlr='java -jar $PWD/antlr-4.11.1-complete.jar'
+wget http://www.antlr.org/download/antlr-4.13.1-complete.jar
+alias antlr='java -jar $PWD/antlr-4.13.1-complete.jar'
 antlr -Dlanguage=Go -package gen -o ./ parse/gen/Mangle.g4 -visitor
 ```
 

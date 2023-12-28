@@ -1,4 +1,4 @@
-// Code generated from ../parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
+// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
 package gen // Mangle
 import "github.com/antlr4-go/antlr/v4"
@@ -60,6 +60,9 @@ type MangleListener interface {
 
 	// EnterStr is called when entering the Str production.
 	EnterStr(c *StrContext)
+
+	// EnterBStr is called when entering the BStr production.
+	EnterBStr(c *BStrContext)
 
 	// EnterAppl is called when entering the Appl production.
 	EnterAppl(c *ApplContext)
@@ -132,6 +135,9 @@ type MangleListener interface {
 
 	// ExitStr is called when exiting the Str production.
 	ExitStr(c *StrContext)
+
+	// ExitBStr is called when exiting the BStr production.
+	ExitBStr(c *BStrContext)
 
 	// ExitAppl is called when exiting the Appl production.
 	ExitAppl(c *ApplContext)

@@ -1,4 +1,4 @@
-// Code generated from ../parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
+// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
 package gen // Mangle
 import "github.com/antlr4-go/antlr/v4"
@@ -60,6 +60,9 @@ type MangleVisitor interface {
 
 	// Visit a parse tree produced by MangleParser#Str.
 	VisitStr(ctx *StrContext) interface{}
+
+	// Visit a parse tree produced by MangleParser#BStr.
+	VisitBStr(ctx *BStrContext) interface{}
 
 	// Visit a parse tree produced by MangleParser#Appl.
 	VisitAppl(ctx *ApplContext) interface{}

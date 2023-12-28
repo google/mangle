@@ -1,4 +1,4 @@
-// Code generated from ../parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
+// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
 package gen // Mangle
 import "github.com/antlr4-go/antlr/v4"
@@ -76,6 +76,10 @@ func (v *BaseMangleVisitor) VisitFloat(ctx *FloatContext) interface{} {
 }
 
 func (v *BaseMangleVisitor) VisitStr(ctx *StrContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseMangleVisitor) VisitBStr(ctx *BStrContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

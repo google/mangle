@@ -75,6 +75,7 @@ term
    | NUMBER # Num
    | FLOAT # Float
    | STRING # Str
+   | BYTESTRING # BStr
    | NAME '(' (term ',')* term? ')' # Appl
    | '[' (term ',')* term? ']' # List
    | '[' (term ':' term ',')* (term ':' term)? ']' # Map
@@ -139,15 +140,15 @@ NAME : ':'? ('a'..'z') ( NAME_CHAR | ('.' NAME_CHAR) )*;
 fragment CONSTANT_CHAR : LETTER | DIGIT | '.' | '-' | '_' | '~' | '%';
 CONSTANT : '/' CONSTANT_CHAR+ ('/' CONSTANT_CHAR+)*;
 
-
 STRING : (SHORT_STRING | LONG_STRING);
+BYTESTRING : 'b'STRING;
 
 /// shortstring     ::=  "'" shortstringitem* "'" | '"' shortstringitem* '"'
 /// shortstringitem ::=  shortstringchar | stringescapeseq
 /// shortstringchar ::=  <any source character except "\" or newline or the quote>
 fragment SHORT_STRING
- : '\'' ( STRING_ESCAPE_SEQ | ~[\\\r\n\f'] )* '\''
- | '"' ( STRING_ESCAPE_SEQ | ~[\\\r\n\f"] )* '"'
+ : '\'' ( STRING_ESCAPE_SEQ | ~[\\'] )* '\''
+ | '"' ( STRING_ESCAPE_SEQ | ~[\\"] )* '"'
  ;
 /// longstring      ::=  "`" longstringitem* "`"
 fragment LONG_STRING
@@ -165,10 +166,21 @@ fragment LONG_STRING_CHAR
  : ~'\\'
  ;
 
-/// stringescapeseq ::=  "\" <any source character>
+/// stringescapeseq ::=  "\[nt"'\]" | byteescape | unicodeescape | "\<newline>"
+/// byteescape ::= "\x" hex hex
+/// unicodeescape ::= "\u{" hex hex hex hex hex? hex? "}"
 fragment STRING_ESCAPE_SEQ
- : '\\' .
+ : '\\' 'n'
+ | '\\' 't'
+ | '\\' '"'
+ | '\\' '\''
+ | '\\' '\\'
+ | '\\' 'x' HEXDIGIT HEXDIGIT
+ | '\\' 'u' '{' HEXDIGIT HEXDIGIT HEXDIGIT HEXDIGIT HEXDIGIT? HEXDIGIT? '}' 
  | '\\' NEWLINE
  ;
+
+fragment HEXDIGIT : 'a'..'f' | '0'..'9';
+
 
 

@@ -36,6 +36,8 @@ func IsBaseTypeExpression(c ast.Constant) bool {
 		return true
 	case ast.StringBound:
 		return true
+	case ast.BytesBound:
+		return true
 	default:
 		return false
 	}

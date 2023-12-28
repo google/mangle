@@ -25,12 +25,12 @@ func testStore(t *testing.T) *SimpleInMemoryStore {
 		atom("foo(`\n/bar`)"),
 		atom("foo(/zzz)"),
 		atom("bar(/r,1,/z)"),
-		atom("bar(/t,2,/f)"),
+		atom("bar(/t,2,'😤')"),
 		atom("bar(/g,3,/h)"),
 		evalAtom("bar([/abc],4,/def)"),
 		evalAtom("bar([/abc, /def], 5, /def)"),
-		evalAtom("qaz([/abc : 123,  /def : 345], 10, /def)"),
-		evalAtom("qaz({/abc : 456,  /def : 678}, 20, /def)"),
+		evalAtom("qaz([/abc : 123,  /def : 345], 10, b'\\x80\\x81')"),
+		evalAtom("qaz({/abc : 456,  /def : 678}, 20, /zzz)"),
 	}
 	for _, f := range facts {
 		m.Add(f)
@@ -54,29 +54,29 @@ baz 0 1
 foo 1 2
 bar 3 5
 qaz 3 2
-%60%0A%2Fbar%60
-%2Fzzz
-%5B%2Fabc%2C%20%2Fdef%5D
-%5B%2Fabc%5D
-%2Fg
-%2Fr
-%2Ft
-5
-4
+"\n/bar"
+/zzz
+/g
+[/abc]
+/t
+/r
+[/abc, /def]
 3
-1
+4
 2
-%2Fdef
-%2Fdef
-%2Fh
-%2Fz
-%2Ff
-%7B%2Fdef%20%3A%20678%2C%20%2Fabc%20%3A%20456%7D
-%5B%2Fdef%20%3A%20345%2C%20%2Fabc%20%3A%20123%5D
-20
+1
+5
+/h
+/def
+"\u{01f624}"
+/z
+/def
+[/def : 345, /abc : 123]
+{/def : 678, /abc : 456}
 10
-%2Fdef
-%2Fdef
+20
+b"\x80\x81"
+/zzz
 `
 	if diff := cmp.Diff(want, string(buf.Bytes())); diff != "" {
 		t.Errorf("WriteTo() unexpected difference -want +got %v", diff)

@@ -61,6 +61,16 @@ func premiseNegAtom(a ast.Atom, store factstore.ReadOnlyFactStore, subst unionfi
 		return nil, err
 	}
 
+	if n.Predicate.IsBuiltin() {
+		ok, _, err := builtin.Decide(n, &subst)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			return nil, nil // negated: no solution
+		}
+		return []unionfind.UnionFind{subst}, nil
+	}
 	solutions := []unionfind.UnionFind{subst}
 	// If we find a single fact that unifies, then subst is not a solution.
 	err = store.GetFacts(n, func(fact ast.Atom) error {

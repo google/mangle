@@ -384,32 +384,33 @@ func newBoundsAnalyzer(programInfo *ProgramInfo, nameTrie symbols.NameTrie, init
 		make(map[ast.PredicateSym]ast.BaseTerm), visiting}, nil
 }
 
-// variablesBoundByDecl checks which arguments are always bound (provided) based on the declaration.
-func variablesBoundByDecl(atom ast.Atom, decls map[ast.PredicateSym]ast.Decl) []ast.Variable {
-	decl, exists := decls[atom.Predicate]
-	if !exists {
-		return []ast.Variable{}
-	}
-
-	mode := unifyModes(decl.Modes())
-	var boundedVars []ast.Variable
+// variablesForArgMode returns variable arguments that match an argmode mask.
+func variablesForArgMode(atom ast.Atom, mode ast.Mode, mask ast.ArgMode) []ast.Variable {
+	var boundVars []ast.Variable
 
 	for i, argMode := range mode {
-		if argMode != ast.ArgModeInput {
+		if argMode&mask == 0 {
 			continue
 		}
 
 		if v, ok := atom.Args[i].(ast.Variable); ok {
-			boundedVars = append(boundedVars, v)
+			boundVars = append(boundVars, v)
 		}
 	}
 
-	return boundedVars
+	return boundVars
 }
 
-// CheckRule checks that every variable is either "bound" or defined by a transform.
-// A variable in a rule is bound when it appears in a positive atom, or is unified
-// (via an equality) with a constant or another variable that is bound.
+// CheckRule checks arity and that every variable appearing is bound.
+// A variable is bound when:
+// - it appears in a positive atom, or
+// - is unified (via an equality) with a constant or bound variable.
+// These form the basis for datalog safety (ensuring termination).
+// We permit mode declaration that modify these conditions.
+// A variable is therefore bound when:
+// - a mode declaration forces it as input
+// - it appears as a column in a positive atom that is not declared as input, or
+// - is unified (via an equality) with a constant or bound variable.
 // Also checks that every function application expression has the right number of arguments.
 func (a *Analyzer) CheckRule(clause ast.Clause) error {
 	clause = clause.ReplaceWildcards()
@@ -422,8 +423,12 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 	ast.AddVars(clause.Head, seenVars)
 	uf := unionfind.New()
 
-	for _, v := range variablesBoundByDecl(clause.Head, a.decl) {
-		boundVars[v] = true
+	if decl, ok := a.decl[clause.Head.Predicate]; ok {
+
+		mode := unifyModes(decl.Modes())
+		for _, v := range variablesForArgMode(clause.Head, mode, ast.ArgModeInput) {
+			boundVars[v] = true
+		}
 	}
 
 	if clause.Premises != nil {
@@ -431,32 +436,31 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 			ast.AddVars(premise, seenVars)
 			switch p := premise.(type) {
 			case ast.Atom:
-				if err := checkAtom(p); err != nil {
+				if err := checkAtomArity(p); err != nil {
 					return err
 				}
+				// This is after rewriting, so we can assume that evaluation proceeds left-to-right,
+				// we only need to check that variables have been bound by some earlier subgoal.
 				if !p.Predicate.IsBuiltin() {
-					ast.AddVars(p, boundVars)
+					if decl, ok := a.decl[p.Predicate]; ok && len(decl.Modes()) > 0 {
+						for _, v := range variablesForArgMode(p, unifyModes(decl.Modes()), ast.ArgModeOutput|ast.ArgModeInputOutput) {
+							boundVars[v] = true
+						}
+					} else {
+						ast.AddVars(p, boundVars)
+					}
 					continue
 				}
-				// Since evaluation will proceed from left to right, we need to ensure that the variables
-				// are already assigned values by some earlier subgoal. A more sophisticated way would be
-				// to rewrite the rule, automatically moving built-in predicate subgoals to a position in
-				// where we are sure that variables have been assigned values.
+				// For builtin predicates, there is exactly one mode.
 				var builtinVars = make(map[ast.Variable]bool)
 				ast.AddVars(p, builtinVars)
 				mode := builtin.Predicates[p.Predicate]
 				if err := mode.Check(p, boundVars); err != nil {
 					return err
 				}
-				for i, m := range mode {
-					if m == ast.ArgModeInput {
-						continue
-					}
-					if v, ok := p.Args[i].(ast.Variable); ok {
-						boundVars[v] = true
-					}
+				for _, v := range variablesForArgMode(p, mode, ast.ArgModeOutput|ast.ArgModeInputOutput) {
+					boundVars[v] = true
 				}
-
 				for v := range builtinVars {
 					if !boundVars[v] {
 						return fmt.Errorf("variable %v in %v will not have a value yet; move the subgoal to the right", v, p)
@@ -657,7 +661,7 @@ func addTransformVars(transform *ast.Transform, vardefs map[ast.Variable]bool, v
 	}
 }
 
-func checkAtom(atom ast.Atom) error {
+func checkAtomArity(atom ast.Atom) error {
 	if atom.Predicate.Arity != len(atom.Args) {
 		return fmt.Errorf("Arity mismatch: %s expects %d arguments but has %d in %v", atom.Predicate.Symbol, atom.Predicate.Arity, len(atom.Args), atom)
 	}

@@ -843,6 +843,27 @@ func TestCollectNames(t *testing.T) {
 	}
 }
 
+func TestDeferred(t *testing.T) {
+	clauses := []ast.Clause{
+		clause(`
+missing_required(RequiredList, EnabledList, Witness) :-
+		:list:member(Witness, RequiredList),
+		!:list:member(Witness, EnabledList).`),
+	}
+
+	missingRequiredDecl, err := ast.NewDecl(atom("missing_required(EnabledList, RequiredList, Witness)"), []ast.Atom{
+		atom("mode('+', '+', '-')"),
+		atom("deferred()"),
+	}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decls := []ast.Decl{missingRequiredDecl}
+	if _, err := AnalyzeOneUnit(parse.SourceUnit{Clauses: clauses, Decls: decls}, nil); err != nil {
+		t.Errorf("Analysis for deferred predicate failed: %v", err)
+	}
+}
+
 func TestBoundsAnalyzerWithNames(t *testing.T) {
 	test := newBoundsTestCaseWithNameTrie(t, []ast.Clause{
 		clause("a(X) :- b(X)."),

@@ -55,10 +55,10 @@ func TestStratificationPositive(t *testing.T) {
 		wantStrataOrder map[int][]ast.PredicateSym
 	}{
 		{
-			name: "Ingore built-in predicates",
+			name: "Ignore built-in predicates",
 			program: func() (*ProgramInfo, error) {
 				return analyze([]ast.Clause{
-					clause("foo(X) :- :list:member(X, /a)."),
+					clause("foo(X) :- :list:member(X, [/a])."),
 				})
 			},
 			wantStrataOrder: map[int][]ast.PredicateSym{

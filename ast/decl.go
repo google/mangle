@@ -117,11 +117,11 @@ type ArgMode int
 
 const (
 	// ArgModeInput indicates an input to the predicate "+"
-	ArgModeInput ArgMode = 1
+	ArgModeInput ArgMode = 0b001
 	// ArgModeOutput indicates an output to the predicate "-"
-	ArgModeOutput = 2
+	ArgModeOutput = 0b010
 	// ArgModeInputOutput indicates that an argument can be either input or output.
-	ArgModeInputOutput = 3
+	ArgModeInputOutput = 0b100
 )
 
 const (
@@ -431,14 +431,12 @@ func NewDecl(atom Atom, descrAtoms []Atom, bounds []BoundDecl, constraints *Incl
 // The decl has an empty doc, an explicit mode supporting all arguments as input-output,
 // and is marked as being synthetic.
 func NewSyntheticDecl(declaredAtom Atom) (Decl, error) {
-	modeArgs := make([]BaseTerm, declaredAtom.Predicate.Arity)
 	unknownBounds := make([]BaseTerm, declaredAtom.Predicate.Arity)
 	for i := 0; i < declaredAtom.Predicate.Arity; i++ {
 		unknownBounds[i] = AnyBound
-		modeArgs[i] = String(InputOutputString)
 	}
 	descrAtoms := []Atom{
-		NewAtom(DescrDoc, String("")), NewAtom(DescrMode, modeArgs...), NewAtom(DescrSynthetic)}
+		NewAtom(DescrDoc, String("")), NewAtom(DescrSynthetic)}
 
 	used := make(map[Variable]bool)
 	AddVars(declaredAtom, used)

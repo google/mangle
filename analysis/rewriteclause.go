@@ -38,6 +38,12 @@ func RewriteClause(decls map[ast.PredicateSym]*ast.Decl, clause ast.Clause) ast.
 		return clause
 	}
 	boundVars := VarList{}
+	pred := clause.Head.Predicate
+	if decl, ok := decls[pred]; ok {
+		mode := unifyModes(decl.Modes())
+		boundVars = boundVars.Extend(
+			variablesForArgMode(clause.Head, mode, ast.ArgModeInput|ast.ArgModeInputOutput))
+	}
 	var premises []ast.Term
 	var delayNegAtom []ast.Term
 	var delayVars []map[ast.Variable]bool

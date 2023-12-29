@@ -543,23 +543,6 @@ func TestReplaceWildcards(t *testing.T) {
 	}
 }
 
-func TestSyntheticDecl(t *testing.T) {
-	decl := makeSyntheticDecl(t, NewQuery(PredicateSym{"foo", 1}))
-
-	if !decl.IsSynthetic() {
-		t.Fatalf("(%v).IsSynthetic() = false want true", decl)
-	}
-
-	modes := decl.Modes()
-	if len(modes) != 1 {
-		t.Fatalf("(%v).Modes() = %v want one mode", decl, modes)
-	}
-	want := Mode{ArgModeInputOutput}
-	if diff := cmp.Diff(want, modes[0]); diff != "" {
-		t.Fatalf("(%v).Modes() got diff (-want, +got) %s", decl, diff)
-	}
-}
-
 func TestDeclPackage(t *testing.T) {
 	tests := []struct {
 		predicate string

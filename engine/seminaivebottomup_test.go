@@ -1116,6 +1116,14 @@ func TestFunctionEval(t *testing.T) {
 			want:    atom("e('1')"),
 		},
 		{
+			program: `e(S):- S = fn:number:to_string(1).`,
+			want:    atom("e('1')"),
+		},
+		{
+			program: `e(S):- S = fn:float64:to_string(1.0).`,
+			want:    atom("e('1')"),
+		},
+		{
 			program: `e(fn:name:to_string()).`,
 			wantErr: true,
 		},
@@ -1132,6 +1140,14 @@ func TestFunctionEval(t *testing.T) {
 			want:    atom("e('/abc')"),
 		},
 		{
+			program: `e(S):- S = fn:name:to_string(/abc).`,
+			want:    atom("e('/abc')"),
+		},
+		{
+			program: `e(S):- S = fn:name:to_string('some string').`,
+			wantErr: true,
+		},
+		{
 			program: `e(fn:string:concat()).`,
 			want:    atom("e('')"),
 		},
@@ -1140,8 +1156,16 @@ func TestFunctionEval(t *testing.T) {
 			want:    atom("e('ab')"),
 		},
 		{
+			program: `e(S):- S = fn:string:concat('a', 'b').`,
+			want:    atom("e('ab')"),
+		},
+		{
 			program: `e(fn:string:concat([1, 2])).`,
 			wantErr: true,
+		},
+		{
+			program: `a(/abc). a(/def). e(S):- a(A), S = fn:name:to_string(A), :string:contains(S, "ab").`,
+			want:    atom("e('/abc')"),
 		},
 		{
 			program: `e(fn:list:get()).`,

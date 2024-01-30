@@ -73,7 +73,10 @@ var (
 		symbols.Some:         symbols.NewFunType(symbols.NewOptionType(varX) /* <= */, varX),
 		symbols.StringConcatenate: symbols.NewFunType(
 			ast.StringBound /* <= */, ast.AnyBound),
-		symbols.StructGet: symbols.NewFunType(ast.AnyBound /* <= */, ast.AnyBound, ast.NameBound),
+		symbols.StructGet:       symbols.NewFunType(ast.AnyBound /* <= */, ast.AnyBound, ast.NameBound),
+		symbols.NumberToString:  symbols.NewFunType(ast.StringBound /* <= */, ast.NumberBound),
+		symbols.Float64ToString: symbols.NewFunType(ast.StringBound /* <= */, ast.Float64Bound),
+		symbols.NameToString:    symbols.NewFunType(ast.StringBound /* <= */, ast.NameBound),
 
 		// These "functions" (constructors) need special handling due to varargs.
 		symbols.List:   symbols.NewFunType(symbols.NewListType(varX) /* <= */, varX),

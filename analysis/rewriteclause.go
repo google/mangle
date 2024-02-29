@@ -104,8 +104,14 @@ func RewriteClause(decls map[ast.PredicateSym]*ast.Decl, clause ast.Clause) ast.
 				toRemove = append([]int{i}, toRemove...)
 			}
 			for i := range toRemove {
-				delayNegAtom = append(delayNegAtom[:i], delayNegAtom[i+1:]...)
-				delayVars = append(delayVars[:i], delayVars[i+1:]...)
+				negAtomTail := []ast.Term{}
+				varsTail := []map[ast.Variable]bool{}
+				if i+1 < len(delayNegAtom) {
+					negAtomTail = delayNegAtom[i+1:]
+					varsTail = delayVars[i+1:]
+				}
+				delayNegAtom = append(delayNegAtom[:i], negAtomTail...)
+				delayVars = append(delayVars[:i], varsTail...)
 			}
 		}
 	}

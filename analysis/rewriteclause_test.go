@@ -105,6 +105,17 @@ func TestRewriteClauseDelayNegAtoms(t *testing.T) {
 	}
 }
 
+func TestRewriteClauseDelayNegAtomsNone(t *testing.T) {
+	clause := ast.Clause{
+		Head:     atom("foo(X)"),
+		Premises: []ast.Term{ast.NegAtom{Atom: atom("bar(X)")}, ast.NegAtom{Atom: atom("baz(X)")}, atom("bak(Y, X)")}}
+	got := RewriteClause(nil, clause)
+	wantPremises := []ast.Term{atom("bak(Y, X)"), ast.NegAtom{Atom: atom("bar(X)")}, ast.NegAtom{Atom: atom("baz(X)")}}
+	if diff := cmp.Diff(wantPremises, got.Premises); diff != "" {
+		t.Errorf("RewriteClause(nil, %v)=%v want %v", clause, got, wantPremises)
+	}
+}
+
 func TestRewriteClauseDelayNegAtomsUnchanged(t *testing.T) {
 	clause := ast.Clause{
 		Head:     atom("foo(X)"),

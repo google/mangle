@@ -329,7 +329,7 @@ func (SimpleColumn) readPred(scanner *bufio.Scanner, p ast.PredicateSym, numFact
 			}
 			e, err := parse.BaseTerm(s)
 			if err != nil {
-				return fmt.Errorf("parsing pred %v column %d fact %d: %w", p, j, i, ErrCouldNotRead)
+				return fmt.Errorf("parsing pred %v column %d fact %d: %w", p, j, i, err)
 			}
 			c, err := functional.EvalExpr(e, nil)
 			if err != nil {

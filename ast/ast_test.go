@@ -274,7 +274,7 @@ func TestString(t *testing.T) {
 		{
 			"pair constant",
 			fooBarPair,
-			`</foo; "bar">`,
+			`fn:pair(/foo, "bar")`,
 		},
 		{
 			"list constant",

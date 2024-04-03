@@ -489,7 +489,7 @@ func (c Constant) String() string {
 	case PairShape:
 		fst := *c.fst
 		snd := *c.snd
-		return fmt.Sprintf("<%s; %s>", fst.String(), snd.String())
+		return fmt.Sprintf("fn:pair(%s, %s)", fst.String(), snd.String())
 	case ListShape:
 		if c.IsListNil() {
 			return "[]"

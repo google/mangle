@@ -201,7 +201,7 @@ func typeBoundForPredicate(d *ast.Decl) (ast.BaseTerm, error) {
 	for i, b := range d.Bounds {
 		typeExprs[i] = b.Bounds[0]
 	}
-	return UpperBound(typeExprs), nil
+	return UpperBound(nil /*TODO*/, typeExprs), nil
 
 }
 

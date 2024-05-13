@@ -300,7 +300,7 @@ func TestSetConforms(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		if got := SetConforms(test.left, test.right); got != test.want {
+		if got := SetConforms(nil, test.left, test.right); got != test.want {
 			t.Errorf("MonoTypeConforms(%v, %v)=%v want %v", test.left, test.right, got, test.want)
 		}
 	}
@@ -448,7 +448,7 @@ func TestUpperBound(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		got := UpperBound(test.exprs)
+		got := UpperBound(nil, test.exprs)
 		if !got.Equals(test.want) {
 			t.Errorf("UpperBound(%v)=%v want %v", test.exprs, got, test.want)
 		}
@@ -541,11 +541,11 @@ func TestLowerBound(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		got := LowerBound(test.exprs)
+		got := LowerBound(nil, test.exprs)
 		if got == nil && test.want == nil {
 			continue
 		}
-		if !(SetConforms(got, test.want) && SetConforms(test.want, got)) {
+		if !(SetConforms(nil, got, test.want) && SetConforms(nil, test.want, got)) {
 			t.Errorf("LowerBound(%v)=%v want %v", test.exprs, got, test.want)
 		}
 	}

@@ -380,7 +380,6 @@ func CheckTypeExpression(ctx map[ast.Variable]ast.BaseTerm, expr ast.BaseTerm) e
 			return nil
 		}
 		return fmt.Errorf("not a base type expression: %v", expr)
-		return nil
 	case ast.Variable:
 		if ctx != nil {
 			if _, ok := ctx[expr]; ok {
@@ -474,14 +473,14 @@ func CheckFunTypeExpression(ctx map[ast.Variable]ast.BaseTerm, expr ast.ApplyFn)
 }
 
 // SetConforms returns true if |- left <: right for set expression.
-func SetConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
+func SetConforms(typeCtx map[ast.Variable]ast.BaseTerm, left ast.BaseTerm, right ast.BaseTerm) bool {
 	if left.Equals(right) || right.Equals(ast.AnyBound) || left.Equals(ast.BotBound) {
 		return true
 	}
 	if leftTuple, ok := left.(ast.ApplyFn); ok && leftTuple.Function.Symbol == RelType.Symbol {
 		if rightTuple, ok := right.(ast.ApplyFn); ok && rightTuple.Function.Symbol == RelType.Symbol {
 			for i, leftArg := range leftTuple.Args {
-				if !SetConforms(leftArg, rightTuple.Args[i]) {
+				if !SetConforms(typeCtx, leftArg, rightTuple.Args[i]) {
 					return false
 				}
 			}
@@ -492,7 +491,7 @@ func SetConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
 	rightApply, rightApplyOk := right.(ast.ApplyFn)
 	if leftApplyOk && leftApply.Function.Symbol == UnionType.Symbol {
 		for _, leftItem := range leftApply.Args {
-			if !SetConforms(leftItem, right) {
+			if !SetConforms(typeCtx, leftItem, right) {
 				return false
 			}
 		}
@@ -500,13 +499,13 @@ func SetConforms(left ast.BaseTerm, right ast.BaseTerm) bool {
 	}
 	if rightApplyOk && rightApply.Function.Symbol == UnionType.Symbol {
 		for _, rightItem := range rightApply.Args {
-			if SetConforms(left, rightItem) {
+			if SetConforms(typeCtx, left, rightItem) {
 				return true
 			}
 		}
 	}
 
-	return TypeConforms(nil, left, right)
+	return TypeConforms(typeCtx, left, right)
 }
 
 // TypeConforms returns true if ctx |- left <: right.
@@ -657,7 +656,7 @@ func expandTupleType(args []ast.BaseTerm) ast.BaseTerm {
 }
 
 // UpperBound returns upper bound of set expressions.
-func UpperBound(typeExprs []ast.BaseTerm) ast.BaseTerm {
+func UpperBound(typeCtx map[ast.Variable]ast.BaseTerm, typeExprs []ast.BaseTerm) ast.BaseTerm {
 	var worklist []ast.BaseTerm
 	for _, typeExpr := range typeExprs {
 		if ast.AnyBound.Equals(typeExpr) {
@@ -677,10 +676,10 @@ func UpperBound(typeExprs []ast.BaseTerm) ast.BaseTerm {
 typeExprLoop:
 	for _, typeExpr := range worklist {
 		for i, existing := range reduced {
-			if SetConforms(typeExpr, existing) {
+			if SetConforms(typeCtx, typeExpr, existing) {
 				continue typeExprLoop
 			}
-			if SetConforms(existing, typeExpr) {
+			if SetConforms(typeCtx, existing, typeExpr) {
 				reduced[i] = typeExpr
 				continue typeExprLoop
 			}
@@ -694,7 +693,7 @@ typeExprLoop:
 	return ast.ApplyFn{UnionType, reduced}
 }
 
-func intersectType(a, b ast.BaseTerm) ast.BaseTerm {
+func intersectType(typeCtx map[ast.Variable]ast.BaseTerm, a, b ast.BaseTerm) ast.BaseTerm {
 	if a.Equals(b) {
 		return a
 	}
@@ -704,41 +703,55 @@ func intersectType(a, b ast.BaseTerm) ast.BaseTerm {
 	if b.Equals(ast.AnyBound) {
 		return a
 	}
-	if SetConforms(a, b) {
+	if typeVar, ok := a.(ast.Variable); ok {
+		bound, ok := typeCtx[typeVar]
+		if !ok {
+			return EmptyType
+		}
+		return intersectType(typeCtx, bound, b)
+	}
+	if typeVar, ok := b.(ast.Variable); ok {
+		bound, ok := typeCtx[typeVar]
+		if !ok {
+			return EmptyType
+		}
+		return intersectType(typeCtx, a, bound)
+	}
+	if SetConforms(typeCtx, a, b) {
 		return a
 	}
-	if SetConforms(b, a) {
+	if SetConforms(typeCtx, b, a) {
 		return b
 	}
 	if aUnion, ok := a.(ast.ApplyFn); ok && aUnion.Function == UnionType {
 		var res []ast.BaseTerm
 		for _, elem := range aUnion.Args {
-			if u := intersectType(elem, b); !u.Equals(EmptyType) {
+			if u := intersectType(typeCtx, elem, b); !u.Equals(EmptyType) {
 				res = append(res, u)
 			}
 		}
-		return UpperBound(res)
+		return UpperBound(typeCtx, res)
 	}
 	if bUnion, ok := b.(ast.ApplyFn); ok && bUnion.Function == UnionType {
 		var res []ast.BaseTerm
 		for _, elem := range bUnion.Args {
-			if SetConforms(a, elem) {
+			if SetConforms(typeCtx, a, elem) {
 				res = append(res, a)
-			} else if SetConforms(elem, a) {
+			} else if SetConforms(typeCtx, elem, a) {
 				res = append(res, elem)
 			}
 		}
-		return UpperBound(res)
+		return UpperBound(typeCtx, res)
 	}
 
 	return EmptyType
 }
 
 // LowerBound returns a lower bound of set expressions.
-func LowerBound(typeExprs []ast.BaseTerm) ast.BaseTerm {
+func LowerBound(typeCtx map[ast.Variable]ast.BaseTerm, typeExprs []ast.BaseTerm) ast.BaseTerm {
 	var typeExpr ast.BaseTerm = ast.AnyBound
 	for _, t := range typeExprs {
-		if typeExpr = intersectType(typeExpr, t); typeExpr.Equals(EmptyType) {
+		if typeExpr = intersectType(typeCtx, typeExpr, t); typeExpr.Equals(EmptyType) {
 			return EmptyType
 		}
 	}

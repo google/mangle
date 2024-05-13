@@ -43,6 +43,8 @@ const (
 	ErrorForBoundsMismatch
 )
 
+var emptyTypeCtx map[ast.Variable]ast.BaseTerm = nil
+
 // ProgramInfo represents the result of program analysis.
 // EdbPredicates and IdbPredicates are disjoint.
 type ProgramInfo struct {
@@ -888,7 +890,8 @@ func (bc *BoundsAnalyzer) checkClauses(decl *ast.Decl) error {
 	// conform to the declaration (at least one alternative among declared ones).
 	if initialFactRelTypes, ok := bc.initialFactMap[pred]; ok {
 		for _, inferred := range symbols.RelTypeAlternatives(initialFactRelTypes) {
-			if !symbols.SetConforms(inferred, declaredRelTypeExpr) {
+			typeCtx := symbols.GetTypeContext(declaredRelTypeExpr)
+			if !symbols.SetConforms(typeCtx, inferred, declaredRelTypeExpr) {
 				return fmt.Errorf("found unit clause with %v that does not conform to any decl %v", inferred, declaredRelTypeExpr)
 			}
 		}
@@ -899,7 +902,8 @@ func (bc *BoundsAnalyzer) checkClauses(decl *ast.Decl) error {
 		if err != nil {
 			return err
 		}
-		if !symbols.SetConforms(inferredRelTypeExpr, declaredRelTypeExpr) {
+		typeCtx := symbols.GetTypeContext(declaredRelTypeExpr)
+		if !symbols.SetConforms(typeCtx, inferredRelTypeExpr, declaredRelTypeExpr) {
 			var rules strings.Builder
 			for _, r := range bc.RulesMap[pred] {
 				rules.WriteString(r.String() + "\n")
@@ -911,18 +915,22 @@ func (bc *BoundsAnalyzer) checkClauses(decl *ast.Decl) error {
 	return nil
 }
 
-// feasibleAlternatives returns those alternatives from a relation type expression that
-// make sense for a given list of arguments and type assignments.
+// feasibleAlternatives returns feasible alternatives for a subgoal p(e1...eN).
+// We consider a relation type expression (from decl), the given list of
+// arguments, the type assignments to variable symbols, and a type context
+// that collects type variables with associated type constrains.
+// Returns list of alternatives and list of type contexts with new type constraints.
 func (bc *BoundsAnalyzer) feasibleAlternatives(
 	pred ast.PredicateSym, relTypeExpr ast.BaseTerm, args []ast.BaseTerm,
-	varRanges map[ast.Variable]ast.BaseTerm) ([]ast.BaseTerm, error) {
+	varRanges map[ast.Variable]ast.BaseTerm,
+	typeCtx map[ast.Variable]ast.BaseTerm) ([]ast.BaseTerm, []map[ast.Variable]ast.BaseTerm, error) {
 
 	if pred.Symbol == symbols.ListMember.Symbol {
 		tpe := boundOfArg(args[1], varRanges, bc.nameTrie)
 		if symbols.IsListTypeExpression(tpe) {
 			elemTpe, err := symbols.ListTypeArg(tpe)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			var bound ast.BaseTerm
 			if v, ok := args[0].(ast.Variable); ok {
@@ -934,21 +942,22 @@ func (bc *BoundsAnalyzer) feasibleAlternatives(
 			} else {
 				bound = boundOfArg(args[0], varRanges, bc.nameTrie)
 			}
-			meet := symbols.LowerBound([]ast.BaseTerm{bound, elemTpe})
+			// TODO: typing context must give lower bounds as well.
+			meet := symbols.LowerBound(typeCtx, []ast.BaseTerm{bound, elemTpe})
 			if !meet.Equals(symbols.EmptyType) {
-				return []ast.BaseTerm{symbols.NewRelType(meet, tpe)}, nil
+				return []ast.BaseTerm{symbols.NewRelType(meet, tpe)}, []map[ast.Variable]ast.BaseTerm{typeCtx}, nil
 			}
-			return nil, fmt.Errorf("pred %v on args %v cannot succeed var ranges %v", pred, args, varRanges)
+			return nil, nil, fmt.Errorf("pred %v on args %v cannot succeed var ranges %v", pred, args, varRanges)
 		}
 	}
 	if pred.Symbol == symbols.MatchPrefix.Symbol {
 		tpe := boundOfArg(args[0], varRanges, bc.nameTrie)
 		prefix := args[1]
-		meet := symbols.LowerBound([]ast.BaseTerm{tpe, prefix})
+		meet := symbols.LowerBound(nil /*TODO*/, []ast.BaseTerm{tpe, prefix})
 		if !meet.Equals(symbols.EmptyType) {
-			return []ast.BaseTerm{symbols.NewRelType(meet, ast.NameBound)}, nil
+			return []ast.BaseTerm{symbols.NewRelType(meet, ast.NameBound)}, []map[ast.Variable]ast.BaseTerm{typeCtx}, nil
 		}
-		return nil, fmt.Errorf("pred %v cannot succeed: type %v is incompatible with %v", pred, tpe, prefix)
+		return nil, nil, fmt.Errorf("pred %v cannot succeed: type %v is incompatible with %v", pred, tpe, prefix)
 	}
 
 	if pred.Symbol == symbols.MatchEntry.Symbol {
@@ -956,7 +965,7 @@ func (bc *BoundsAnalyzer) feasibleAlternatives(
 		if symbols.IsMapTypeExpression(tpe) {
 			keyType, valTpe, err := symbols.MapTypeArgs(tpe)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			var bound ast.BaseTerm
 			if v, ok := args[1].(ast.Variable); ok {
@@ -968,8 +977,8 @@ func (bc *BoundsAnalyzer) feasibleAlternatives(
 			} else {
 				bound = boundOfArg(args[1], varRanges, bc.nameTrie)
 			}
-
-			meet := symbols.LowerBound([]ast.BaseTerm{bound, keyType})
+			// TODO: typing context must give lower bounds as well.
+			meet := symbols.LowerBound(typeCtx, []ast.BaseTerm{bound, keyType})
 			if !meet.Equals(symbols.EmptyType) {
 				var valbound ast.BaseTerm
 				if v, ok := args[2].(ast.Variable); ok {
@@ -982,13 +991,13 @@ func (bc *BoundsAnalyzer) feasibleAlternatives(
 					valbound = boundOfArg(args[2], varRanges, bc.nameTrie)
 				}
 
-				valmeet := symbols.LowerBound([]ast.BaseTerm{valbound, valTpe})
+				valmeet := symbols.LowerBound(nil /*DOTO*/, []ast.BaseTerm{valbound, valTpe})
 				if !valmeet.Equals(symbols.EmptyType) {
-					return []ast.BaseTerm{symbols.NewRelType(tpe, keyType, valmeet)}, nil
+					return []ast.BaseTerm{symbols.NewRelType(tpe, keyType, valmeet)}, []map[ast.Variable]ast.BaseTerm{typeCtx}, nil
 				}
-				return nil, fmt.Errorf("pred %v on args %v val type mismatch got %v want %v", pred, args, valbound, valTpe)
+				return nil, nil, fmt.Errorf("pred %v on args %v val type mismatch got %v want %v", pred, args, valbound, valTpe)
 			}
-			return nil, fmt.Errorf("pred %v on args %v key type mismatch got %v want %v", pred, args, bound, keyType)
+			return nil, nil, fmt.Errorf("pred %v on args %v key type mismatch got %v want %v", pred, args, bound, keyType)
 		}
 	}
 	if pred.Symbol == symbols.MatchField.Symbol {
@@ -996,7 +1005,7 @@ func (bc *BoundsAnalyzer) feasibleAlternatives(
 		if symbols.IsStructTypeExpression(tpe) {
 			fieldTpe, err := symbols.StructTypeField(tpe, args[1].(ast.Constant))
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			var bound ast.BaseTerm
@@ -1010,21 +1019,28 @@ func (bc *BoundsAnalyzer) feasibleAlternatives(
 				bound = boundOfArg(args[2], varRanges, bc.nameTrie)
 			}
 
-			meet := symbols.LowerBound([]ast.BaseTerm{bound, fieldTpe})
+			// TODO: typing context must give lower bounds as well.
+			meet := symbols.LowerBound(typeCtx, []ast.BaseTerm{bound, fieldTpe})
 			if !meet.Equals(symbols.EmptyType) {
-				return []ast.BaseTerm{symbols.NewRelType(ast.AnyBound, ast.NameBound, meet)}, nil
+				return []ast.BaseTerm{symbols.NewRelType(ast.AnyBound, ast.NameBound, meet)}, []map[ast.Variable]ast.BaseTerm{typeCtx}, nil
 			}
-			return nil, fmt.Errorf("pred %v on args %v cannot succeed var ranges %v", pred, args, varRanges)
+			return nil, nil, fmt.Errorf("pred %v on args %v cannot succeed var ranges %v", pred, args, varRanges)
 		}
 	}
 	alternatives := symbols.RelTypeAlternatives(relTypeExpr)
 
-	// Construct a relation type from what we know.
-	argBoundForAlternative := func(alternative ast.BaseTerm) (ast.BaseTerm, error) {
+	// Construct an "incoming" relation type from preceding.
+	// E.g. for p(X,Y,Z), we produce a tuple Tx,Ty,Tz with types (bounds.)
+	argBoundForAlternative := func(alternative ast.BaseTerm) (ast.BaseTerm, ast.SubstMap, error) {
+		usedTypeVars := make(map[ast.Variable]bool, len(typeCtx))
+		for v := range typeCtx {
+			usedTypeVars[v] = true
+		}
+
 		argBound := make([]ast.BaseTerm, len(args))
 		relTypeArgs, err := symbols.RelTypeArgs(alternative)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		for i, arg := range args {
 			v, isVar := arg.(ast.Variable)
@@ -1037,24 +1053,50 @@ func (bc *BoundsAnalyzer) feasibleAlternatives(
 				argBound[i] = relTypeArgs[i] // a new variable binding
 			}
 		}
-		return symbols.NewRelType(argBound...), nil
+		relTpe := symbols.NewRelType(argBound...)
+		// skolemize
+		typeVars := map[ast.Variable]bool{}
+		ast.AddVars(relTpe, typeVars)
+		var freshTypeSubst ast.SubstMap = map[ast.Variable]ast.BaseTerm{}
+		for v := range typeVars {
+			freshTypeSubst[v] = ast.FreshVariable(usedTypeVars)
+		}
+		return relTpe.ApplySubstBase(freshTypeSubst), freshTypeSubst, nil
 	}
 
 	var feasible []ast.BaseTerm
+	var feasibleSubst []map[ast.Variable]ast.BaseTerm
 	for _, alternative := range alternatives {
-		argBound, err := argBoundForAlternative(alternative)
+		// For a polymorphic type forall A1...An, TyExpr[A1...An],
+		// we add a "skolem" type variables ?A1...?An, i.e.
+		// variable symbols are used a placeholders for a fixed,
+		// but unknown types that have various lower and upper bounds.
+		argBound, newTypeSubst, err := argBoundForAlternative(alternative)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		tpe := symbols.LowerBound([]ast.BaseTerm{argBound, alternative})
+		alternative = alternative.ApplySubstBase(newTypeSubst)
+		newTypeCtx := map[ast.Variable]ast.BaseTerm{}
+		// Copy old bounds.
+		for v, tpe := range typeCtx {
+			newTypeCtx[v] = tpe
+		}
+		// Add fresh vars.
+		for _, v := range newTypeSubst {
+			if typeVar, ok := v.(ast.Variable); ok {
+				newTypeCtx[typeVar] = ast.AnyBound
+			}
+		}
+		tpe := symbols.LowerBound(newTypeCtx, []ast.BaseTerm{argBound, alternative})
 		if !tpe.Equals(symbols.EmptyType) {
 			feasible = append(feasible, alternative)
+			feasibleSubst = append(feasibleSubst, newTypeSubst)
 		}
 	}
 	if len(feasible) == 0 {
-		return nil, fmt.Errorf("no feasible alternative reltypes %v args %v var ranges %v", relTypeExpr, args, varRanges)
+		return nil, nil, fmt.Errorf("no feasible alternative reltypes %v args %v var ranges %v", relTypeExpr, args, varRanges)
 	}
-	return feasible, nil
+	return feasible, feasibleSubst, nil
 }
 
 // unifyModes takes multiple modes definition for the statement and merges them together into a single mode definition per argument.
@@ -1085,14 +1127,17 @@ func unifyModes(modes []ast.Mode) ast.Mode {
 func (bc *BoundsAnalyzer) getOrInferRelTypes(
 	pred ast.PredicateSym,
 	args []ast.BaseTerm,
-	varRanges map[ast.Variable]ast.BaseTerm) ([]ast.BaseTerm, error) {
+	varRanges map[ast.Variable]ast.BaseTerm,
+	typeCtx map[ast.Variable]ast.BaseTerm) ([]ast.BaseTerm, error) {
 
 	if relType, ok := bc.relTypeMap[pred]; ok {
-		return bc.feasibleAlternatives(pred, relType, args, varRanges)
+		tpe, _, err := bc.feasibleAlternatives(pred, relType, args, varRanges, typeCtx)
+		return tpe, err
 	}
 
 	if relType, ok := bc.inferred[pred]; ok {
-		return bc.feasibleAlternatives(pred, relType, args, varRanges)
+		tpe, _, err := bc.feasibleAlternatives(pred, relType, args, varRanges, typeCtx)
+		return tpe, err
 	}
 
 	if bc.visiting[pred] {
@@ -1112,7 +1157,9 @@ func (bc *BoundsAnalyzer) getOrInferRelTypes(
 		return nil, err
 	}
 	bc.inferred[pred] = relTypeExpr
-	return bc.feasibleAlternatives(pred, relTypeExpr, args, varRanges)
+	tpe, _, err := bc.feasibleAlternatives(pred, relTypeExpr, args, varRanges, nil /*TODO map[ast.Variable]bool*/)
+	return tpe, err
+
 }
 
 // inferRelType infers a relation type from rules when no decl is available.
@@ -1137,7 +1184,7 @@ func (bc *BoundsAnalyzer) inferRelTypes(pred ast.PredicateSym) (ast.BaseTerm, er
 			return nil, err
 		}
 		for _, alternative := range symbols.RelTypeAlternatives(relType) {
-			if !symbols.SetConforms(alternative, symbols.RelTypeFromAlternatives(alternatives)) {
+			if !symbols.SetConforms(nil /*TODO*/, alternative, symbols.RelTypeFromAlternatives(alternatives)) {
 				alternatives = append(alternatives, alternative)
 			}
 		}
@@ -1182,7 +1229,7 @@ func (s *inferState) addOrRefine(v ast.Variable, tpe ast.BaseTerm) error {
 		s.varTpe = append(s.varTpe, tpe)
 		return nil
 	}
-	tpe = symbols.LowerBound([]ast.BaseTerm{s.varTpe[i], tpe})
+	tpe = symbols.LowerBound(nil /*TODO*/, []ast.BaseTerm{s.varTpe[i], tpe})
 	if tpe.Equals(symbols.EmptyType) {
 		return fmt.Errorf("variable %v cannot have both %v and %v", v, s.varTpe[i], tpe)
 	}
@@ -1230,6 +1277,9 @@ func (s *inferState) asMap() map[ast.Variable]ast.BaseTerm {
 func (bc *BoundsAnalyzer) inferRelTypesFromPremise(premises []ast.Term, state *inferState) ([]*inferState, error) {
 	var nextStates []*inferState
 
+	// TODO: this should be piped through in inferState.
+	typeCtx := map[ast.Variable]ast.BaseTerm{}
+
 	premise := premises[state.index]
 	switch t := premise.(type) {
 	case ast.Atom:
@@ -1239,9 +1289,9 @@ func (bc *BoundsAnalyzer) inferRelTypesFromPremise(premises []ast.Term, state *i
 			err          error
 		)
 		if declared, ok := bc.relTypeMap[atom.Predicate]; ok {
-			alternatives, err = bc.feasibleAlternatives(atom.Predicate, declared, atom.Args, state.asMap())
+			alternatives, _, err = bc.feasibleAlternatives(atom.Predicate, declared, atom.Args, state.asMap(), typeCtx)
 		} else {
-			alternatives, err = bc.getOrInferRelTypes(atom.Predicate, atom.Args, state.asMap())
+			alternatives, err = bc.getOrInferRelTypes(atom.Predicate, atom.Args, state.asMap(), typeCtx)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("type mismatch %v : %v ", premise, err)
@@ -1269,9 +1319,9 @@ func (bc *BoundsAnalyzer) inferRelTypesFromPremise(premises []ast.Term, state *i
 			err          error
 		)
 		if declared, ok := bc.relTypeMap[atom.Predicate]; ok {
-			alternatives, err = bc.feasibleAlternatives(atom.Predicate, declared, atom.Args, state.asMap())
+			alternatives, _, err = bc.feasibleAlternatives(atom.Predicate, declared, atom.Args, state.asMap(), typeCtx)
 		} else {
-			alternatives, err = bc.getOrInferRelTypes(atom.Predicate, atom.Args, state.asMap())
+			alternatives, err = bc.getOrInferRelTypes(atom.Predicate, atom.Args, state.asMap(), typeCtx)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("type mismatch %v : %v ", premise, err)
@@ -1322,7 +1372,7 @@ func (bc *BoundsAnalyzer) inferRelTypesFromPremise(premises []ast.Term, state *i
 		leftTpe := boundOfArg(t.Left, state.asMap(), bc.nameTrie)
 		rightTpe := boundOfArg(t.Right, state.asMap(), bc.nameTrie)
 
-		tpe := symbols.LowerBound([]ast.BaseTerm{leftTpe, rightTpe})
+		tpe := symbols.LowerBound(nil /* TODO */, []ast.BaseTerm{leftTpe, rightTpe})
 		if tpe.Equals(symbols.EmptyType) {
 			return nil, fmt.Errorf("type mismatch %v : left type %v right type %v", premise, leftTpe, rightTpe)
 		}
@@ -1468,7 +1518,7 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 			for _, arg := range z.Args {
 				argTypes = append(argTypes, boundOfArg(arg, varRanges, nameTrie))
 			}
-			return symbols.NewListType(symbols.UpperBound(argTypes))
+			return symbols.NewListType(symbols.UpperBound(nil /*TODO*/, argTypes))
 
 		case symbols.Map.Symbol:
 			var keyTpes []ast.BaseTerm
@@ -1478,7 +1528,7 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 				i++
 				valTpes = append(valTpes, boundOfArg(z.Args[i], varRanges, nameTrie))
 			}
-			return symbols.NewMapType(symbols.UpperBound(keyTpes), symbols.UpperBound(valTpes))
+			return symbols.NewMapType(symbols.UpperBound(nil /*TODO*/, keyTpes), symbols.UpperBound(nil /*TODO*/, valTpes))
 
 		case symbols.Struct.Symbol:
 			var fields []ast.BaseTerm

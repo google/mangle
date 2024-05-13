@@ -256,7 +256,7 @@ func RemoveFromUnionType(tpeToRemove, unionTpe ast.BaseTerm) (ast.BaseTerm, erro
 	}
 	var newArgs []ast.BaseTerm
 	for _, arg := range typeArgs(unionTpe) {
-		if SetConforms(arg, tpeToRemove) {
+		if SetConforms(nil /*TODO*/, arg, tpeToRemove) {
 			continue
 		}
 		newArgs = append(newArgs, arg)
@@ -311,4 +311,15 @@ func RelTypeAlternatives(relTypeExpr ast.BaseTerm) []ast.BaseTerm {
 		return relTypes
 	}
 	return []ast.BaseTerm{relTypeExpr}
+}
+
+// GetTypeContext returns type context containing all type vars, with /any bound.
+func GetTypeContext(typeExpr ast.BaseTerm) map[ast.Variable]ast.BaseTerm {
+	typeCtx := map[ast.Variable]ast.BaseTerm{}
+	typeVars := map[ast.Variable]bool{}
+	ast.AddVars(typeExpr, typeVars)
+	for v := range typeVars {
+		typeCtx[v] = ast.AnyBound
+	}
+	return typeCtx
 }

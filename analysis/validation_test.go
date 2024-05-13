@@ -15,7 +15,11 @@
 package analysis
 
 import (
+	"bytes"
+	"embed"
 	"fmt"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -23,6 +27,9 @@ import (
 	"github.com/google/mangle/parse"
 	"github.com/google/mangle/symbols"
 )
+
+//go:embed test_cases/*.mg
+var testCases embed.FS
 
 func name(str string) ast.Constant {
 	n, err := ast.Name(str)
@@ -68,6 +75,34 @@ func makeSyntheticDecl(t *testing.T, a ast.Atom) ast.Decl {
 		t.Fatal(err)
 	}
 	return decl
+}
+
+func TestCases(t *testing.T) {
+	entries, err := testCases.ReadDir("test_cases")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, testCase := range entries {
+		file, err := testCases.ReadFile(
+			filepath.Join("test_cases", testCase.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		unit, err := parse.Unit(bytes.NewReader(file))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = AnalyzeAndCheckBounds([]parse.SourceUnit{unit}, nil, ErrorForBoundsMismatch)
+		if strings.HasPrefix(testCase.Name(), "neg") {
+			if err == nil { // NO error
+				t.Errorf("No error in test case %s, but we want an error", testCase.Name())
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("Unexpected error in test case %s", testCase.Name())
+		}
+	}
 }
 
 func TestCheckRulePositive(t *testing.T) {

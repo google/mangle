@@ -1,0 +1,11 @@
+# Cargo.toml for mangle-rs workspace
+[workspace]
+resolver = "2"
+
+members = [
+    "ast",
+    "analysis",
+    "engine",
+    "factstore",
+    "parse"
+]

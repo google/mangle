@@ -1,0 +1,9 @@
+[package]
+name = "mangle-factstore"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+bumpalo = "3.14"
+mangle-ast = { path = "../ast" }

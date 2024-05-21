@@ -27,6 +27,9 @@ Check out the [docs](docs/README.md) and the
 [GitHub discussions](https://github.com/google/mangle/discussions) for more
 information. There is also a Q&A section.
 
+For an example how to use Mangle library in a database-like grpc service,
+see the separate [Mangle demo service repo](https://github.com/burakemir/mangle-service).
+
 This is not an officially supported Google product. 
 
 ## Table of Contents
@@ -125,13 +128,14 @@ graph LR
     /bern -->|/code/BL <br /> 30 CHF| /lausanne
 ```
 
-## Building
+## Building & Testing
 
-Get the dependencies (see [go.mod](go.mod)) and build the library:
+Get the dependencies (see [go.mod](go.mod)), build the library, run tests:
 
 ```
 go get ./...
 go build ./...
+go test ./...
 ```
 ### Regenerating the parser sources
 

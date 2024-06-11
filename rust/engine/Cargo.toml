@@ -1,11 +1,16 @@
 [package]
 name = "mangle-engine"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+documentation.workspace = true
+license.workspace = true
+homepage.workspace = true
+repo.workspace = true
 
 [dependencies]
-mangle-analysis = { path = "../analysis" }
-mangle-ast = { path = "../ast" }
-mangle-factstore = { path = "../factstore" }
-bumpalo = "3.14"
-anyhow = "1.0"
+anyhow.workspace = true
+bumpalo.workspace = true
+mangle-analysis.workspace = true
+mangle-ast.workspace = true
+mangle-factstore.workspace = true

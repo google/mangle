@@ -1,10 +1,15 @@
 [package]
 name = "mangle-parse"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+documentation.workspace = true
+license.workspace = true
+homepage.workspace = true
+repo.workspace = true
 
 [dependencies]
-anyhow = "1.0"
-bumpalo = "3.14"
-thiserror = "1.0.58"
-mangle-ast = { path = "../ast" }
+anyhow.workspace = true
+bumpalo.workspace = true
+mangle-ast.workspace = true
+thiserror.workspace = true

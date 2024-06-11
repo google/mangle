@@ -9,3 +9,24 @@ members = [
     "factstore",
     "parse"
 ]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Burak Emir <burak.emir@gmail.com>"]
+edition = "2021"
+description = "Rust implementation of Mangle, a logic programming language"
+documentation = "https://github.com/google/mangle"
+license = "Apache-2.0"
+homepage = "https://github.com/google/mangle"
+repo = "https://github.com/google/mangle"
+
+[workspace.dependencies]
+anyhow = "1.0"
+bumpalo = "3.14"
+mangle-analysis = { version = "0.1.0", path = "./analysis" }
+mangle-ast = { version = "0.1.0", path = "./ast" }
+mangle-engine = { version = "0.1.0", path = "./engine" }
+mangle-factstore = { version = "0.1.0", path = "./factstore" }
+mangle-parse = { version = "0.1.0", path = "./parse" }
+thiserror = "1.0.58"
+

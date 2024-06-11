@@ -1,7 +1,12 @@
 [package]
 name = "mangle-ast"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+documentation.workspace = true
+license.workspace = true
+homepage.workspace = true
+repo.workspace = true
 
 [dependencies]
-bumpalo = "3.14"
+bumpalo.workspace = true

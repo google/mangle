@@ -94,6 +94,16 @@ func TestCheckSetExpression(t *testing.T) {
 				ast.List([]ast.Constant{ast.String("foo")}),
 			},
 		},
+		{
+			tpe:  NewSingletonType(ast.TrueConstant),
+			good: []ast.Constant{ast.TrueConstant},
+			bad:  []ast.Constant{ast.FalseConstant},
+		},
+		{
+			tpe:  NewUnionType(NewSingletonType(ast.TrueConstant), NewSingletonType(ast.FalseConstant)),
+			good: []ast.Constant{ast.TrueConstant, ast.FalseConstant},
+			bad:  []ast.Constant{ast.AnyBound},
+		},
 		// Structured values that need evaluation for readability are tested in builtin_test.go
 	}
 	for _, test := range tests {

@@ -37,6 +37,9 @@ var (
 	// Contains matches string constants that contain the given string.
 	Contains = ast.PredicateSym{":string:contains", 2}
 
+	// Filter is turning a boolean function into a predicate.
+	Filter = ast.PredicateSym{":filter", 1}
+
 	// Lt is the less-than relation on numbers.
 	Lt = ast.PredicateSym{":lt", 2}
 
@@ -143,6 +146,9 @@ var (
 	// RelType is a constructor for a relation type.
 	RelType = ast.FunctionSym{"fn:Rel", -1}
 
+	// SingletonType is a constructor for a singleton type.
+	SingletonType = ast.FunctionSym{"fn:Singleton", 1}
+
 	// NumberToString converts from ast.NumberType to ast.StringType
 	NumberToString = ast.FunctionSym{"fn:number:to_string", 1}
 
@@ -183,15 +189,16 @@ var (
 	// TypeConstructors is a list of function symbols used in structured type expressions.
 	// Each name is mapped to the corresponding type constructor (a function at the level of types).
 	TypeConstructors = map[string]ast.FunctionSym{
-		UnionType.Symbol:  UnionType,
-		ListType.Symbol:   ListType,
-		OptionType.Symbol: OptionType,
-		PairType.Symbol:   PairType,
-		TupleType.Symbol:  TupleType,
-		MapType.Symbol:    MapType,
-		StructType.Symbol: StructType,
-		FunType.Symbol:    FunType,
-		RelType.Symbol:    RelType,
+		UnionType.Symbol:     UnionType,
+		SingletonType.Symbol: SingletonType,
+		ListType.Symbol:      ListType,
+		OptionType.Symbol:    OptionType,
+		PairType.Symbol:      PairType,
+		TupleType.Symbol:     TupleType,
+		MapType.Symbol:       MapType,
+		StructType.Symbol:    StructType,
+		FunType.Symbol:       FunType,
+		RelType.Symbol:       RelType,
 	}
 
 	// EmptyType is a type without members.
@@ -204,6 +211,7 @@ var (
 		StartsWith:  NewRelType(ast.StringBound, ast.StringBound),
 		EndsWith:    NewRelType(ast.StringBound, ast.StringBound),
 		Contains:    NewRelType(ast.StringBound, ast.StringBound),
+		Filter:      NewRelType(BoolType()),
 		// TODO: support float64
 		Lt:       NewRelType(ast.NumberBound, ast.NumberBound),
 		Le:       NewRelType(ast.NumberBound, ast.NumberBound),
@@ -343,6 +351,9 @@ func (t TypeHandle) HasType(c ast.Constant) bool {
 			}
 		}
 		return false
+	case SingletonType:
+		d := tpe.Args[0]
+		return c.Equals(d)
 	}
 	return false
 }

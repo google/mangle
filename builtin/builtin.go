@@ -33,6 +33,7 @@ var (
 		symbols.StartsWith:     {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.EndsWith:       {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Contains:       {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.Filter:         {ast.ArgModeInput},
 		symbols.Lt:             {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Le:             {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Gt:             {ast.ArgModeInput, ast.ArgModeInput},
@@ -65,7 +66,7 @@ var (
 		symbols.GroupBy: emptyType,
 
 		symbols.ListGet:      symbols.NewFunType(symbols.NewOptionType(varX) /* <= */, listOfX, ast.NumberBound),
-		symbols.ListContains: symbols.NewFunType(ast.AnyBound /* <= */, listOfX, varX),
+		symbols.ListContains: symbols.NewFunType(symbols.BoolType() /* <= */, listOfX, varX),
 		symbols.Append:       symbols.NewFunType(listOfX /* <= */, listOfX, varX),
 		symbols.Cons:         symbols.NewFunType(listOfX /* <= */, varX, listOfX),
 		symbols.Len:          symbols.NewFunType(ast.NumberBound /* <= */, listOfX),
@@ -174,6 +175,19 @@ func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, []*unionfind.Union
 		return ok, []*unionfind.UnionFind{nsubst}, nil
 	}
 	switch atom.Predicate.Symbol {
+	case symbols.Filter.Symbol:
+		if len(atom.Args) != 1 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate 'filter': %v", atom.Args)
+		}
+		evaluatedArg, err := functional.EvalExpr(atom.Args[0], subst)
+		if err != nil {
+			return false, nil, err
+		}
+		if evaluatedArg == ast.TrueConstant {
+			return true, []*unionfind.UnionFind{subst}, nil
+		}
+		return false, nil, nil
+
 	case symbols.Lt.Symbol:
 		if len(atom.Args) != 2 {
 			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate '<': %v", atom.Args)

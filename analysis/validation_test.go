@@ -83,25 +83,27 @@ func TestCases(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, testCase := range entries {
-		file, err := testCases.ReadFile(
-			filepath.Join("test_cases", testCase.Name()))
-		if err != nil {
-			t.Fatal(err)
-		}
-		unit, err := parse.Unit(bytes.NewReader(file))
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, err = AnalyzeAndCheckBounds([]parse.SourceUnit{unit}, nil, ErrorForBoundsMismatch)
-		if strings.HasPrefix(testCase.Name(), "neg") {
-			if err == nil { // NO error
-				t.Errorf("No error in test case %s, but we want an error", testCase.Name())
+		t.Run(testCase.Name(), func(t *testing.T) {
+			file, err := testCases.ReadFile(
+				filepath.Join("test_cases", testCase.Name()))
+			if err != nil {
+				t.Fatal(err)
 			}
-			continue
-		}
-		if err != nil {
-			t.Errorf("Unexpected error in test case %s", testCase.Name())
-		}
+			unit, err := parse.Unit(bytes.NewReader(file))
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = AnalyzeAndCheckBounds([]parse.SourceUnit{unit}, nil, ErrorForBoundsMismatch)
+			if strings.HasPrefix(testCase.Name(), "neg") {
+				if err == nil { // NO error
+					t.Errorf("No error in test case %s, but we want an error", testCase.Name())
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("Unexpected error in test case %s: %s", testCase.Name(), err)
+			}
+		})
 	}
 }
 

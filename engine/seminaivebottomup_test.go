@@ -420,6 +420,7 @@ func TestBuiltin(t *testing.T) {
 		clause("ge_two(X) :- foo(X), X >= 2."),
 		clause("two_ge(X) :- foo(X), 2 >= X."),
 		clause("within_ten(X) :- foo(X), :within_distance(10, X, 2)."),
+		clause("interesting(X) :- within_ten(X), :filter(fn:list:contains([11], X))."),
 	}
 	if err := analyzeAndEvalProgram(t, program, store); err != nil {
 		t.Errorf("Program evaluation failed %v program %v", err, program)
@@ -435,6 +436,7 @@ func TestBuiltin(t *testing.T) {
 		atom("ge_two(2)"),
 		atom("two_ge(2)"),
 		atom("within_ten(11)"),
+		atom("interesting(11)"),
 	}
 
 	for _, fact := range expected {

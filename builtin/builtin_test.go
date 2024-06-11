@@ -345,6 +345,34 @@ func TestContains(t *testing.T) {
 	}
 }
 
+func TestFilter(t *testing.T) {
+	tests := []struct {
+		cond ast.BaseTerm
+		want bool
+	}{
+		{cond: ast.TrueConstant, want: true},
+		{cond: ast.FalseConstant, want: false},
+		{
+			cond: ast.ApplyFn{symbols.ListContains, []ast.BaseTerm{ast.ListNil, ast.Number(23)}},
+			want: false,
+		},
+		{
+			cond: ast.ApplyFn{symbols.ListContains, []ast.BaseTerm{ast.List([]ast.Constant{ast.Number(23)}), ast.Number(23)}},
+			want: true,
+		},
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":filter", test.cond)
+		got, _, err := Decide(atom, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("TestFilter(%v): got %v want %v", atom, got, test.want)
+		}
+	}
+}
+
 func TestMatchPair(t *testing.T) {
 	makePair := func(left, right ast.Constant) ast.Constant {
 		return ast.Pair(&left, &right)

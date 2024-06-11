@@ -113,6 +113,16 @@ func NewUnionType(elems ...ast.BaseTerm) ast.ApplyFn {
 	return newTypeExpr(UnionType, elems...)
 }
 
+// NewSingletonType returns a new SingletonType.
+func NewSingletonType(d ast.Constant) ast.ApplyFn {
+	return newTypeExpr(SingletonType, d)
+}
+
+// BoolType returns a type named in honor of George Boole.
+func BoolType() ast.ApplyFn {
+	return NewUnionType(NewSingletonType(ast.TrueConstant), NewSingletonType(ast.FalseConstant))
+}
+
 // IsListTypeExpression returns true if tpe is a ListType.
 func IsListTypeExpression(tpe ast.BaseTerm) bool {
 	op := typeOp(tpe)

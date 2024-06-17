@@ -766,6 +766,13 @@ func (a *Analyzer) checkExprArity(arg ast.BaseTerm) error {
 			if _, ok := builtin.ReducerFunctions[ast.FunctionSym{sym.Symbol, -1}]; ok && len(x.Args) == 0 {
 				return fmt.Errorf("reducer function %v expects at least one argument", sym.Symbol)
 			}
+			if sym.Symbol == symbols.Struct.Symbol && len(x.Args)%2 != 0 {
+				// What if we are in a type expression? remove optional and repeated.
+				return fmt.Errorf("expect even number of arguments for %s - use { /key: value, ... } syntax for structs", x)
+			}
+			if sym.Symbol == symbols.Map.Symbol && len(x.Args)%2 != 0 {
+				return fmt.Errorf("expect even number of arguments for %s - use [ key: value, ... ] syntax for maps", x)
+			}
 			return nil
 		}
 		if isBuiltin, isExtra := lookup(sym); isBuiltin || isExtra {

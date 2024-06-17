@@ -223,6 +223,11 @@ func TestCheckRuleNegative(t *testing.T) {
 		clause("foo(X) :- bar(Y) |> do fn:group_by(), let X = fn:collect_distinct()."),
 		// In a reducer, need to refer to variables from body.
 		clause("foo(X) :- bar(Y), baz(Z) |> do fn:group_by(Y), let X = fn:collect(X)."),
+		// nonsensical uses of fn:struct and fn:map
+		clause("foo(X) :- X = fn:struct(1)."),
+		clause("foo(X) :- X = fn:struct(1,2,3)."),
+		clause("foo(X) :- X = fn:map(1)."),
+		clause("foo(X) :- X = fn:map(1,2,3)."),
 	}
 	for _, clause := range tests {
 		analyzer, _ := New(map[ast.PredicateSym]ast.Decl{

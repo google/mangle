@@ -576,7 +576,7 @@ func TestCheckTypeExpressionStructured(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		h, err := symbols.NewSetHandle(test.tpe)
+		h, err := symbols.NewBoundHandle(test.tpe)
 		if err != nil {
 			t.Errorf("NewMonoTypeHandle(%v) failed %v", test.tpe, err)
 		}

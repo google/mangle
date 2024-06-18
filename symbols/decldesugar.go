@@ -131,7 +131,7 @@ func (d *desugar) desugarOneDecl(sym ast.PredicateSym) error {
 			}
 			boundInfos[i] = boundInfo
 			for j, b := range boundDecl.Bounds {
-				if err := CheckSetExpression(b); err == nil { // if NO error
+				if err := WellformedBound(b); err == nil { // if NO error
 					boundInfo.bounds[j] = b
 					continue
 				}

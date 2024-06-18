@@ -236,6 +236,20 @@ type TypeHandle struct {
 	ctx  map[ast.Variable]ast.BaseTerm
 }
 
+// NewBoundHandle constructs a TypeHandle for a bound (may contain type variables).
+func NewBoundHandle(expr ast.BaseTerm) (TypeHandle, error) {
+	typeVars := make(map[ast.Variable]bool)
+	ast.AddVars(expr, typeVars)
+	ctx := make(map[ast.Variable]ast.BaseTerm)
+	for v := range typeVars {
+		// TODO: This is wrong. At this stage, we would need to not only collect
+		// type variables but also infer upper and lower type bounds. The context
+		// has to map type variables to type constraints.
+		ctx[v] = ast.Variable{"_"}
+	}
+	return NewTypeHandle(ctx, expr)
+}
+
 // NewSetHandle constructs a TypeHandle for a (simple) monotype.
 func NewSetHandle(expr ast.BaseTerm) (TypeHandle, error) {
 	return NewTypeHandle(nil, expr)
@@ -243,7 +257,7 @@ func NewSetHandle(expr ast.BaseTerm) (TypeHandle, error) {
 
 // NewTypeHandle constructs a TypeHandle.
 func NewTypeHandle(ctx map[ast.Variable]ast.BaseTerm, expr ast.BaseTerm) (TypeHandle, error) {
-	if err := CheckTypeExpression(ctx, expr); err != nil {
+	if err := WellformedType(ctx, expr); err != nil {
 		return TypeHandle{}, err
 	}
 	return TypeHandle{expr, ctx}, nil
@@ -375,16 +389,29 @@ func hasBaseType(typeExpr ast.Constant, c ast.Constant) bool {
 	}
 }
 
-// CheckSetExpression returns an error if expr is not a valid type expression.
-// expr is by convention a type expression that talks about sets (no type variables,
-// no function type subexpressions, no reltype).
-func CheckSetExpression(expr ast.BaseTerm) error {
-	return CheckTypeExpression(nil, expr)
+// WellformedBound returns an error if expr is not a valid bound expression.
+//
+// A bound expression is well formed if the type-in-context that is formed by
+// closing over its type variables is a well-formed type expression.
+//
+// An unconstrained type variable still counts as a well-formed bound expression.
+// If it is not constrained by type expressions in the other bounds, it will
+// be treated as /any.
+func WellformedBound(expr ast.BaseTerm) error {
+	typeVars := make(map[ast.Variable]bool)
+	ast.AddVars(expr, typeVars)
+	ctx := make(map[ast.Variable]ast.BaseTerm)
+	for v := range typeVars {
+		// We get away with this because well-formedness checking does not
+		// consider constraints.
+		ctx[v] = ast.Variable{"_"}
+	}
+	return WellformedType(ctx, expr)
 }
 
-// CheckTypeExpression returns an error if expr is not a valid type expression.
+// WellformedType returns an error if expr is not a well-formed type-in-context.
 // expr is by convention not a reltype.
-func CheckTypeExpression(ctx map[ast.Variable]ast.BaseTerm, expr ast.BaseTerm) error {
+func WellformedType(ctx map[ast.Variable]ast.BaseTerm, expr ast.BaseTerm) error {
 	switch expr := expr.(type) {
 	case ast.Constant:
 		if IsBaseTypeExpression(expr) || expr.Type == ast.NameType {
@@ -392,12 +419,10 @@ func CheckTypeExpression(ctx map[ast.Variable]ast.BaseTerm, expr ast.BaseTerm) e
 		}
 		return fmt.Errorf("not a base type expression: %v", expr)
 	case ast.Variable:
-		if ctx != nil {
-			if _, ok := ctx[expr]; ok {
-				return nil
-			}
+		if ctx == nil || ctx[expr] == nil {
+			return fmt.Errorf("unexpected type variable: %v context: %v", expr, ctx)
 		}
-		return fmt.Errorf("unexpected type variable: %v context: %v", expr, ctx)
+		return nil
 
 	case ast.ApplyFn:
 		fn, ok := TypeConstructors[expr.Function.Symbol]
@@ -432,7 +457,7 @@ func CheckTypeExpression(ctx map[ast.Variable]ast.BaseTerm, expr ast.BaseTerm) e
 				}
 				i++
 				tpe := requiredArgs[i]
-				if err := CheckTypeExpression(ctx, tpe); err != nil {
+				if err := WellformedType(ctx, tpe); err != nil {
 					return fmt.Errorf("in a struct type expression %v : %w", expr, err)
 				}
 			}
@@ -440,7 +465,7 @@ func CheckTypeExpression(ctx map[ast.Variable]ast.BaseTerm, expr ast.BaseTerm) e
 		}
 
 		for _, arg := range args {
-			if err := CheckTypeExpression(ctx, arg); err != nil {
+			if err := WellformedType(ctx, arg); err != nil {
 				return err
 			}
 		}
@@ -476,11 +501,11 @@ func CheckFunTypeExpression(ctx map[ast.Variable]ast.BaseTerm, expr ast.ApplyFn)
 		ctxMap[v] = ast.AnyBound
 	}
 	for _, argTpe := range argTpes {
-		if err := CheckTypeExpression(ctxMap, argTpe); err != nil {
+		if err := WellformedType(ctxMap, argTpe); err != nil {
 			return err
 		}
 	}
-	return CheckTypeExpression(ctxMap, codomain)
+	return WellformedType(ctxMap, codomain)
 }
 
 // SetConforms returns true if |- left <: right for set expression.

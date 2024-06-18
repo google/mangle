@@ -581,7 +581,7 @@ func (t TypeChecker) CheckOneBoundDecl(fact ast.Atom, boundDecl ast.BoundDecl) e
 		if !ok {
 			return fmt.Errorf("fact %v could not check fact argument %v", fact, fact.Args[j])
 		}
-		t, err := symbols.NewSetHandle(bound)
+		t, err := symbols.NewBoundHandle(bound)
 		if err != nil {
 			return err
 		}

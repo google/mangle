@@ -313,10 +313,6 @@ func List(constants []Constant) Constant {
 	return *list
 }
 
-func canonicalOrder(left *Constant, right *Constant) {
-
-}
-
 // Map constructs a map constant. Parts can only be accessed in transforms.
 func Map(kvMap map[*Constant]*Constant) *Constant {
 	m := &MapNil

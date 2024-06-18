@@ -25,7 +25,7 @@ func pair(fst ast.Constant, snd ast.Constant) ast.Constant {
 	return ast.Pair(&fst, &snd)
 }
 
-func TestCheckSetExpression(t *testing.T) {
+func TestHasType(t *testing.T) {
 	fooName, _ := ast.Name("/foo")
 	fooBarName, _ := ast.Name("/foo/bar")
 	tests := []struct {
@@ -124,7 +124,26 @@ func TestCheckSetExpression(t *testing.T) {
 	}
 }
 
-func TestCheckTypeExpression(t *testing.T) {
+func TestWellformedBound(t *testing.T) {
+	tests := []struct {
+		tpe ast.BaseTerm
+	}{
+		{
+			tpe: NewFunType(
+				NewPairType(ast.Variable{"X"}, ast.Variable{"Y"}),
+				// <=
+				ast.Variable{"X"}, ast.Variable{"Y"}),
+		},
+	}
+	for _, test := range tests {
+		_, err := NewBoundHandle(test.tpe)
+		if err != nil {
+			t.Errorf("NewTypeHandle(%v) failed %v", test.tpe, err)
+		}
+	}
+}
+
+func TestWellformedType(t *testing.T) {
 	tests := []struct {
 		tpe  ast.BaseTerm
 		vars map[ast.Variable]ast.BaseTerm
@@ -136,6 +155,38 @@ func TestCheckTypeExpression(t *testing.T) {
 				ast.Variable{"X"}, ast.Variable{"Y"}),
 			vars: map[ast.Variable]ast.BaseTerm{
 				ast.Variable{"X"}: ast.NumberBound,
+				ast.Variable{"Y"}: ast.NumberBound,
+			},
+		},
+	}
+	for _, test := range tests {
+		_, err := NewTypeHandle(test.vars, test.tpe)
+		if err != nil {
+			t.Errorf("NewTypeHandle(%v) failed %v", test.tpe, err)
+		}
+	}
+}
+
+func TestWellformedTypeNegative(t *testing.T) {
+	tests := []struct {
+		tpe  ast.BaseTerm
+		vars map[ast.Variable]ast.BaseTerm
+	}{
+		{
+			tpe: NewFunType(
+				NewPairType(ast.Variable{"X"}, ast.Variable{"Y"}),
+				// <=
+				ast.Variable{"X"}, ast.Variable{"Y"}),
+			vars: nil,
+		},
+
+		{
+			tpe: NewFunType(
+				NewPairType(ast.Variable{"X"}, ast.Variable{"Y"}),
+				// <=
+				ast.Variable{"X"}, ast.Variable{"Y"}),
+			vars: map[ast.Variable]ast.BaseTerm{
+				// missing "X"
 				ast.Variable{"Y"}: ast.NumberBound,
 			},
 		},

@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"github.com/google/mangle/ast"
-	"github.com/google/mangle/parse"
 	"github.com/google/mangle/symbols"
 )
 
@@ -100,31 +99,16 @@ func (c *declChecker) check() []error {
 
 // Checks that a boundDecl is well-formed.
 // It validates that there is a bound for each argument, and
-// that each bound is an approppriate bound expression.
+// that each bound is a well-formed bound.
 func (c *declChecker) checkBound(p ast.Atom, boundDecl ast.BoundDecl) {
 	if len(boundDecl.Bounds) != len(p.Args) {
 		c.errs = append(c.errs, fmt.Errorf("in decl %v: expected %d bounds, got %d: %v ", p, len(p.Args), len(boundDecl.Bounds), boundDecl.Bounds))
 	}
 	for i, bound := range boundDecl.Bounds {
-		if err := checkBoundExpression(bound); err != nil {
+		if err := symbols.WellformedBound(bound); err != nil {
 			c.errs = append(c.errs, fmt.Errorf("in decl %v: the bound for argument %d must be parseable as predicate name: %v ", p, i, bound))
 		}
 	}
-}
-
-func checkBoundExpression(b ast.BaseTerm) error {
-	if err := symbols.CheckSetExpression(b); err != nil {
-		// Not a type expression.
-		predicateBound, ok := b.(ast.Constant)
-		if !ok || predicateBound.Type != ast.StringType {
-			return fmt.Errorf("not a bound expression %v %T %v", b, b, err)
-		}
-		name := predicateBound.Symbol[1 : len(predicateBound.Symbol)-1]
-		if _, err := parse.PredicateName(name); err != nil {
-			return fmt.Errorf("could not parse predicate name %q", name)
-		}
-	}
-	return nil
 }
 
 // Checks that a base term is a string constant.

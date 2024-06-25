@@ -18,7 +18,7 @@ description = "Rust implementation of Mangle, a logic programming language"
 documentation = "https://github.com/google/mangle"
 license = "Apache-2.0"
 homepage = "https://github.com/google/mangle"
-repo = "https://github.com/google/mangle"
+repository = "https://github.com/google/mangle"
 
 [workspace.dependencies]
 anyhow = "1.0"

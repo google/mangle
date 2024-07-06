@@ -19,6 +19,7 @@ documentation = "https://github.com/google/mangle"
 license = "Apache-2.0"
 homepage = "https://github.com/google/mangle"
 repository = "https://github.com/google/mangle"
+readme = "README.md"
 
 [workspace.dependencies]
 anyhow = "1.0"

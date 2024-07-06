@@ -6,7 +6,8 @@ description.workspace = true
 documentation.workspace = true
 license.workspace = true
 homepage.workspace = true
-repo.workspace = true
+repository.workspace = true
+readme = "README.md"
 
 [dependencies]
 anyhow.workspace = true

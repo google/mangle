@@ -14,3 +14,7 @@ build:
 # Build documentation in the "readthedocs/" directory with Sphinx
 sphinx:
   configuration: readthedocs/conf.py
+
+python:
+  install:
+  - requirements: readthedocs/requirements.txt

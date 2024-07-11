@@ -2,30 +2,40 @@
 
 ![docu badge spec reference](docu_spec_reference.svg)
 
-This section describes the Mangle data model. We start with an informal
-discussion of the Datalog data model, and how Mangle extends it.
+This section describes the Mangle data model. Mangle includes datalog
+as a language fragment. This means you can write datalog programs in Mangle,
+but you can also write programs that can do more that datalog.
+
+This is an important distinction: as expressed in the
+[Rule of Least Power](http://www.w3.org/2001/tag/doc/leastPower), there
+is a value in choosing the language with least computational power
+(expressivity). Datalog programs are guaranteed to terminate and permit
+different strategies for evaluation.
 
 ## Constants and Facts
 
 The Datalog model is based on the terms of first-order logic with relation symbols.
-Every "object" is referred by an identifier called a *constant symbol*.
+Every "object" is referred by an identifier called a *constant symbol*, or
+*constants* for short.
 
-Among the user-defined constants are *name constants*. Names can have
+Among the user-defined constants are *name constants* or *names*. Names can have
 multiple parts, with each part starting with a slash `/` followed by a
 non-empty sequence of characters. Examples are `/friday`, or `/person/hilbert`.
 
-Constants are *unique*: distinct constants always refer to distinct entities.
+Constants are *unique*: distinct constants always refer to distinct objects.
 In other words, there is only one built-on notion of equality. This has
 consequences for assigning meaning to constants, for example
-`/person/hilbert` and `/mathematician/hilbert` will refer to distinct objects.
+`/person/hilbert` and `/mathematician/hilbert` will never be equal.
 
 Objects can be related to each other. These relationship can be expressed
 using a *predicate symbol* with a specified number of arguments (arity).
 
-Predicates have lower-case names. For example, we can use a unary predicate name `p`, a binary predicate name `loves`, and a three-place predicate `person_thesis_supervisor` to define facts like:
+Predicates have lower-case names. For example, we can use a unary predicate
+name `p`, a binary predicate name `loves`, and a three-place predicate
+`phd_supervised_by` to define facts like:
 - `p(/asdf)`
 - `loves(/hilbert, /topic/mathematics)`
-- `person_phdtopic_supervisor(/jacques_herbrand, /topic/math_logic, /ernest_vessiot)`.
+- `phd_supervised_by(/jacques_herbrand, /topic/math_logic, /ernest_vessiot)`.
 
 An `atom` is a predicate symbol applied to the right number of arguments.
 If all arguments are constant symbols, the atom is called a `fact`.
@@ -43,7 +53,7 @@ It can help consider facts as rows (tuples) of a database table.
 
 ## Numbers and Strings
 
-Numbers and strings like `42` and strings `"hello"` are also considers
+Numbers and strings like `42` and strings `"hello"` are also considered
 constant symbols and can be part of facts.
 
 `question_answer("what is the meaning of life?", 42).`

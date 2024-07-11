@@ -42,6 +42,37 @@ What follows is a list of builtin descriptor items:
     arguments.
 *   `arg(<Arg>, <string>)` describes the purpose of the argument `<Arg>`. All
     arguments need to be described, even if the text is the empty string.
+*   `extensional()` if this is present then program source must not contain
+    any rules or fact statements for this predicate.
+*   `mode()` describes the mode of the predicate, if arguments are input `+`,
+    output `-` or both `?`.
+*   `deferred()` indicates that. A deferred predicate must have all argument
+     positions marked as input-only.
+*   `fundep(<SrcArgList>, <DestArgList>)` indicates a functional dependency
+     between the arguments in `<SrcArgList>` and `<DestArgList>`. This means
+    that whenever two facts have the same values in argument positions 
+    in `<SrcArgList>`, then they will have the same values in `<DestArgList>`.
+*   `merge(<ArgList>, <pred>)` will enable *removal* of predicate. If there is
+    functional dependency and multiple facts have the
+    same values for arguments in `<ArgList>`, only one fact is kept.
+    The merge  predicate determines which one is kept. `<pred>` must refer
+    to a predicate with three argument positions that is `deferred` and 
+    supports the mode `mode('+', '+', '-')`.
+
+The `mode` and `deferred` descriptors enable the use of predicates for
+computation that is well beyond the datalog fragment.
+
+The `fundep` and `merge` descriptors enable "custom lattice" operations
+and are a form of optimization. Instead of seeing the extension of a predicate
+as a concrete set of facts (an element of the powerset lattice), a custom
+lattice comes with a partial order on facts that determines which one
+are better to keep. The partial order has to be defined by the user through
+a `merge` predicate, which gives the least upper bound according to the partial
+order.
+
+For example, in order to compute the shortest paths, a merge predicate 
+`shorter(P1, P2, P)` can be used to compare the length of paths `P1` and `P2`
+and indicate that `P` equals the shorter one of the two.
 
 ### Bounds declaration
 

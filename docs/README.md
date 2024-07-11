@@ -2,8 +2,8 @@
 
 This directory has some documentation in markdown format.
 
-There is also a page with [meta](meta.md) considerations (docs about writing
-docs).
+There is also a page with [guidelines](guidelines.md) for writing
+documentation.
 
 ## Language
 

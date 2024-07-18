@@ -212,6 +212,21 @@ func StructTypeOptionaArgs(tpe ast.BaseTerm) ([]ast.BaseTerm, error) {
 
 // StructTypeField returns field type for given field.
 func StructTypeField(tpe ast.BaseTerm, field ast.Constant) (ast.BaseTerm, error) {
+	if IsUnionTypeExpression(tpe) { // Project
+		src, _ := UnionTypeArgs(tpe)
+		alternatives := []ast.BaseTerm{}
+		for _, s := range src {
+			projected, err := StructTypeField(s, field)
+			if err != nil {
+				continue
+			}
+			alternatives = append(alternatives, projected)
+		}
+		if len(alternatives) == 1 {
+			return alternatives[0], nil
+		}
+		return NewUnionType(alternatives...), nil
+	}
 	if debug && !IsStructTypeExpression(tpe) {
 		return nil, fmt.Errorf("not a struct type expression: %v", tpe)
 	}

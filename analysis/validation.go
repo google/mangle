@@ -905,7 +905,8 @@ func (bc *BoundsAnalyzer) checkClauses(decl *ast.Decl) error {
 	}
 
 	for _, clause := range clauses {
-		inferredRelTypeExpr, err := bc.inferRelTypesFromClause(clause)
+		ic := newInferContext(bc, decl, &clause)
+		inferredRelTypeExpr, err := ic.inferRelTypesFromClause()
 		if err != nil {
 			return err
 		}
@@ -931,9 +932,11 @@ func (bc *BoundsAnalyzer) feasibleAlternatives(
 	pred ast.PredicateSym, relTypeExpr ast.BaseTerm, args []ast.BaseTerm,
 	varRanges map[ast.Variable]ast.BaseTerm,
 	typeCtx map[ast.Variable]ast.BaseTerm) ([]ast.BaseTerm, []map[ast.Variable]ast.BaseTerm, error) {
-
 	if pred.Symbol == symbols.ListMember.Symbol {
 		tpe := boundOfArg(args[1], varRanges, bc.nameTrie)
+		if tpe == ast.AnyBound {
+			return []ast.BaseTerm{symbols.NewRelType(ast.AnyBound, symbols.NewListType(ast.AnyBound))}, nil, nil
+		}
 		if symbols.IsListTypeExpression(tpe) {
 			elemTpe, err := symbols.ListTypeArg(tpe)
 			if err != nil {
@@ -1186,7 +1189,8 @@ func (bc *BoundsAnalyzer) inferRelTypes(pred ast.PredicateSym) (ast.BaseTerm, er
 
 	clauses := bc.RulesMap[pred]
 	for _, clause := range clauses {
-		relType, err := bc.inferRelTypesFromClause(clause)
+		ic := newInferContextNoDecl(bc, &pred, &clause)
+		relType, err := ic.inferRelTypesFromClause()
 		if err != nil {
 			return nil, err
 		}
@@ -1198,242 +1202,6 @@ func (bc *BoundsAnalyzer) inferRelTypes(pred ast.PredicateSym) (ast.BaseTerm, er
 	}
 	bc.inferred[pred] = symbols.RelTypeFromAlternatives(alternatives)
 	return bc.inferred[pred], nil
-}
-
-// inferState is state of inference while iterating over premises.
-// The relation type is represented implicitly in usedVars and varTpe.
-// Assigns to each var in usedVars a type (possibly union) in varTpe.
-type inferState struct {
-	// The index of the premise to be inspected with this state.
-	index    int
-	usedVars VarList
-	varTpe   []ast.BaseTerm
-}
-
-func (s *inferState) String() string {
-	return fmt.Sprintf("<%d; %v, %v>", s.index, s.usedVars, s.varTpe)
-}
-
-func (s *inferState) makeNext() *inferState {
-	dest := make([]ast.BaseTerm, len(s.varTpe))
-	for i, tpe := range s.varTpe {
-		dest[i] = tpe
-	}
-	return &inferState{s.index + 1, s.usedVars, dest}
-}
-
-// addOrRefine either adds a binding or intersects type for an existing one.
-func (s *inferState) addOrRefine(v ast.Variable, tpe ast.BaseTerm) error {
-	if tpe.Equals(symbols.EmptyType) {
-		return fmt.Errorf("variable %v has empty type", v)
-	}
-	if v.Symbol == "_" {
-		return nil
-	}
-	i := s.usedVars.Find(v)
-	if i == -1 {
-		s.usedVars = s.usedVars.Extend([]ast.Variable{v})
-		s.varTpe = append(s.varTpe, tpe)
-		return nil
-	}
-	tpe = symbols.LowerBound(nil /*TODO*/, []ast.BaseTerm{s.varTpe[i], tpe})
-	if tpe.Equals(symbols.EmptyType) {
-		return fmt.Errorf("variable %v cannot have both %v and %v", v, s.varTpe[i], tpe)
-	}
-	s.varTpe[i] = tpe
-	return nil
-}
-
-// refineNegative uses negative information to refine an existing binding
-func (s *inferState) refineNegative(v ast.Variable, tpe ast.BaseTerm) error {
-	if v.Symbol == "_" {
-		return nil
-	}
-	i := s.usedVars.Find(v)
-	if i == -1 {
-		return nil
-	}
-	existing := s.varTpe[i]
-	if existing.Equals(tpe) {
-		return fmt.Errorf("variable %v bounded by %v cannot be refined with negative %v", v, s.varTpe[i], tpe)
-	}
-	if !symbols.IsUnionTypeExpression(existing) {
-		return nil
-	}
-	newTpe, err := symbols.RemoveFromUnionType(tpe, existing)
-	if err != nil {
-		return err
-	}
-	if newTpe.Equals(symbols.EmptyType) {
-		return fmt.Errorf("variable %v bounded by %v cannot be refined with negative %v", v, s.varTpe[i], tpe)
-	}
-	s.varTpe[i] = newTpe
-	return nil
-}
-
-func (s *inferState) asMap() map[ast.Variable]ast.BaseTerm {
-	m := make(map[ast.Variable]ast.BaseTerm, len(s.varTpe))
-	for i, v := range s.usedVars.Vars {
-		m[v] = s.varTpe[i]
-	}
-	return m
-}
-
-// inferRelTypesFromPremise is called for index \in 0..len(premises). It
-// maps one state of inference to its (possibly empty) list of successors.
-func (bc *BoundsAnalyzer) inferRelTypesFromPremise(premises []ast.Term, state *inferState) ([]*inferState, error) {
-	var nextStates []*inferState
-
-	// TODO: this should be piped through in inferState.
-	typeCtx := map[ast.Variable]ast.BaseTerm{}
-
-	premise := premises[state.index]
-	switch t := premise.(type) {
-	case ast.Atom:
-		atom := t
-		var (
-			alternatives []ast.BaseTerm
-			err          error
-		)
-		if declared, ok := bc.relTypeMap[atom.Predicate]; ok {
-			alternatives, _, err = bc.feasibleAlternatives(atom.Predicate, declared, atom.Args, state.asMap(), typeCtx)
-		} else {
-			alternatives, err = bc.getOrInferRelTypes(atom.Predicate, atom.Args, state.asMap(), typeCtx)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("type mismatch %v : %v ", premise, err)
-		}
-		for _, alternative := range alternatives {
-			relTypeArgs, err := symbols.RelTypeArgs(alternative)
-			if err != nil {
-				return nil, err // This cannot happen.
-			}
-			nextState := state.makeNext()
-			for i, a := range atom.Args {
-				if v, ok := a.(ast.Variable); ok {
-					// No error-check needed - alternative is feasible.
-					nextState.addOrRefine(v, relTypeArgs[i])
-				}
-			}
-			nextStates = append(nextStates, nextState)
-		}
-		return nextStates, nil
-
-	case ast.NegAtom:
-		atom := t.Atom
-		var (
-			alternatives []ast.BaseTerm
-			err          error
-		)
-		if declared, ok := bc.relTypeMap[atom.Predicate]; ok {
-			alternatives, _, err = bc.feasibleAlternatives(atom.Predicate, declared, atom.Args, state.asMap(), typeCtx)
-		} else {
-			alternatives, err = bc.getOrInferRelTypes(atom.Predicate, atom.Args, state.asMap(), typeCtx)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("type mismatch %v : %v ", premise, err)
-		}
-		// For negated premise, there is never a variable bound so we never need to add
-		// a binding. We can refine existing bindings by using negative information.
-	nextAlternative:
-		for _, alternative := range alternatives {
-			relTypeArgs, err := symbols.RelTypeArgs(alternative)
-			if err != nil {
-				return nil, err // This cannot happen.
-			}
-			nextState := state.makeNext()
-			if atom.Predicate == symbols.MatchPrefix {
-				// Alternative is feasible, but information is "negative".
-				// For :match_prefix (only), we can use this to refine the type.
-				for i, a := range atom.Args {
-					if v, ok := a.(ast.Variable); ok {
-						if err := nextState.refineNegative(v, relTypeArgs[i]); err != nil {
-							continue nextAlternative
-						}
-					}
-				}
-			}
-			nextStates = append(nextStates, nextState)
-		}
-		return nextStates, nil
-
-	case ast.Eq:
-		nextState := state.makeNext()
-		varRanges := nextState.asMap()
-		if leftVar, ok := t.Left.(ast.Variable); ok {
-			tpe := boundOfArg(t.Right, varRanges, bc.nameTrie)
-			if err := nextState.addOrRefine(leftVar, tpe); err != nil {
-				return nil, err
-			}
-		}
-		if rightVar, ok := t.Right.(ast.Variable); ok {
-			tpe := boundOfArg(t.Left, varRanges, bc.nameTrie)
-			if err := nextState.addOrRefine(rightVar, tpe); err != nil {
-				return nil, err
-			}
-		}
-		return []*inferState{nextState}, nil
-
-	case ast.Ineq:
-		nextState := state.makeNext()
-		leftTpe := boundOfArg(t.Left, state.asMap(), bc.nameTrie)
-		rightTpe := boundOfArg(t.Right, state.asMap(), bc.nameTrie)
-
-		tpe := symbols.LowerBound(nil /* TODO */, []ast.BaseTerm{leftTpe, rightTpe})
-		if tpe.Equals(symbols.EmptyType) {
-			return nil, fmt.Errorf("type mismatch %v : left type %v right type %v", premise, leftTpe, rightTpe)
-		}
-		if leftVar, ok := t.Left.(ast.Variable); ok {
-			if err := nextState.addOrRefine(leftVar, tpe); err != nil {
-				return nil, err
-			}
-		}
-		if rightVar, ok := t.Right.(ast.Variable); ok {
-			if err := nextState.addOrRefine(rightVar, tpe); err != nil {
-				return nil, err
-			}
-		}
-		return []*inferState{nextState}, nil
-	}
-	return nil, fmt.Errorf("unexpected state %v", premise)
-}
-
-// inferRelTypesFromClause infers possible relation types for the head predicate of a single clause.
-func (bc *BoundsAnalyzer) inferRelTypesFromClause(clause ast.Clause) (ast.BaseTerm, error) {
-	usedVars := VarList{}
-	state := &inferState{0, usedVars, []ast.BaseTerm{}}
-	levels := make([][]*inferState, len(clause.Premises)+1)
-	levels[0] = []*inferState{state}
-	for i := range clause.Premises {
-		for _, state := range levels[i] {
-			nextStates, err := bc.inferRelTypesFromPremise(clause.Premises, state)
-			if err != nil {
-				continue
-			}
-			levels[i+1] = append(levels[i+1], nextStates...)
-		}
-		if len(levels[i+1]) == 0 {
-			return nil, fmt.Errorf("type mismatch: cannot find assignment that works for premise %v", clause.Premises[i])
-		}
-	}
-	var relTypes []ast.BaseTerm
-	for _, state := range levels[len(clause.Premises)] {
-		s := state.makeNext()
-		if clause.Transform != nil {
-			for _, tr := range clause.Transform.Statements {
-				if tr.Var != nil {
-					s.addOrRefine(*tr.Var, typeOfFn(tr.Fn, s.asMap(), bc.nameTrie))
-				}
-			}
-		}
-
-		headTuple := make([]ast.BaseTerm, len(clause.Head.Args))
-		for i, arg := range clause.Head.Args {
-			headTuple[i] = boundOfArg(arg, s.asMap(), bc.nameTrie)
-		}
-		relTypes = append(relTypes, symbols.NewRelType(headTuple...))
-	}
-	return symbols.RelTypeFromAlternatives(relTypes), nil
 }
 
 func checkFunApply(z ast.ApplyFn, fnTpe ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTrie symbols.NameTrie) (ast.BaseTerm, error) {

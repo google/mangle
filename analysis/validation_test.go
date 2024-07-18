@@ -701,12 +701,12 @@ func TestBoundsAnalyzer(t *testing.T) {
 			makeSimpleDecl(atom("bar(T)"), symbols.NewTupleType(ast.StringBound, ast.NumberBound, ast.NameBound)),
 		}),
 		newBoundsTestCase(t, []ast.Clause{
-			clause("bar(X) :- :match_field({ /foo: 'a' }, /foo, X)."),
+			clause("bar(X) :- Z = { /foo: 'a' }, :match_field(Z, /foo, X)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("bar(S)"), ast.StringBound),
 		}),
 		newBoundsTestCase(t, []ast.Clause{
-			clause("bar(X) :- X = fn:struct:get({ /foo: 'a' }, /foo)."),
+			clause("bar(X) :- Z = { /foo: 'a' }, X = fn:struct:get(Z, /foo)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("bar(S)"), ast.StringBound),
 		}),
@@ -806,7 +806,7 @@ func TestBoundsAnalyzerNegative(t *testing.T) {
 			makeSimpleDecl(atom("baz(A)"), symbols.NewListType(ast.NumberBound)),
 		}),
 		newBoundsTestCase(t, []ast.Clause{
-			clause("bar(X) :- :match_field({ /foo: 'a' }, /baz, X)."),
+			clause("bar(X) :- Z = { /foo: 'a' }, :match_field(Z, /baz, X)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("bar(S)"), ast.StringBound),
 		}),
@@ -821,7 +821,7 @@ func TestBoundsAnalyzerNegative(t *testing.T) {
 			makeSimpleDecl(atom("bar(S)"), ast.StringBound),
 		}),
 		newBoundsTestCase(t, []ast.Clause{
-			clause("bar(X) :- :match_field({ /foo: 2 }, /foo, X)."),
+			clause("bar(X) :- Z = { /foo: 2 }, :match_field(Z, /foo, X), X > 1."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("bar(S)"), ast.StringBound),
 		}),

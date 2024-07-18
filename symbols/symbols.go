@@ -215,6 +215,8 @@ var (
 		// TODO: support float64
 		Lt:       NewRelType(ast.NumberBound, ast.NumberBound),
 		Le:       NewRelType(ast.NumberBound, ast.NumberBound),
+		Gt:       NewRelType(ast.NumberBound, ast.NumberBound),
+		Ge:       NewRelType(ast.NumberBound, ast.NumberBound),
 		MatchNil: NewRelType(NewListType(ast.Variable{"X"})),
 		MatchCons: NewRelType(
 			NewListType(ast.Variable{"X"}), ast.Variable{"X"}, NewListType(ast.Variable{"X"})),
@@ -222,6 +224,7 @@ var (
 			NewPairType(ast.Variable{"X"}, ast.Variable{"Y"}), ast.Variable{"X"}, ast.Variable{"Y"}),
 		MatchEntry: NewRelType(
 			NewMapType(ast.AnyBound, ast.AnyBound), ast.AnyBound),
+		// Note: :match_field is treated specially, the following type is only a fallback.
 		MatchField: NewRelType(
 			ast.AnyBound, ast.NameBound, ast.AnyBound),
 		ListMember: NewRelType(ast.Variable{"X"}, NewListType(ast.Variable{"X"})),

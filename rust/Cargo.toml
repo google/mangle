@@ -11,7 +11,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Burak Emir <burak.emir@gmail.com>"]
 edition = "2021"
 description = "Rust implementation of Mangle, a logic programming language"
@@ -25,10 +25,10 @@ readme = "README.md"
 anyhow = "1.0"
 bumpalo = "3.14"
 googletest = { version = "0.11.0", features = ["anyhow"] }
-mangle-analysis = { version = "0.1.0", path = "./analysis" }
-mangle-ast = { version = "0.1.0", path = "./ast" }
-mangle-engine = { version = "0.1.0", path = "./engine" }
-mangle-factstore = { version = "0.1.0", path = "./factstore" }
-mangle-parse = { version = "0.1.0", path = "./parse" }
+mangle-analysis = { version = "0.1.1", path = "./analysis" }
+mangle-ast = { version = "0.1.1", path = "./ast" }
+mangle-engine = { version = "0.1.1", path = "./engine" }
+mangle-factstore = { version = "0.1.1", path = "./factstore" }
+mangle-parse = { version = "0.1.1", path = "./parse" }
 thiserror = "1.0.58"
 

@@ -39,8 +39,8 @@ pub trait Program<'p> {
 
 // A stratified program is a program that can be separated in
 // dependency layers (strata) such that if index(p) < index(q)
-// then p does not depend on q. 
-pub trait StratifiedProgram<'p> : Program<'p> {
+// then p does not depend on q.
+pub trait StratifiedProgram<'p>: Program<'p> {
     /// Returns an iterator of strata, in dependency order.
     /// TODO: consider Iterator<Iterator<PredicateSet>>.
     fn strata(&'p self) -> impl Iterator<Item = &'p PredicateSet<'p>>;
@@ -48,4 +48,3 @@ pub trait StratifiedProgram<'p> : Program<'p> {
     /// Returns the stratum (index into strata list).
     fn pred_to_index(&'p self, sym: &ast::PredicateSym) -> Option<usize>;
 }
-

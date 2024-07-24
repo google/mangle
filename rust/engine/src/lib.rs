@@ -14,8 +14,8 @@
 
 use mangle_ast as ast;
 
-use mangle_analysis as analysis;
 use anyhow::Result;
+use mangle_analysis as analysis;
 use mangle_factstore as factstore;
 
 use analysis::StratifiedProgram;
@@ -27,6 +27,5 @@ pub trait Engine<'e> {
         &'e self,
         store: &'e impl factstore::FactStore<'e>,
         program: &'p impl StratifiedProgram<'p>,
-    ) -> Result<()> ;
+    ) -> Result<()>;
 }
-

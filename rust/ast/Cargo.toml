@@ -11,3 +11,4 @@ readme = "README.md"
 
 [dependencies]
 bumpalo.workspace = true
+googletest.workspace = true

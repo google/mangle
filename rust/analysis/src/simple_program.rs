@@ -107,15 +107,13 @@ impl<'p> StratifiedProgram<'p> for SimpleStratifiedProgram<'p> {
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashSet;
-
     use super::*;
+    use std::collections::HashSet;
 
     static FOO: ast::PredicateSym = ast::PredicateSym {
         name: "foo",
         arity: Some(2),
     };
-
     static BAR: ast::PredicateSym = ast::PredicateSym {
         name: "bar",
         arity: Some(1),
@@ -145,15 +143,15 @@ mod test {
         };
         simple.add_clause(clause);
 
-        assert_eq!(vec![&FOO], simple.extensional_preds().collect::<Vec<_>>());
-        assert_eq!(vec![&BAR], simple.intensional_preds().collect::<Vec<_>>());
+        assert_eq!(simple.extensional_preds().collect::<Vec<_>>(), vec![&FOO]);
+        assert_eq!(simple.intensional_preds().collect::<Vec<_>>(), vec![&BAR]);
 
         let mut single_layer = HashSet::new();
         single_layer.insert(&BAR);
         let strata = vec![single_layer.clone()];
         let stratified = simple.stratify(strata.iter());
 
-        assert_eq!(Some(0), stratified.pred_to_index(&BAR));
-        assert_eq!(vec![&single_layer], stratified.strata().collect::<Vec<_>>())
+        assert_eq!(stratified.pred_to_index(&BAR), Some(0));
+        assert_eq!(stratified.strata().collect::<Vec<_>>(), vec![&single_layer])
     }
 }

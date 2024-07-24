@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use ast::Constraints;
 use bumpalo::Bump;
 /// Open the file in read-only mode with buffer.
@@ -31,7 +30,7 @@ mod quote;
 mod scan;
 mod token;
 
-pub use error::{ParseError, ErrorContext};
+pub use error::{ErrorContext, ParseError};
 use token::Token;
 
 pub struct Parser<'b, R>
@@ -136,7 +135,10 @@ where
     fn expect(&mut self, expected: Token) -> Result<()> {
         if expected != self.token {
             let error = ParseError::Unexpected(
-                self.sc.get_error_context(), expected.clone(), self.token.clone());
+                self.sc.get_error_context(),
+                expected.clone(),
+                self.token.clone(),
+            );
             return Err(anyhow!(error));
         }
         self.next_token()
@@ -170,7 +172,7 @@ where
 
         let name_atom = ast::Atom {
             sym: NAME_SYM,
-            args: &[&ast::BaseTerm::Const(ast::Const::String(name))]
+            args: &[&ast::BaseTerm::Const(ast::Const::String(name))],
         };
         let mut descr_atoms: Vec<&ast::Atom> = vec![ast::copy_atom(self.bump, &name_atom)];
         self.next_token()?;
@@ -735,7 +737,7 @@ mod test {
     #[test]
     fn test_base_term() -> Result<()> {
         let bump = Bump::new();
-        let input = "X 3 1.5 'foo' /foo fn:list() fn:list(/a) fn:list(/a, 3)";//.as_bytes();
+        let input = "X 3 1.5 'foo' /foo fn:list() fn:list(/a) fn:list(/a, 3)"; //.as_bytes();
         let mut p = make_parser(&bump, input);
         let mut got_base_terms = vec![];
         loop {

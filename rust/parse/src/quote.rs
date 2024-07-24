@@ -85,7 +85,7 @@ pub fn unquote(quoted_str: &str) -> anyhow::Result<DecodedSequence> {
             Ok(DecodedSequence::Bytes(quoted.into()))
         } else {
             Ok(DecodedSequence::String(quoted.to_string()))
-        }
+        };
     }
 
     // Otherwise process quoted string.

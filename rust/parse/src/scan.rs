@@ -15,9 +15,9 @@
 use anyhow::{anyhow, Result};
 use std::io;
 
+use crate::error::{ErrorContext, ScanError};
 use crate::quote::{unquote, DecodedSequence};
 use crate::token::Token;
-use crate::error::{ScanError, ErrorContext};
 
 // Scanner turns a stream of bytes into a stream of tokens.
 pub struct Scanner<R>
@@ -53,16 +53,16 @@ where
             col: 0,
             start_of_line: 0,
             text: String::new(),
-            path: path.to_string()
+            path: path.to_string(),
         }
     }
 
     pub fn get_error_context(&self) -> ErrorContext {
-        ErrorContext{ 
+        ErrorContext {
             path: self.path.clone(),
             line: self.line,
             col: self.col,
-            start_of_line: self.start_of_line
+            start_of_line: self.start_of_line,
         }
     }
 
@@ -254,8 +254,9 @@ where
         }
         macro_rules! next_byte_or_incomplete {
             ($self:expr) => {
-                $self.next_byte()?.ok_or_else(||
-                    anyhow!(ScanError::IncompleteUtf8(self.get_error_context())))
+                $self
+                    .next_byte()?
+                    .ok_or_else(|| anyhow!(ScanError::IncompleteUtf8(self.get_error_context())))
             };
         }
         let b = self.next_byte()?;

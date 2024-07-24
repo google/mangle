@@ -17,7 +17,7 @@ use bumpalo::Bump;
 use mangle_ast as ast;
 
 mod tablestore;
-pub use tablestore::{TableStoreImpl, TableConfig, TableStoreSchema};
+pub use tablestore::{TableConfig, TableStoreImpl, TableStoreSchema};
 
 /// Lifetime 'a is used for data held by this store.
 pub trait ReadOnlyFactStore<'a> {
@@ -88,7 +88,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use std::{collections::HashSet, cell::RefCell};
+    use std::{cell::RefCell, collections::HashSet};
 
     use super::*;
 
@@ -145,7 +145,9 @@ mod test {
             if self.contains(fact)? {
                 return Ok(false);
             }
-            self.facts.borrow_mut().push(ast::copy_atom(&self.bump, fact));
+            self.facts
+                .borrow_mut()
+                .push(ast::copy_atom(&self.bump, fact));
             Ok(true)
         }
 

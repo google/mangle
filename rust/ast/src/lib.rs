@@ -77,6 +77,17 @@ pub enum Term<'a> {
     Ineq(&'a BaseTerm<'a>, &'a BaseTerm<'a>),
 }
 
+impl<'a> std::fmt::Display for Term<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Term::Atom(atom) => write!(f, "{atom}"),
+            Term::NegAtom(atom) => write!(f, "!{atom}"),
+            Term::Eq(left, right) => write!(f, "{left} = {right}"),
+            Term::Ineq(left, right) => write!(f, "{left} != {right}"),
+        }
+    }
+}
+
 impl<'a> Term<'a> {
     pub fn apply_subst<'b>(
         &'a self,
@@ -173,14 +184,16 @@ impl<'a> std::fmt::Display for Const<'a> {
             Const::Float(v) => write!(f, "{v}"),
             Const::String(v) => write!(f, "{v}"),
             Const::Bytes(v) => write!(f, "{:?}", v),
-            Const::List(v) => write!(
-                f,
-                "[{}]",
-                v.iter()
-                    .map(|x| x.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
+            Const::List(v) => {
+                write!(
+                    f,
+                    "[{}]",
+                    v.iter()
+                        .map(|x| x.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
             Const::Map { keys: _, values: _ } => write!(f, "{{...}}"),
             Const::Struct {
                 fields: _,
@@ -396,9 +409,10 @@ fn copy_term<'dest, 'src>(bump: &'dest Bump, term: &'src Term<'src>) -> &'dest T
 mod tests {
     use super::*;
     use bumpalo::Bump;
+    use googletest::prelude::*;
 
     #[test]
-    fn it_works() {
+    fn copying_atom_works() {
         let bump = Bump::new();
         let foo = &*bump.alloc(BaseTerm::Const(Const::Name("/foo")));
         let bar = bump.alloc(PredicateSym {
@@ -410,6 +424,31 @@ mod tests {
             sym: *bar,
             args: &*bar_args,
         });
-        assert_eq!("bar(/foo)", head.to_string());
+        assert_that!("bar(/foo)", eq(head.to_string()));
+    }
+
+    #[test]
+    fn atom_display_works() {
+        let bar = BaseTerm::Const(Const::Name("/bar"));
+        assert_that!(bar, displays_as(eq("/bar")));
+
+        let atom = Atom {
+            sym: PredicateSym {
+                name: "foo",
+                arity: Some(1),
+            },
+            args: &[&bar],
+        };
+        assert_that!(atom, displays_as(eq("foo(/bar)")));
+
+        let tests = vec![
+            (Term::Atom(&atom), "foo(/bar)"),
+            (Term::NegAtom(&atom), "!foo(/bar)"),
+            (Term::Eq(&bar, &bar), "/bar = /bar"),
+            (Term::Ineq(&bar, &bar), "/bar != /bar"),
+        ];
+        for (term, s) in tests {
+            assert_that!(term, displays_as(eq(s)));
+        }
     }
 }

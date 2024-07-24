@@ -16,11 +16,11 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::{anyhow, Result};
 use crate::ast;
-use crate::FactStore;
 use crate::Bump;
+use crate::FactStore;
 use crate::ReadOnlyFactStore;
+use crate::{anyhow, Result};
 
 #[derive(Clone)]
 pub enum TableConfig<'a> {
@@ -33,7 +33,7 @@ pub type TableStoreSchema<'a> = HashMap<&'a ast::PredicateSym<'a>, TableConfig<'
 pub struct TableStoreImpl<'a> {
     schema: &'a TableStoreSchema<'a>,
     bump: Bump,
-    tables: RefCell<HashMap<&'a ast::PredicateSym<'a>, Vec<&'a ast::Atom<'a>>>>
+    tables: RefCell<HashMap<&'a ast::PredicateSym<'a>, Vec<&'a ast::Atom<'a>>>>,
 }
 
 impl<'a> ReadOnlyFactStore<'a> for TableStoreImpl<'a> {
@@ -52,7 +52,7 @@ impl<'a> ReadOnlyFactStore<'a> for TableStoreImpl<'a> {
         if let Some(table) = self.tables.borrow().get(&query.sym) {
             for fact in table {
                 if fact.matches(query.args) {
-                   cb(fact)?;
+                    cb(fact)?;
                 }
             }
             return Ok(());
@@ -67,7 +67,10 @@ impl<'a> ReadOnlyFactStore<'a> for TableStoreImpl<'a> {
     }
 
     fn estimate_fact_count(&self) -> u32 {
-        self.tables.borrow().values().fold(0, |x, y| x + y.len() as u32)
+        self.tables
+            .borrow()
+            .values()
+            .fold(0, |x, y| x + y.len() as u32)
     }
 }
 
@@ -75,16 +78,20 @@ impl<'a> FactStore<'a> for TableStoreImpl<'a> {
     fn add(&'a self, fact: &ast::Atom) -> Result<bool> {
         {
             if let Some(table) = self.tables.borrow().get(&fact.sym) {
-            if table.contains(&fact) {
-                return Ok(false);
-            }
+                if table.contains(&fact) {
+                    return Ok(false);
+                }
             } else {
-            return Err(anyhow!("no table for {:?}", fact.sym.name));
+                return Err(anyhow!("no table for {:?}", fact.sym.name));
+            }
         }
-    }
         // Consider checking that `fact` is, in fact, a fact.
         let fact = ast::copy_atom(&self.bump, fact);
-        self.tables.borrow_mut().get_mut(&fact.sym).unwrap().push(fact);
+        self.tables
+            .borrow_mut()
+            .get_mut(&fact.sym)
+            .unwrap()
+            .push(fact);
         Ok(true)
     }
 
@@ -102,6 +109,10 @@ impl<'a> TableStoreImpl<'a> {
         for entry in schema.keys() {
             tables.insert(*entry, vec![]);
         }
-        TableStoreImpl { schema, bump: Bump::new(), tables: RefCell::new(tables) }
+        TableStoreImpl {
+            schema,
+            bump: Bump::new(),
+            tables: RefCell::new(tables),
+        }
     }
 }

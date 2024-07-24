@@ -14,8 +14,8 @@
 
 use std::collections::HashMap;
 
-use crate::Result;
 use crate::Engine;
+use crate::Result;
 use bumpalo::Bump;
 
 pub struct Naive {}
@@ -48,7 +48,7 @@ impl<'e> Engine<'e> for Naive {
                             mangle_ast::Term::Atom(query) => {
                                 // TODO: eval ApplyFn terms.
                                 let query = query.apply_subst(&bump, &subst);
-                                
+
                                 // if all arguments are constants:
                                 let mut found = false;
                                 let _ = store.get(query, |atom| {
@@ -105,37 +105,45 @@ mod test {
     use crate::ast;
     use anyhow::Result;
     use mangle_analysis::SimpleProgram;
-    use mangle_factstore::{TableStoreImpl,TableStoreSchema, TableConfig};
-
+    use mangle_factstore::{TableConfig, TableStoreImpl, TableStoreSchema};
 
     #[test]
     pub fn test_naive() -> Result<()> {
-        let edge = ast::PredicateSym{name: "edge", arity: Some(2)};
-        let reachable = ast::PredicateSym{name: "reachable", arity: Some(2)};
+        let edge = ast::PredicateSym {
+            name: "edge",
+            arity: Some(2),
+        };
+        let reachable = ast::PredicateSym {
+            name: "reachable",
+            arity: Some(2),
+        };
         let schema: TableStoreSchema = HashMap::from([
             (&edge, TableConfig::InMemory),
-            (&reachable, TableConfig::InMemory)
+            (&reachable, TableConfig::InMemory),
         ]);
         let store = TableStoreImpl::new(&schema);
 
         use crate::factstore::FactStore;
-        store.add(&ast::Atom{ 
+        store.add(&ast::Atom {
             sym: edge,
             args: &[
-                &ast::BaseTerm::Const(ast::Const::Number(1)), 
-                &ast::BaseTerm::Const(ast::Const::Number(2))],
+                &ast::BaseTerm::Const(ast::Const::Number(1)),
+                &ast::BaseTerm::Const(ast::Const::Number(2)),
+            ],
         })?;
-        store.add(&ast::Atom{ 
+        store.add(&ast::Atom {
             sym: edge,
             args: &[
-                &ast::BaseTerm::Const(ast::Const::Number(2)), 
-                &ast::BaseTerm::Const(ast::Const::Number(3))],
+                &ast::BaseTerm::Const(ast::Const::Number(2)),
+                &ast::BaseTerm::Const(ast::Const::Number(3)),
+            ],
         })?;
-        store.add(&ast::Atom{ 
+        store.add(&ast::Atom {
             sym: edge,
             args: &[
-                &ast::BaseTerm::Const(ast::Const::Number(3)), 
-                &ast::BaseTerm::Const(ast::Const::Number(4))],
+                &ast::BaseTerm::Const(ast::Const::Number(3)),
+                &ast::BaseTerm::Const(ast::Const::Number(4)),
+            ],
         })?;
 
         let bump = Bump::new();
@@ -162,13 +170,16 @@ mod test {
                 sym: reachable,
                 args: &[&ast::BaseTerm::Variable("X"), &ast::BaseTerm::Variable("Z")],
             },
-            premises: &[&ast::Term::Atom(&ast::Atom {
-                sym: edge,
-                args: &[&ast::BaseTerm::Variable("X"), &ast::BaseTerm::Variable("Y")],
-            }), &ast::Term::Atom(&ast::Atom {
-                sym: reachable,
-                args: &[&ast::BaseTerm::Variable("Y"), &ast::BaseTerm::Variable("X")],
-            })],
+            premises: &[
+                &ast::Term::Atom(&ast::Atom {
+                    sym: edge,
+                    args: &[&ast::BaseTerm::Variable("X"), &ast::BaseTerm::Variable("Y")],
+                }),
+                &ast::Term::Atom(&ast::Atom {
+                    sym: reachable,
+                    args: &[&ast::BaseTerm::Variable("Y"), &ast::BaseTerm::Variable("X")],
+                }),
+            ],
             transform: &[],
         });
 
@@ -177,16 +188,19 @@ mod test {
         let strata = vec![single_layer.clone()];
         let stratified_program = simple.stratify(strata.iter());
 
-        let engine = Naive{};
+        let engine = Naive {};
         engine.eval(&store, &stratified_program)?;
 
         use crate::factstore::ReadOnlyFactStore;
-        assert!(store.contains(&ast::Atom{ 
-            sym: edge,
-            args: &[
-                &ast::BaseTerm::Const(ast::Const::Number(3)), 
-                &ast::BaseTerm::Const(ast::Const::Number(4))],
-        }).unwrap());
+        assert!(store
+            .contains(&ast::Atom {
+                sym: edge,
+                args: &[
+                    &ast::BaseTerm::Const(ast::Const::Number(3)),
+                    &ast::BaseTerm::Const(ast::Const::Number(4))
+                ],
+            })
+            .unwrap());
         Ok(())
     }
 }

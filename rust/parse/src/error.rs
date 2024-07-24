@@ -50,5 +50,3 @@ impl std::fmt::Debug for ErrorContext {
         write!(f, "{}:{}:{}", self.path, self.line, self.col)
     }
 }
-
-

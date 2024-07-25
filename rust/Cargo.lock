@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "mangle-analysis"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bumpalo",
  "mangle-ast",
@@ -63,7 +63,7 @@ dependencies = [
 
 [[package]]
 name = "mangle-ast"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bumpalo",
  "googletest",
@@ -71,7 +71,7 @@ dependencies = [
 
 [[package]]
 name = "mangle-engine"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "bumpalo",
@@ -82,7 +82,7 @@ dependencies = [
 
 [[package]]
 name = "mangle-factstore"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "bumpalo",
@@ -91,7 +91,7 @@ dependencies = [
 
 [[package]]
 name = "mangle-parse"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "bumpalo",

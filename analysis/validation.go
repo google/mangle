@@ -1339,6 +1339,27 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 
 		case symbols.StringConcatenate.Symbol:
 			return ast.StringBound
+
+		case symbols.Plus.Symbol:
+			fallthrough
+		case symbols.Minus.Symbol:
+			fallthrough
+		case symbols.Mult.Symbol:
+			fallthrough
+		case symbols.Div.Symbol:
+			for _, arg := range z.Args {
+				if ast.NumberBound != boundOfArg(arg, varRanges, nameTrie) {
+					return symbols.EmptyType
+				}
+			}
+			return ast.NumberBound
+		case symbols.FloatDiv.Symbol:
+			for _, arg := range z.Args {
+				if ast.Float64Bound != boundOfArg(arg, varRanges, nameTrie) {
+					return symbols.EmptyType
+				}
+			}
+			return ast.Float64Bound
 		}
 
 		if fnTpe, ok := builtin.GetBuiltinFunctionType(z.Function); ok {

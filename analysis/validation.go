@@ -702,7 +702,14 @@ func (a *Analyzer) checkPredicates(clause ast.Clause) error {
 			}
 		}
 
-		return fmt.Errorf("in clause %v could not find predicate %v", clause, sym)
+		for declared := range a.decl {
+			if declared.Symbol == sym.Symbol {
+				// We know `a.decl[sym] == nil`, so it is .Arity that does not match.
+				return fmt.Errorf("in clause %q calling predicate %v with %d arguments, expected %d",
+					clause, declared.Symbol, sym.Arity, declared.Arity)
+			}
+		}
+		return fmt.Errorf("in clause %q could not find predicate %v", clause, sym)
 	}, clause)
 }
 

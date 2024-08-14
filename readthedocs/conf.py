@@ -16,5 +16,6 @@ author = 'The Mangle Authors'
 source_suffix = ['.md']
 extensions = ['myst_parser']
 
+html_theme = 'bizstyle'
 templates_path = ['_templates']
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'README.md']

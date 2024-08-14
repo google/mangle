@@ -94,15 +94,16 @@ A type expression is first-order if it does not contain function types or
 relation types. What follows is a description of type constants and functions
 that can be used to build first-order type expressions.
 
-The following type constants:
+The following type constants describe first-order types:
 
 *   `/any`
 *   `/number`
 *   `/float64`
 *   `/string`
+*   `/bytes`
 
-The following type-level functions, where all arguments are first-order type
-expressions:
+The following type-level functions describe first-order types, assuming that
+all arguments are first-order type expressions:
 
 *   `fn:List(T)` type of list
 *   `fn:Pair(S, T)` type of pairs

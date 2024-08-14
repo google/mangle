@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Binary shell is a shell for interactive interpreter.
+// Binary mg is a shell for the interactive interpreter.
 package main
 
 import (

@@ -4,7 +4,7 @@
 
 This section describes the Mangle data model. Mangle includes datalog
 as a language fragment. This means you can write datalog programs in Mangle,
-but you can also write programs that can do more that datalog.
+but you can also write programs that can do more than datalog.
 
 This is an important distinction: as expressed in the
 [Rule of Least Power](http://www.w3.org/2001/tag/doc/leastPower), there

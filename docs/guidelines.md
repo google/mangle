@@ -10,18 +10,20 @@ Documentation falls into four categories:
 We need all of these.
 
 One design goal of Mangle is to distinguish between language specification
-and its implementation. This distinction has the following benefits:
+and its implementation(s). This distinction has the following benefits:
 
 * It actually enables having multiple implementations.
 
 * It help users understand the difference between language specification
- and implementation. It is not trivial.
+ and implementation. This is not trivial.
 
 * It helps users understand the concepts on an abstract level, independent
 of any particular implementation. The slogan is "You can write Mangle in any
 language."
 
-## Plan: Move user docs to readthedocs.io
+## User docs at mangle.readthedocs.io
 
-Please do not link to github pages. User documentation will eventually move to
-[http://mangle.readthedocs.io](http://mangle.readthedocs.io).
+While a language specification and reference material need to be precise and
+complete, user docs need to be approachable. For this reason, user documentation is
+separated to [mangle.readthedocs.io](http://mangle.readthedocs.io),
+with sources in the `readthedocs` directory.

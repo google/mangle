@@ -1,6 +1,8 @@
 # Documentation
 
-This directory has some documentation in markdown format.
+User documentation is [mangle.readthedocs.io](https://mangle.readthedocs.io).
+This directory has language specification and reference material,
+in markdown format.
 
 There is also a page with [guidelines](guidelines.md) for writing
 documentation.

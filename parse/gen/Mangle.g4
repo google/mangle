@@ -52,7 +52,7 @@ clause
     ;
 
 clauseBody
-    : literalOrFml (',' literalOrFml)* ','? ('|>' transform)?
+    : literalOrFml (',' literalOrFml)* ','? ('|>' transform)*
     ;
 
 transform

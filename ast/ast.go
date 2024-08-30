@@ -892,6 +892,7 @@ func (f FunctionSym) String() string {
 // Transform represents a transformation of the relation of a clause. e.g. fn:max or fn:group_by
 type Transform struct {
 	Statements []TransformStmt
+	Next       *Transform
 }
 
 // IsLetTransform returns true if transform is a let-transform.

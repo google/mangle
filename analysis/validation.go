@@ -569,7 +569,10 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 		return fmt.Errorf("variable %v used in transform %v does not appear in clause %v", v, *clause.Transform, clause)
 	}
 
-	if groupByVars, ok := isGroupByTransform(clause); ok {
+	if hasMultipleTransforms(clause) {
+		return fmt.Errorf("composing multiple transforms not implemented yet %v", clause)
+	}
+	if groupByVars, ok := hasGroupByTransform(clause); ok {
 		groupByStmt := clause.Transform.Statements[0]
 		if groupByStmt.Var != nil {
 			return fmt.Errorf("do-transforms cannot have a variable %v", clause)
@@ -597,7 +600,7 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 			return fmt.Errorf("head variable %v is neither part of group_by nor aggregated: %v", v, clause.Transform)
 		}
 	}
-	if isLetTransform(clause) {
+	if hasLetTransform(clause) {
 		for _, stmt := range clause.Transform.Statements[1:] {
 			if stmt.Var == nil {
 				return fmt.Errorf("all statements in a let transform have to be let-statements %v", clause)
@@ -628,11 +631,15 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 	return nil
 }
 
-func isLetTransform(clause ast.Clause) bool {
+func hasMultipleTransforms(clause ast.Clause) bool {
+	return clause.Transform != nil && clause.Transform.Next != nil
+}
+
+func hasLetTransform(clause ast.Clause) bool {
 	return clause.Transform != nil && clause.Transform.Statements[0].Var != nil
 }
 
-func isGroupByTransform(clause ast.Clause) (map[ast.Variable]bool, bool) {
+func hasGroupByTransform(clause ast.Clause) (map[ast.Variable]bool, bool) {
 	if clause.Transform == nil {
 		return nil, false
 	}

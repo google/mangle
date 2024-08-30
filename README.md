@@ -144,8 +144,8 @@ If you want to regenerate the parser sources, you need to set up ANTLR first.
 This requires a Java runtime environment.
 
 ```
-wget http://www.antlr.org/download/antlr-4.13.1-complete.jar
-alias antlr='java -jar $PWD/antlr-4.13.1-complete.jar'
+wget http://www.antlr.org/download/antlr-4.13.2-complete.jar
+alias antlr='java -jar $PWD/antlr-4.13.2-complete.jar'
 antlr -Dlanguage=Go -package gen -o ./ parse/gen/Mangle.g4 -visitor
 ```
 

@@ -345,6 +345,32 @@ func TestParseUnitPositive(t *testing.T) {
 						{nil, ast.ApplyFn{ast.FunctionSym{"fn:party", 0}, nil}},
 						{&ast.Variable{"Z"}, ast.ApplyFn{ast.FunctionSym{"fn:foo", 1}, []ast.BaseTerm{ast.Variable{"X"}}}},
 					},
+					nil,
+				},
+			},
+			},
+		},
+		{
+			name: "one clause, with body and one do-transform and let-transform.",
+			str:  "foo(X, ZZ) :- bar(X) |> do fn:party(), let Z = fn:foo(X) |> let ZZ = fn:mul(Z, 2).",
+			want: []ast.Clause{{
+				ast.NewAtom("foo", ast.Variable{"X"}, ast.Variable{"ZZ"}),
+				[]ast.Term{ast.NewAtom("bar", ast.Variable{"X"})},
+				&ast.Transform{
+					[]ast.TransformStmt{
+						{nil, ast.ApplyFn{ast.FunctionSym{"fn:party", 0}, nil}},
+						{&ast.Variable{"Z"}, ast.ApplyFn{ast.FunctionSym{"fn:foo", 1}, []ast.BaseTerm{ast.Variable{"X"}}}},
+					},
+					&ast.Transform{
+						[]ast.TransformStmt{
+							{
+								&ast.Variable{"ZZ"}, ast.ApplyFn{
+									ast.FunctionSym{"fn:mul", 2},
+									[]ast.BaseTerm{ast.Variable{"Z"}, ast.Number(2)}},
+							},
+						},
+						nil,
+					},
 				},
 			},
 			},
@@ -359,6 +385,7 @@ func TestParseUnitPositive(t *testing.T) {
 					[]ast.TransformStmt{
 						{&ast.Variable{"Y"}, ast.ApplyFn{ast.FunctionSym{"fn:plus", 2}, []ast.BaseTerm{ast.Variable{"X"}, ast.Number(1)}}},
 					},
+					nil,
 				},
 			}},
 		},

@@ -326,10 +326,18 @@ func (p Parser) VisitClauseBody(ctx *gen.ClauseBodyContext) any {
 		premises = append(premises, p.Visit(litOrFml).(ast.Term))
 	}
 	clause := ast.NewClause(ast.Atom{}, premises)
-	if ctx.PIPEGREATER() != nil {
-		t := p.Visit(ctx.Transform()).(ast.Transform)
-		clause.Transform = &t
+	var lastTransform *ast.Transform = nil
+	for _, l := range ctx.AllTransform() {
+		t := p.Visit(l).(ast.Transform)
+		if clause.Transform == nil {
+			clause.Transform = &t
+			lastTransform = &t
+		} else {
+			lastTransform.Next = &t
+			lastTransform = &t
+		}
 	}
+
 	return clause
 }
 
@@ -348,7 +356,7 @@ func (p Parser) VisitTransform(ctx *gen.TransformContext) any {
 	for _, l := range ctx.AllLetStmt() {
 		stmts = append(stmts, p.Visit(l).(ast.TransformStmt))
 	}
-	return ast.Transform{stmts}
+	return ast.Transform{stmts, nil}
 }
 
 // VisitLetStmt visits a parse tree produced by MangleParser#letStmt.

@@ -202,6 +202,7 @@ func TestReducerMinMaxSum(t *testing.T) {
 		wantMin ast.Constant
 		wantMax ast.Constant
 		wantSum ast.Constant
+		wantAvg ast.Constant
 	}{
 		{
 			rows: [][]ast.Constant{
@@ -212,12 +213,16 @@ func TestReducerMinMaxSum(t *testing.T) {
 			wantMin: ast.Number(1),
 			wantMax: ast.Number(3),
 			wantSum: ast.Number(5),
+			wantAvg: ast.Float64((float64(1) + float64(1) + float64(3)) / float64(3)),
 		},
+		// Note that EvalReducerFn is never called with empty list of rows.
+		// The reducer functions may be called in user code though.
 		{
 			rows:    nil,
 			wantMin: ast.Number(math.MaxInt64),
 			wantMax: ast.Number(math.MinInt64),
 			wantSum: ast.Number(0),
+			wantAvg: ast.Float64(math.NaN()),
 		},
 	}
 	for _, test := range tests {
@@ -245,6 +250,13 @@ func TestReducerMinMaxSum(t *testing.T) {
 		}
 		if test.wantSum != gotSum {
 			t.Errorf("EvalReduceFn(Sum, %v)=%v want %v", rows, gotSum, test.wantSum)
+		}
+		gotAvg, err := EvalReduceFn(ast.ApplyFn{symbols.Avg, []ast.BaseTerm{ast.Variable{"X"}}}, rows)
+		if err != nil {
+			t.Fatalf("EvalReduceFn(Avg, %v) failed with %v", rows, err)
+		}
+		if test.wantAvg != gotAvg {
+			t.Errorf("EvalReduceFn(Avg, %v)=%v want %v", rows, gotAvg, test.wantAvg)
 		}
 	}
 }

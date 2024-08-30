@@ -104,6 +104,8 @@ var (
 	FloatSum = ast.FunctionSym{"fn:float:sum", 1}
 	// Count reduces a set { x_1,...x_n } to { n }.
 	Count = ast.FunctionSym{"fn:count", 0}
+	// Avg reduces a set { x_1,...x_n } to { fn:sum(x_1,...,x_n) /  n }.
+	Avg = ast.FunctionSym{"fn:avg", 1}
 
 	// GroupBy groups all tuples by the values of key variables, e.g. 'group_by(X)'.
 	// An empty group_by() treats the whole relation as a group.

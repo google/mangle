@@ -648,6 +648,23 @@ func EvalReduceFn(reduceFn ast.ApplyFn, rows []ast.ConstSubstList) (ast.Constant
 		return *tuples, nil
 	case symbols.Count.Symbol:
 		return ast.Number(int64(len(rows))), nil
+	case symbols.Avg.Symbol:
+		count := len(rows)
+		if count == 0 {
+			return ast.Float64(math.NaN()), nil
+		}
+		v := reduceFn.Args[0].(ast.Variable)
+		return evalAvg(func(cbNext func(ast.Constant) error, cbNil func() error) error {
+			for _, subst := range rows {
+				if num, ok := subst.Get(v).(ast.Constant); ok {
+					if err := cbNext(num); err != nil {
+						return err
+					}
+				}
+			}
+			return cbNil()
+		}, count)
+
 	case symbols.Max.Symbol:
 		v := reduceFn.Args[0].(ast.Variable)
 		return evalMax(func(cbNext func(ast.Constant) error, cbNil func() error) error {
@@ -876,4 +893,23 @@ func evalFloatSum(iter func(func(ast.Constant) error, func() error) error) (ast.
 		return ast.Constant{}, err
 	}
 	return ast.Float64(sum), nil
+}
+
+func evalAvg(iter func(func(ast.Constant) error, func() error) error, n int) (ast.Constant, error) {
+	var sum float64
+	if err := iter(func(c ast.Constant) error {
+		num, err := c.Float64Value()
+		if err != nil {
+			fnum, err := c.NumberValue()
+			if err != nil {
+				return err
+			}
+			num = float64(fnum)
+		}
+		sum += num
+		return nil
+	}, func() error { return nil }); err != nil {
+		return ast.Constant{}, err
+	}
+	return ast.Float64(sum / float64(n)), nil
 }

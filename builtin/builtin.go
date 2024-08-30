@@ -47,12 +47,13 @@ var (
 		symbols.MatchEntry:     {ast.ArgModeInput, ast.ArgModeInput, ast.ArgModeOutput},
 	}
 
-	varX         = ast.Variable{"X"}
-	varY         = ast.Variable{"Y"}
-	listOfX      = symbols.NewListType(varX)
-	listOfNum    = symbols.NewListType(ast.NumberBound)
-	listOfFloats = symbols.NewListType(ast.Float64Bound)
-	emptyType    = symbols.NewUnionType()
+	varX              = ast.Variable{"X"}
+	varY              = ast.Variable{"Y"}
+	listOfX           = symbols.NewListType(varX)
+	listOfNum         = symbols.NewListType(ast.NumberBound)
+	listOfFloats      = symbols.NewListType(ast.Float64Bound)
+	listOfNumOrFloats = symbols.NewListType(symbols.NewUnionType(ast.NumberBound, ast.Float64Bound))
+	emptyType         = symbols.NewUnionType()
 
 	// Functions has all built-in functions.
 	Functions = map[ast.FunctionSym]ast.BaseTerm{
@@ -96,8 +97,9 @@ var (
 		symbols.Sum:             symbols.NewFunType(ast.NumberBound /* <= */, listOfNum),
 		symbols.FloatMax:        symbols.NewFunType(ast.Float64Bound /* <= */, listOfFloats),
 		symbols.FloatMin:        symbols.NewFunType(ast.Float64Bound /* <= */, listOfFloats),
-		symbols.FloatSum:        symbols.NewFunType(ast.Float64Bound /* <= */, listOfFloats),
+		symbols.FloatSum:        symbols.NewFunType(ast.Float64Bound /* <= */, listOfNumOrFloats),
 		symbols.Count:           symbols.NewFunType(ast.NumberBound /* <= */, listOfX),
+		symbols.Avg:             symbols.NewFunType(ast.Float64Bound /* <= */, listOfFloats),
 	}
 
 	// errFound is used for exiting a loop

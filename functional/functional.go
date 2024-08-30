@@ -18,11 +18,11 @@ package functional
 import (
 	"errors"
 	"fmt"
+	"iter"
 	"math"
 	"strconv"
 	"strings"
 
-	"go.uber.org/multierr"
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/symbols"
 )
@@ -85,16 +85,15 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		if l := len(evaluatedArgs); l != 2 {
 			return ast.Constant{}, fmt.Errorf("expected 2 list arguments, got %d argument(s)", l)
 		}
-		list := evaluatedArgs[0]
-		if list.Type != ast.ListShape {
+		listElems, err := evaluatedArgs[0].ListSeq()
+		if err != nil {
 			return ast.Constant{}, fmt.Errorf("expected list got %v (%v) in %v (subst %v)", evaluatedArgs[0], evaluatedArgs[0].Type, applyFn, subst)
 		}
 		elem := evaluatedArgs[1]
 		var res []ast.Constant
-		list.ListValues(func(c ast.Constant) error {
+		for c := range listElems {
 			res = append(res, c)
-			return nil
-		}, func() error { return nil })
+		}
 		res = append(res, elem)
 		return ast.List(res), nil
 
@@ -102,22 +101,15 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		if l := len(evaluatedArgs); l != 2 {
 			return ast.Constant{}, fmt.Errorf("expected 2 list arguments, got %d argument(s)", l)
 		}
-		list := evaluatedArgs[0]
-		elem := evaluatedArgs[1]
-		err, loopErr := list.ListValues(func(c ast.Constant) error {
-			if c.Equals(elem) {
-				return errFound
-			}
-			return nil
-		}, func() error { return nil })
+		listElems, err := evaluatedArgs[0].ListSeq()
 		if err != nil {
-			return ast.Constant{}, err
+			return ast.Constant{}, fmt.Errorf("expected list got %v (%v) in %v (subst %v)", evaluatedArgs[0], evaluatedArgs[0].Type, applyFn, subst)
 		}
-		if errors.Is(loopErr, errFound) {
-			return ast.TrueConstant, nil
-		}
-		if loopErr != nil {
-			return ast.Constant{}, loopErr
+		elem := evaluatedArgs[1]
+		for c := range listElems {
+			if c.Equals(elem) {
+				return ast.TrueConstant, nil
+			}
 		}
 		return ast.FalseConstant, nil
 
@@ -144,14 +136,13 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		if l := len(evaluatedArgs); l != 1 {
 			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
 		}
-		list := evaluatedArgs[0]
-		var length int64
-		err, _ := list.ListValues(func(c ast.Constant) error {
-			length++
-			return nil
-		}, func() error { return nil })
+		listElems, err := evaluatedArgs[0].ListSeq()
 		if err != nil {
-			return ast.Constant{}, err
+			return ast.Constant{}, fmt.Errorf("expected list got %v (%v) in %v (subst %v)", evaluatedArgs[0], evaluatedArgs[0].Type, applyFn, subst)
+		}
+		var length int64
+		for range listElems {
+			length++
 		}
 		return ast.Number(length), nil
 
@@ -214,55 +205,41 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		if l := len(evaluatedArgs); l != 1 {
 			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
 		}
-		list := evaluatedArgs[0]
-		return evalMax(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if err1, err2 := list.ListValues(cbNext, cbNil); err1 != nil || err2 != nil {
-				return multierr.Combine(err1, err2)
-			}
-			return nil
-		})
+		listElems, err := evaluatedArgs[0].ListSeq()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return evalMax(listElems)
 
 	case symbols.FloatMax.Symbol:
 		if l := len(evaluatedArgs); l != 1 {
 			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
 		}
-		list := evaluatedArgs[0]
+		listElems, err := evaluatedArgs[0].ListSeq()
 		if err != nil {
 			return ast.Constant{}, err
 		}
-		return evalFloatMax(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if err1, err2 := list.ListValues(cbNext, cbNil); err1 != nil || err2 != nil {
-				return multierr.Combine(err1, err2)
-			}
-			return nil
-		})
+		return evalFloatMax(listElems)
 
 	case symbols.Min.Symbol:
 		if l := len(evaluatedArgs); l != 1 {
 			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
 		}
-		list := evaluatedArgs[0]
+		listElems, err := evaluatedArgs[0].ListSeq()
 		if err != nil {
 			return ast.Constant{}, err
 		}
-		return evalMin(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if err1, err2 := list.ListValues(cbNext, cbNil); err1 != nil || err2 != nil {
-				return multierr.Combine(err1, err2)
-			}
-			return nil
-		})
+		return evalMin(listElems)
 
 	case symbols.FloatMin.Symbol:
 		if l := len(evaluatedArgs); l != 1 {
 			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
 		}
-		list := evaluatedArgs[0]
-		return evalFloatMin(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if err1, err2 := list.ListValues(cbNext, cbNil); err1 != nil || err2 != nil {
-				return multierr.Combine(err1, err2)
-			}
-			return nil
-		})
+		listElems, err := evaluatedArgs[0].ListSeq()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return evalFloatMin(listElems)
 
 	case symbols.NumberToString.Symbol:
 		if l := len(evaluatedArgs); l != 1 {
@@ -317,31 +294,21 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		if l := len(evaluatedArgs); l != 1 {
 			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
 		}
-		list := evaluatedArgs[0]
+		listElems, err := evaluatedArgs[0].ListSeq()
 		if err != nil {
 			return ast.Constant{}, err
 		}
-		return evalSum(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if err1, err2 := list.ListValues(cbNext, cbNil); err1 != nil || err2 != nil {
-				return multierr.Combine(err1, err2)
-			}
-			return nil
-		})
+		return evalSum(listElems)
 
 	case symbols.FloatSum.Symbol:
 		if l := len(evaluatedArgs); l != 1 {
 			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
 		}
-		list := evaluatedArgs[0]
+		listElems, err := evaluatedArgs[0].ListSeq()
 		if err != nil {
 			return ast.Constant{}, err
 		}
-		return evalFloatSum(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			if err1, err2 := list.ListValues(cbNext, cbNil); err1 != nil || err2 != nil {
-				return multierr.Combine(err1, err2)
-			}
-			return nil
-		})
+		return evalFloatSum(listElems)
 
 	case symbols.ListGet.Symbol:
 		if l := len(evaluatedArgs); l != 2 {
@@ -599,6 +566,18 @@ func evalMinus(args []ast.Constant) (int64, error) {
 // EvalReduceFn evaluates a combiner (reduce) function.
 func EvalReduceFn(reduceFn ast.ApplyFn, rows []ast.ConstSubstList) (ast.Constant, error) {
 	distinct := false
+	rowsIter := func(v ast.Variable) iter.Seq[ast.Constant] {
+		return func(yield func(ast.Constant) bool) {
+			for _, subst := range rows {
+				if num, ok := subst.Get(v).(ast.Constant); ok {
+					if ok := yield(num); !ok {
+						return
+					}
+				}
+			}
+		}
+	}
+
 	switch reduceFn.Function.Symbol {
 	case symbols.CollectDistinct.Symbol:
 		distinct = true
@@ -649,97 +628,27 @@ func EvalReduceFn(reduceFn ast.ApplyFn, rows []ast.ConstSubstList) (ast.Constant
 	case symbols.Count.Symbol:
 		return ast.Number(int64(len(rows))), nil
 	case symbols.Avg.Symbol:
-		count := len(rows)
-		if count == 0 {
-			return ast.Float64(math.NaN()), nil
-		}
 		v := reduceFn.Args[0].(ast.Variable)
-		return evalAvg(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			for _, subst := range rows {
-				if num, ok := subst.Get(v).(ast.Constant); ok {
-					if err := cbNext(num); err != nil {
-						return err
-					}
-				}
-			}
-			return cbNil()
-		}, count)
+		return evalAvg(rowsIter(v))
 
 	case symbols.Max.Symbol:
 		v := reduceFn.Args[0].(ast.Variable)
-		return evalMax(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			for _, subst := range rows {
-				if num, ok := subst.Get(v).(ast.Constant); ok {
-					if err := cbNext(num); err != nil {
-						return err
-					}
-				}
-			}
-			if err := cbNil(); err != nil {
-				return err
-			}
-			return nil
-		})
+		return evalMax(rowsIter(v))
 	case symbols.FloatMax.Symbol:
 		v := reduceFn.Args[0].(ast.Variable)
-		return evalFloatMax(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			for _, subst := range rows {
-				if num, ok := subst.Get(v).(ast.Constant); ok {
-					if err := cbNext(num); err != nil {
-						return err
-					}
-				}
-			}
-			return cbNil()
-		})
+		return evalFloatMax(rowsIter(v))
 	case symbols.Min.Symbol:
 		v := reduceFn.Args[0].(ast.Variable)
-		return evalMin(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			for _, subst := range rows {
-				if num, ok := subst.Get(v).(ast.Constant); ok {
-					if err := cbNext(num); err != nil {
-						return err
-					}
-				}
-			}
-			return cbNil()
-		})
+		return evalMin(rowsIter(v))
 	case symbols.FloatMin.Symbol:
 		v := reduceFn.Args[0].(ast.Variable)
-		return evalFloatMin(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			for _, subst := range rows {
-				if num, ok := subst.Get(v).(ast.Constant); ok {
-					if err := cbNext(num); err != nil {
-						return err
-					}
-				}
-			}
-			return cbNil()
-		})
+		return evalFloatMin(rowsIter(v))
 	case symbols.Sum.Symbol:
 		v := reduceFn.Args[0].(ast.Variable)
-		return evalSum(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			for _, subst := range rows {
-				if num, ok := subst.Get(v).(ast.Constant); ok {
-					if err := cbNext(num); err != nil {
-						return err
-					}
-				}
-			}
-			return cbNil()
-		})
+		return evalSum(rowsIter(v))
 	case symbols.FloatSum.Symbol:
 		v := reduceFn.Args[0].(ast.Variable)
-		return evalFloatSum(func(cbNext func(ast.Constant) error, cbNil func() error) error {
-			for _, subst := range rows {
-				if num, ok := subst.Get(v).(ast.Constant); ok {
-					if err := cbNext(num); err != nil {
-						return err
-					}
-				}
-			}
-			return cbNil()
-		})
+		return evalFloatSum(rowsIter(v))
 	default:
 		return ast.Constant{}, fmt.Errorf("unknown reducer %v", reduceFn.Function)
 	}
@@ -797,119 +706,103 @@ func evalToString(val ast.Constant) (ast.Constant, error) {
 	return res, nil
 }
 
-func evalMax(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
+func evalMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 	max := int64(math.MinInt64)
-	if err := iter(func(c ast.Constant) error {
+	for c := range it {
 		num, err := c.NumberValue()
 		if err != nil {
-			return err
+			return ast.Constant{}, err
 		}
 		if num > max {
 			max = num
 		}
-		return nil
-	}, func() error { return nil }); err != nil {
-		return ast.Constant{}, err
 	}
 	return ast.Number(max), nil
 }
 
-func evalFloatMax(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
+func evalFloatMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 	max := -1 * math.MaxFloat64
-	if err := iter(func(c ast.Constant) error {
+	for c := range it {
 		num, err := c.Float64Value()
 		if err != nil {
-			return err
+			return ast.Constant{}, err
 		}
 		if num > max {
 			max = num
 		}
-		return nil
-	}, func() error { return nil }); err != nil {
-		return ast.Constant{}, err
 	}
 	return ast.Float64(max), nil
 }
 
-func evalMin(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
+func evalMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 	min := int64(math.MaxInt64)
-	if err := iter(func(c ast.Constant) error {
+	for c := range it {
 		num, err := c.NumberValue()
 		if err != nil {
-			return err
+			return ast.Constant{}, err
 		}
 		if num < min {
 			min = num
 		}
-		return nil
-	}, func() error { return nil }); err != nil {
-		return ast.Constant{}, err
 	}
 	return ast.Number(min), nil
 }
 
-func evalFloatMin(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
+func evalFloatMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 	min := math.MaxFloat64
-	if err := iter(func(c ast.Constant) error {
+	for c := range it {
 		floatNum, err := c.Float64Value()
 		if err != nil {
-			return err
+			return ast.Constant{}, err
 		}
 		if floatNum < min {
 			min = floatNum
 		}
-		return nil
-	}, func() error { return nil }); err != nil {
-		return ast.Constant{}, err
 	}
 	return ast.Float64(min), nil
 }
 
-func evalSum(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
+func evalSum(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 	var sum int64
-	if err := iter(func(c ast.Constant) error {
+	for c := range it {
 		num, err := c.NumberValue()
 		if err != nil {
-			return err
+			return ast.Constant{}, err
 		}
 		sum += num
-		return nil
-	}, func() error { return nil }); err != nil {
-		return ast.Constant{}, err
 	}
 	return ast.Number(sum), nil
 }
 
-func evalFloatSum(iter func(func(ast.Constant) error, func() error) error) (ast.Constant, error) {
+func evalFloatSum(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 	var sum float64
-	if err := iter(func(c ast.Constant) error {
+	for c := range it {
 		num, err := c.Float64Value()
 		if err != nil {
-			return err
+			return ast.Constant{}, err
 		}
 		sum += num
-		return nil
-	}, func() error { return nil }); err != nil {
-		return ast.Constant{}, err
 	}
 	return ast.Float64(sum), nil
 }
 
-func evalAvg(iter func(func(ast.Constant) error, func() error) error, n int) (ast.Constant, error) {
+func evalAvg(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 	var sum float64
-	if err := iter(func(c ast.Constant) error {
+	var n int
+	for c := range it {
+		n++
 		num, err := c.Float64Value()
 		if err != nil {
 			fnum, err := c.NumberValue()
 			if err != nil {
-				return err
+				return ast.Constant{}, err
 			}
 			num = float64(fnum)
 		}
 		sum += num
-		return nil
-	}, func() error { return nil }); err != nil {
-		return ast.Constant{}, err
+	}
+	if n == 0 {
+		return ast.Float64(math.NaN()), nil
 	}
 	return ast.Float64(sum / float64(n)), nil
 }

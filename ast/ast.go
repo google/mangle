@@ -19,6 +19,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash/fnv"
+	"iter"
 	"math"
 	"regexp"
 	"sort"
@@ -419,6 +420,20 @@ func (c Constant) ListValues(cbCons func(Constant) error, cbNil func() error) (e
 		}
 	}
 	return nil, cbNil()
+}
+
+// ListSeq returns an iterator over the list elements.
+func (c Constant) ListSeq() (iter.Seq[Constant], error) {
+	if c.Type != ListShape {
+		return nil, fmt.Errorf("not a list constant %v", c)
+	}
+	return func(yield func(Constant) bool) {
+		for ; !c.IsListNil(); c = *c.snd {
+			if ok := yield(*c.fst); !ok {
+				return
+			}
+		}
+	}, nil
 }
 
 // MapValues provides the entries of the map via key-value callback.

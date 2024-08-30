@@ -1,6 +1,6 @@
 module github.com/google/mangle
 
-go 1.20
+go 1.23
 
 require (
 	bitbucket.org/creachadair/stringset v0.0.11

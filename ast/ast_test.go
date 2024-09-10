@@ -154,6 +154,25 @@ func TestEqualsStructured(t *testing.T) {
 	}
 }
 
+func TestEqualsSlice(t *testing.T) {
+	tests := []struct {
+		left  []Constant
+		right []Constant
+		want  bool
+	}{
+		{[]Constant{fooName}, []Constant{}, false},
+		{[]Constant{fooName, fooName}, []Constant{fooName, fooName}, true},
+		{[]Constant{fooName, fooName}, []Constant{fooName}, false},
+		{[]Constant{fooFooPair, fooFooList}, []Constant{fooFooPair, fooFooList}, true},
+	}
+	for _, testcase := range tests {
+		got := EqualsConstants(testcase.left, testcase.right)
+		if got != testcase.want {
+			t.Errorf("EqualsSlice(%v, %v) got %v want %v", testcase.left, testcase.right, got, testcase.want)
+		}
+	}
+}
+
 func TestSortIndexInto(t *testing.T) {
 	keys := []*Constant{&fooName, &barString, &fooBarPair}
 	index := make([]int, len(keys))

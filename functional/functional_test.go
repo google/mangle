@@ -141,7 +141,7 @@ func TestReducerCollect(t *testing.T) {
 	}
 }
 
-func TestReducerCollectDistinct(t *testing.T) {
+func TestReducerCollectCountDistinct(t *testing.T) {
 	tests := []struct {
 		rows [][]ast.Constant
 		want ast.Constant
@@ -192,6 +192,19 @@ func TestReducerCollectDistinct(t *testing.T) {
 		}
 		if !got.Equals(test.want) {
 			t.Errorf("EvalReduceFn(%v,%v)=%v want %v", expr, rows, got, test.want)
+		}
+		expr = ast.ApplyFn{symbols.CountDistinct, makeVarBaseTerms(width)}
+		got, err = EvalReduceFn(expr, rows)
+		if err != nil {
+			t.Fatalf("EvalReduceFn(%v,%v) count_distinct failed with %v", expr, rows, err)
+		}
+		iter, _ := test.want.ListSeq()
+		var expected int64
+		for range iter {
+			expected++
+		}
+		if !got.Equals(ast.Number(expected)) {
+			t.Errorf("EvalReduceFn(%v,%v)=%v count_distinct want %d", expr, rows, got, expected)
 		}
 	}
 }

@@ -147,6 +147,15 @@ func (m ConstSubstMap) Get(v Variable) BaseTerm {
 	return m[v]
 }
 
+// Domain returns the domain of this substitution.
+func (m ConstSubstMap) Domain() []Variable {
+	var domain []Variable
+	for v := range m {
+		domain = append(domain, v)
+	}
+	return domain
+}
+
 // ConstSubstPair represents a (variable, constant) pair.
 type ConstSubstPair struct {
 	v Variable
@@ -169,6 +178,24 @@ func (c ConstSubstList) Get(v Variable) BaseTerm {
 // Extend extends this substitution with a new binding.
 func (c ConstSubstList) Extend(v Variable, con Constant) ConstSubstList {
 	return append(c, ConstSubstPair{v, con})
+}
+
+// Domain returns a slice of variables that form the domain of this substitution.
+func (c ConstSubstList) Domain() []Variable {
+	var domain []Variable
+	for _, x := range c {
+		domain = append(domain, x.v)
+	}
+	return domain
+}
+
+// GetRow turns this substitution into a tuple.
+func (c ConstSubstList) GetRow(domain []Variable) []Constant {
+	result := make([]Constant, len(domain))
+	for i, x := range domain {
+		result[i] = c.Get(x).(Constant)
+	}
+	return result
 }
 
 // ConstantType describes the primitive type or shape of a constant.
@@ -664,6 +691,31 @@ func szudzikElegantPair(fst, snd uint64) uint64 {
 		return fst*fst + fst + snd
 	}
 	return snd*snd + fst
+}
+
+// HashConstants hashes a slice of constants.
+func HashConstants(constants []Constant) uint64 {
+	if len(constants) == 0 {
+		return 0
+	}
+	h := constants[0].Hash()
+	for _, snd := range constants[1:] {
+		h = szudzikElegantPair(h, snd.Hash())
+	}
+	return h
+}
+
+// EqualsConstants compares two slices of constants.
+func EqualsConstants(left []Constant, right []Constant) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for i := 0; i < len(left); i++ {
+		if !left[i].Equals(right[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 // Hash returns a hash code for this constant

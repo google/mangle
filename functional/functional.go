@@ -584,6 +584,7 @@ func EvalReduceFn(reduceFn ast.ApplyFn, rows []ast.ConstSubstList) (ast.Constant
 		fallthrough
 	case symbols.Collect.Symbol:
 		tuples := &ast.ListNil
+
 		seen := make(map[uint64][]ast.Constant)
 	rowloop:
 		for i := len(rows) - 1; i >= 0; i-- {
@@ -627,6 +628,32 @@ func EvalReduceFn(reduceFn ast.ApplyFn, rows []ast.ConstSubstList) (ast.Constant
 		return *tuples, nil
 	case symbols.Count.Symbol:
 		return ast.Number(int64(len(rows))), nil
+	case symbols.CountDistinct.Symbol:
+		domain := rows[0].Domain()
+		var numDistinct int64 = 0
+		seen := make(map[uint64][]ast.ConstSubstList)
+		for _, row := range rows {
+			newTuple := row.GetRow(domain)
+			rowHash := ast.HashConstants(newTuple)
+			slot := seen[rowHash]
+			shouldAdd := true
+			if slot != nil {
+				shouldAdd = false
+				// Check for collisions.
+				for _, subst := range slot {
+					existing := subst.GetRow(domain)
+					if !ast.EqualsConstants(existing, newTuple) {
+						shouldAdd = true
+						break
+					}
+				}
+			}
+			if shouldAdd {
+				seen[rowHash] = append(slot, row)
+				numDistinct++
+			}
+		}
+		return ast.Number(int64(numDistinct)), nil
 	case symbols.Avg.Symbol:
 		v := reduceFn.Args[0].(ast.Variable)
 		return evalAvg(rowsIter(v))

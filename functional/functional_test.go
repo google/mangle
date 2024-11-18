@@ -651,6 +651,56 @@ func TestFloat64ToStringFailure(t *testing.T) {
 	}
 }
 
+func TestNameFuns(t *testing.T) {
+	tests := []struct {
+		name string
+		expr ast.ApplyFn
+		want ast.Constant
+	}{
+		{
+			name: "name root single part",
+			expr: ast.ApplyFn{symbols.NameRoot, []ast.BaseTerm{name("/a")}},
+			want: name("/a"),
+		},
+		{
+			name: "name root",
+			expr: ast.ApplyFn{symbols.NameRoot, []ast.BaseTerm{name("/a/b/c")}},
+			want: name("/a"),
+		},
+		{
+			name: "name list single part",
+			expr: ast.ApplyFn{symbols.NameList, []ast.BaseTerm{name("/a")}},
+			want: ast.List([]ast.Constant{name("/a")}),
+		},
+		{
+			name: "name list",
+			expr: ast.ApplyFn{symbols.NameList, []ast.BaseTerm{name("/a/b/c")}},
+			want: ast.List([]ast.Constant{name("/a"), name("/b"), name("/c")}),
+		},
+		{
+			name: "name tip",
+			expr: ast.ApplyFn{symbols.NameTip, []ast.BaseTerm{name("/a/b/c")}},
+			want: name("/c"),
+		},
+		{
+			name: "name tip single part",
+			expr: ast.ApplyFn{symbols.NameTip, []ast.BaseTerm{name("/c")}},
+			want: name("/c"),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := EvalApplyFn(test.expr, ast.ConstSubstMap{})
+			if err != nil {
+				t.Fatalf("EvalApplyFn(%v) failed with %v", test.expr, err)
+			}
+			if !got.Equals(test.want) {
+				t.Errorf("EvalApplyFn(%v) = %v want %v", test.expr, got, test.want)
+			}
+		})
+	}
+}
+
 func TestNameToString(t *testing.T) {
 	name, err := ast.Name("/named/constant")
 	if err != nil {
@@ -694,6 +744,38 @@ func TestStringConcatenate(t *testing.T) {
 	}
 	for _, test := range tests {
 		term := ast.ApplyFn{symbols.StringConcatenate, test.input}
+		got, err := EvalExpr(term, ast.ConstSubstMap{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("EvalExpr(%v)=%v want %v.", term, got, test.want)
+		}
+	}
+}
+
+func TestStringReplace(t *testing.T) {
+	tests := []struct {
+		provided string
+		old      string
+		new      string
+		count    int64
+		want     ast.Constant
+	}{
+		{"borked", "o", "0", 1, ast.String("b0rked")},
+		{"aaa", "a", "b", 2, ast.String("bba")},
+		{"aaa", "a", "b", -1, ast.String("bbb")},
+		{"/a/b/c", "/", "", -1, ast.String("abc")},
+	}
+	for _, test := range tests {
+		term := ast.ApplyFn{
+			symbols.StringReplace,
+			[]ast.BaseTerm{
+				ast.String(test.provided),
+				ast.String(test.old),
+				ast.String(test.new),
+				ast.Number(test.count),
+			}}
 		got, err := EvalExpr(term, ast.ConstSubstMap{})
 		if err != nil {
 			t.Fatal(err)

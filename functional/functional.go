@@ -268,6 +268,62 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 
 		return ast.String(strconv.FormatFloat(f, 'f', -1, 64)), nil
 
+	case symbols.NameRoot.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 argument, got %d argument(s)", l)
+		}
+		val := evaluatedArgs[0]
+		if val.Type != ast.NameType {
+			return ast.Constant{}, fmt.Errorf("cannot take root: fn:name:root() expects ast.NameType type")
+		}
+		i := strings.Index(val.Symbol[1:], "/")
+		if i == -1 {
+			return val, nil
+		}
+		n, err := ast.Name(val.Symbol[:i+1])
+		return n, err
+
+	case symbols.NameTip.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 argument, got %d argument(s)", l)
+		}
+		val := evaluatedArgs[0]
+		if val.Type != ast.NameType {
+			return ast.Constant{}, fmt.Errorf("cannot take tip: fn:name:tip() expects ast.NameType type")
+		}
+		i := strings.LastIndex(val.Symbol, "/")
+		if i == 0 {
+			return val, nil
+		}
+		n, _ := ast.Name(val.Symbol[i:])
+		return n, nil
+
+	case symbols.NameList.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 argument, got %d argument(s)", l)
+		}
+		val := evaluatedArgs[0]
+		if val.Type != ast.NameType {
+			return ast.Constant{}, fmt.Errorf("cannot convert to list: fn:name:list() expects ast.NameType type")
+		}
+
+		i := len(val.Symbol)
+		j := i
+		list := &ast.ListNil
+		for {
+			i--
+			if i == -1 {
+				break
+			}
+			if val.Symbol[i] == '/' {
+				elem, _ := ast.Name(val.Symbol[i:j])
+				tmp := ast.ListCons(&elem, list)
+				list = &tmp
+				j = i
+			}
+		}
+		return *list, nil
+
 	case symbols.NameToString.Symbol:
 		if l := len(evaluatedArgs); l != 1 {
 			return ast.Constant{}, fmt.Errorf("expected 1 argument, got %d argument(s)", l)
@@ -289,6 +345,29 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 			values = append(values, res.Symbol)
 		}
 		return ast.String(strings.Join(values, "")), nil
+
+	case symbols.StringReplace.Symbol:
+		if l := len(evaluatedArgs); l != 4 {
+			return ast.Constant{}, fmt.Errorf("expected 4 arguments, got %d argument(s)", l)
+		}
+		provided := evaluatedArgs[0]
+		old := evaluatedArgs[1]
+		new := evaluatedArgs[2]
+		count := evaluatedArgs[3]
+		if provided.Type != ast.StringType {
+			return ast.Constant{}, fmt.Errorf("cannot string replace: fn:string:replace() expects ast.StringType type for 1st argument")
+		}
+		if old.Type != ast.StringType {
+			return ast.Constant{}, fmt.Errorf("cannot string replace: fn:string:replace() expects ast.StringType type for 2nd argument")
+		}
+		if new.Type != ast.StringType {
+			return ast.Constant{}, fmt.Errorf("cannot string replace: fn:string:replace() expects ast.StringType type for 3rd argument")
+		}
+		if count.Type != ast.NumberType {
+			return ast.Constant{}, fmt.Errorf("cannot string replace: fn:string:replace() expects ast.NumberType type for 4th argument")
+		}
+		countValue, _ := count.NumberValue()
+		return ast.String(strings.Replace(provided.Symbol, old.Symbol, new.Symbol, int(countValue))), nil
 
 	case symbols.Sum.Symbol:
 		if l := len(evaluatedArgs); l != 1 {

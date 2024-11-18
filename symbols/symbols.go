@@ -147,25 +147,26 @@ var (
 	// FunType is a constructor for a function type.
 	// fn:Fun(Res, Arg1, ..., ArgN) is Res <= Arg1, ..., ArgN
 	FunType = ast.FunctionSym{"fn:Fun", -1}
-
 	// RelType is a constructor for a relation type.
 	RelType = ast.FunctionSym{"fn:Rel", -1}
-
 	// SingletonType is a constructor for a singleton type.
 	SingletonType = ast.FunctionSym{"fn:Singleton", 1}
-
 	// NumberToString converts from ast.NumberType to ast.StringType
 	NumberToString = ast.FunctionSym{"fn:number:to_string", 1}
-
 	// Float64ToString converts from ast.Float64Type to ast.StringType
 	Float64ToString = ast.FunctionSym{"fn:float64:to_string", 1}
-
 	// NameToString converts from ast.NameType to ast.StringType
 	NameToString = ast.FunctionSym{"fn:name:to_string", 1}
-
+	// NameRoot returns the first name part of a name.
+	NameRoot = ast.FunctionSym{"fn:name:root", 1}
+	// NameTip returns the last name part of a name.
+	NameTip = ast.FunctionSym{"fn:name:tip", 1}
+	// NameList turns a name into a list of name parts.
+	NameList = ast.FunctionSym{"fn:name:list", 1}
 	// StringConcatenate concatenates the arguments into a single string constant.
 	StringConcatenate = ast.FunctionSym{"fn:string:concat", -1}
-
+	// StringReplace replaces old with new in the first n occurrences of a string.
+	StringReplace = ast.FunctionSym{"fn:string:replace", 4}
 	// PairType is a constructor for a pair type.
 	PairType = ast.FunctionSym{"fn:Pair", 2}
 	// TupleType is a type-level function that returns a tuple type out of pair types.

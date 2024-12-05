@@ -51,4 +51,6 @@ for more information.
 maxdepth: 2
 ---
 Installing <installing.md>
-Data Types <datatypes.md>
+Basic Types <basictypes.md>
+Constructed Types <constructedtypes.md>
+Type Expressions <typeexpressions.md>

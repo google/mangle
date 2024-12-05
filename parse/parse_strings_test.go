@@ -69,6 +69,11 @@ world"`,
 			want: ast.Bytes([]byte{0x80, 0x81, 0x82, 0x0A}),
 		},
 		{
+			name: "byte string byte escape",
+			str:  `b"\x80\x81\x82😤"`,
+			want: ast.Bytes([]byte{0x80, 0x81, 0x82, 0xf0, 0x9f, 0x98, 0xa4}),
+		},
+		{
 			name: "string emoji",
 			str:  `"\u{01f624}"`,
 			want: ast.String("😤"),

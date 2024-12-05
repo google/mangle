@@ -2,9 +2,27 @@
 
 [![Documentation Status](https://readthedocs.org/projects/mangle/badge/?version=latest)](https://readthedocs.org/projects/mangle/builds/)
 
-This repository contains Mangle documentation sources. Rendered documentation is hosted on [mangle.readthedocs.io](http://mangle.readthedocs.io).
+This directory contains Mangle documentation sources.
+This page describes how to generate to documentation.
 
-## Setting up an environment
+If you want to read
+the rendered documentation, go to [mangle.readthedocs.io](http://mangle.readthedocs.io).
+## Overview
+
+*Read the Docs* is a platform for hosting documentation. They offer a free
+community plan to open source projects. Publishing is automated
+through integration with GitHub.
+
+Mangle documentation uses *Read the Docs* with the following choices:
+
+* [sphinx](https://www.sphinx-doc.org/en/master/) documentation generator
+* [MyST markdown format](https://www.sphinx-doc.org/en/master/usage/markdown.html#markdown)
+
+## Set up a virtual environment
+
+A [virtual environment](https://docs.python.org/3/library/venv.html) helps
+contain all python packages without having to deal with system-wide
+installation.
 
 ```
 > python -m venv manglereadthedocs

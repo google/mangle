@@ -268,6 +268,22 @@ impl<'a> std::fmt::Display for Atom<'a> {
     }
 }
 
+static ANY_VAR_TERM: BaseTerm = BaseTerm::Variable("_");
+
+pub fn new_query<'dest>(bump: &'dest Bump, predicate: &'dest PredicateSym) -> Atom<'dest> {
+    let args: Vec<_> = match predicate.arity {
+        Some(arity) => (0..arity).map(|_i| &ANY_VAR_TERM).collect(),
+        None => Vec::new(),
+    };
+
+    let args = &*bump.alloc_slice_copy(&args);
+
+    Atom {
+        sym: *predicate,
+        args,
+    }
+}
+
 pub fn copy_predicate_sym<'dest>(bump: &'dest Bump, p: PredicateSym) -> PredicateSym<'dest> {
     PredicateSym {
         name: bump.alloc_str(p.name),
@@ -453,5 +469,31 @@ mod tests {
         for (term, s) in tests {
             assert_that!(term, displays_as(eq(s)));
         }
+    }
+
+    #[test]
+    fn new_query_works() {
+        let bump = Bump::new();
+
+        let pred = PredicateSym {
+            name: "foo",
+            arity: Some(1),
+        };
+        let query = new_query(&bump, &pred);
+        assert_that!(query, displays_as(eq("foo(_)")));
+
+        let pred = PredicateSym {
+            name: "foo",
+            arity: Some(2),
+        };
+        let query = new_query(&bump, &pred);
+        assert_that!(query, displays_as(eq("foo(_, _)")));
+
+        let pred = PredicateSym {
+            name: "none",
+            arity: None,
+        };
+        let query = new_query(&bump, &pred);
+        assert_that!(query, displays_as(eq("none()")));
     }
 }

@@ -258,7 +258,10 @@ impl<'a> Atom<'a> {
 impl<'a> std::fmt::Display for Atom<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}(", self.sym.name)?;
-        for arg in self.args {
+        for (i, arg) in self.args.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
             write!(f, "{arg}")?;
         }
         write!(f, ")")

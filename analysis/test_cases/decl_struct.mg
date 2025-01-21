@@ -1,14 +1,14 @@
 Decl o(O, P)
   bound[
-    fn:Struct(fn:opt(/foo, fn:String())),
-    fn:Struct(
-        /inputs, fn:List(
-            fn:Struct(
-                /type, /string,
-                /repeated, fn:Union(fn:Singleton(/true), fn:Singleton(/false))
-            )
-        ),
-        /output_type, /string,
-      )
+    .Struct<opt /foo : /string>,
+    .Struct<
+        /inputs: .List<
+            .Struct<
+                /type: /string,
+                /repeated: .Union<.Singleton</true>, .Singleton</false>>
+            >
+        >,
+        /output_type: /string,
+      >
   ].
 

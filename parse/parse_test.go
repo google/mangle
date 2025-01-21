@@ -70,6 +70,16 @@ func TestParseDecl(t *testing.T) {
 				nil)},
 		},
 		{
+			name: "one decl one bound fancy syntax",
+			str:  "Decl foo(X,Y) bound [/string, .List</string>].",
+			want: []ast.Decl{makeDecl(t, ast.NewAtom("foo", ast.Variable{"X"}, ast.Variable{"Y"}),
+				nil,
+				[]ast.BoundDecl{
+					ast.NewBoundDecl(ast.StringBound, ast.ApplyFn{Function: ast.FunctionSym{"fn:List", -1}, Args: []ast.BaseTerm{ast.StringBound}}),
+				},
+				nil)},
+		},
+		{
 			name: "one decl two bounds w/ whitespace",
 			str:  "Decl foo(X,Y) bound[   /string, /string ]bound[/number, /number].",
 			want: []ast.Decl{makeDecl(t, ast.NewAtom("foo", ast.Variable{"X"}, ast.Variable{"Y"}),
@@ -87,12 +97,13 @@ func TestParseDecl(t *testing.T) {
 		},
 		{
 			name: "one decl one bound one inclusion",
-			str:  "Decl foo(X,Y) bound[/string, /string] inclusion[bar(X), baz(X), bak(X, Y)].",
+			str:  "Decl foo(X,Y) bound[/string, .Pair</string, /number>] inclusion[bar(X), baz(X), bak(X, Y)].",
 			want: []ast.Decl{
 				makeDecl(t, ast.NewAtom("foo", ast.Variable{"X"}, ast.Variable{"Y"}),
 					emptyDoc,
 					[]ast.BoundDecl{
-						ast.NewBoundDecl(ast.StringBound, ast.StringBound),
+						ast.NewBoundDecl(ast.StringBound, ast.ApplyFn{
+							ast.FunctionSym{"fn:Pair", -1}, []ast.BaseTerm{ast.StringBound, ast.NumberBound}}),
 					},
 					&inclConstraint)},
 		},
@@ -139,6 +150,61 @@ func TestParseDecl(t *testing.T) {
 				},
 				[]ast.BoundDecl{
 					ast.NewBoundDecl(ast.StringBound, ast.StringBound),
+				},
+				nil)},
+		},
+		{
+			name: "pair tuple struct map union singleton",
+			str:  "Decl foo(X,Y) bound [.Pair</string, .Struct<opt /a : /string, /b : .List<.Option</string>>>>, .Map</string, .Union</a, .Singleton</b>>> ].",
+			want: []ast.Decl{makeDecl(t, ast.NewAtom("foo", ast.Variable{"X"}, ast.Variable{"Y"}),
+				nil,
+				[]ast.BoundDecl{
+					ast.NewBoundDecl(
+						ast.ApplyFn{
+							Function: ast.FunctionSym{"fn:Pair", -1},
+							Args: []ast.BaseTerm{
+								ast.StringBound,
+								ast.ApplyFn{
+									Function: ast.FunctionSym{"fn:Struct", -1},
+									Args: []ast.BaseTerm{
+										ast.ApplyFn{
+											Function: ast.FunctionSym{"fn:opt", -1},
+											Args: []ast.BaseTerm{
+												name("/a"),
+												ast.StringBound,
+											},
+										},
+										name("/b"),
+										ast.ApplyFn{
+											Function: ast.FunctionSym{"fn:List", -1},
+											Args: []ast.BaseTerm{
+												ast.ApplyFn{
+													Function: ast.FunctionSym{"fn:Option", -1},
+													Args:     []ast.BaseTerm{ast.StringBound},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						ast.ApplyFn{
+							Function: ast.FunctionSym{"fn:Map", -1},
+							Args: []ast.BaseTerm{
+								ast.StringBound,
+								ast.ApplyFn{
+									Function: ast.FunctionSym{"fn:Union", -1},
+									Args: []ast.BaseTerm{
+										name("/a"),
+										ast.ApplyFn{
+											Function: ast.FunctionSym{"fn:Singleton", -1},
+											Args:     []ast.BaseTerm{name("/b")},
+										},
+									},
+								},
+							},
+						},
+					),
 				},
 				nil)},
 		},
@@ -326,7 +392,7 @@ func TestParseUnitPositive(t *testing.T) {
 		},
 		{
 			name: "one clause, with body.",
-			str:  "foo(X) :- bar(X).",
+			str:  "foo(X) \u21d0 bar(X).",
 			want: []ast.Clause{ast.NewClause(ast.NewAtom("foo", ast.Variable{"X"}), []ast.Term{ast.NewAtom("bar", ast.Variable{"X"})})},
 		},
 		{

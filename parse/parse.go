@@ -203,6 +203,10 @@ func (p *Parser) Visit(tree antlr.ParseTree) any {
 		return p.VisitAtom(tree.(*gen.AtomContext))
 	case *gen.AtomsContext:
 		return p.VisitAtoms(tree.(*gen.AtomsContext))
+	case *gen.DotTypeContext:
+		return p.VisitDotType(tree.(*gen.DotTypeContext))
+	case *gen.MemberContext:
+		return p.VisitMember(tree.(*gen.MemberContext))
 	}
 	p.errors.Add(fmt.Sprintf("parse error: %q", tree.GetText()), 0, 0)
 	return nil
@@ -311,7 +315,7 @@ func (p Parser) VisitConstraintsBlock(ctx *gen.ConstraintsBlockContext) any {
 // VisitClause visits a parse tree produced by MangleParser#clause.
 func (p Parser) VisitClause(ctx *gen.ClauseContext) any {
 	head := p.Visit(ctx.Atom()).(ast.Atom)
-	if ctx.COLONDASH() != nil {
+	if (ctx.COLONDASH() != nil) || (ctx.DOUBLELEFTARROW() != nil) {
 		body := p.Visit(ctx.ClauseBody()).(ast.Clause)
 		body.Head = head
 		return body
@@ -579,6 +583,34 @@ func (p Parser) VisitAtoms(ctx *gen.AtomsContext) any {
 		atoms = append(atoms, atom)
 	}
 	return atoms
+}
+
+func (p Parser) VisitDotType(ctx *gen.DotTypeContext) any {
+	typename := ctx.DOT_TYPE().GetText()[1:]
+	var baseterms []ast.BaseTerm
+	for _, e := range ctx.AllMember() {
+		member := p.Visit(e).([]ast.BaseTerm)
+		baseterms = append(baseterms, member...)
+	}
+	return ast.ApplyFn{ast.FunctionSym{"fn:" + typename, -1}, baseterms}
+}
+
+func (p Parser) VisitMember(ctx *gen.MemberContext) any {
+	var baseterms []ast.BaseTerm
+	for _, e := range ctx.AllTerm() {
+		term := p.Visit(e).(ast.Term)
+		baseterm, ok := term.(ast.BaseTerm)
+		if !ok {
+			p.errors.Add(fmt.Sprintf("expected base term got %v", term), e.GetStart().GetLine(), e.GetStart().GetColumn())
+			baseterms = append(baseterms, ast.AnyBound)
+			continue
+		}
+		baseterms = append(baseterms, baseterm)
+	}
+	if strings.HasPrefix(ctx.GetText(), "opt") {
+		return []ast.BaseTerm{ast.ApplyFn{ast.FunctionSym{"fn:opt", -1}, baseterms}}
+	}
+	return baseterms
 }
 
 // PredicateName parses a predicate name.

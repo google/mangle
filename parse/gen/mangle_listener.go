@@ -1,4 +1,4 @@
-// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
 package gen // Mangle
 import "github.com/antlr4-go/antlr/v4"
@@ -64,9 +64,6 @@ type MangleListener interface {
 	// EnterBStr is called when entering the BStr production.
 	EnterBStr(c *BStrContext)
 
-	// EnterAppl is called when entering the Appl production.
-	EnterAppl(c *ApplContext)
-
 	// EnterList is called when entering the List production.
 	EnterList(c *ListContext)
 
@@ -75,6 +72,15 @@ type MangleListener interface {
 
 	// EnterStruct is called when entering the Struct production.
 	EnterStruct(c *StructContext)
+
+	// EnterDotType is called when entering the DotType production.
+	EnterDotType(c *DotTypeContext)
+
+	// EnterAppl is called when entering the Appl production.
+	EnterAppl(c *ApplContext)
+
+	// EnterMember is called when entering the member production.
+	EnterMember(c *MemberContext)
 
 	// EnterAtom is called when entering the atom production.
 	EnterAtom(c *AtomContext)
@@ -139,9 +145,6 @@ type MangleListener interface {
 	// ExitBStr is called when exiting the BStr production.
 	ExitBStr(c *BStrContext)
 
-	// ExitAppl is called when exiting the Appl production.
-	ExitAppl(c *ApplContext)
-
 	// ExitList is called when exiting the List production.
 	ExitList(c *ListContext)
 
@@ -150,6 +153,15 @@ type MangleListener interface {
 
 	// ExitStruct is called when exiting the Struct production.
 	ExitStruct(c *StructContext)
+
+	// ExitDotType is called when exiting the DotType production.
+	ExitDotType(c *DotTypeContext)
+
+	// ExitAppl is called when exiting the Appl production.
+	ExitAppl(c *ApplContext)
+
+	// ExitMember is called when exiting the member production.
+	ExitMember(c *MemberContext)
 
 	// ExitAtom is called when exiting the atom production.
 	ExitAtom(c *AtomContext)

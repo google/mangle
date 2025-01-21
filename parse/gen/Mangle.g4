@@ -48,7 +48,7 @@ constraintsBlock
     ;
 
 clause
-    : atom (':-' clauseBody)? '.'
+    : atom ((':-'|DOUBLELEFTARROW) clauseBody)? '.'
     ;
 
 clauseBody
@@ -76,10 +76,16 @@ term
    | FLOAT # Float
    | STRING # Str
    | BYTESTRING # BStr
-   | NAME '(' (term ',')* term? ')' # Appl
-   | '[' (term ',')* term? ']' # List
+   | '[' (term ',')* term? ']'                     # List
    | '[' (term ':' term ',')* (term ':' term)? ']' # Map
    | '{' (term ':' term ',')* (term ':' term)? '}' # Struct
+   | DOT_TYPE '<' (member ',')* (member ','?)? '>'  # DotType
+   | NAME '(' (term ',')* term? ')'       # Appl
+   ;
+
+member
+   : term (':' term)? 
+   | 'opt' term ':' term
    ;
 
 // Implementation enforces that this is an atom NAME(...)
@@ -95,6 +101,8 @@ atoms
 
 WHITESPACE : ( '\t' | ' ' | '\r' | '\n'| '\u000C' )+ -> channel(HIDDEN) ;
 COMMENT : '#' (~'\n')* -> channel(HIDDEN) ;
+
+DOUBLELEFTARROW : '\u21D0';
 
 PACKAGE : 'Package';
 USE : 'Use';
@@ -136,6 +144,17 @@ VARIABLE : '_' | (VARIABLE_START VARIABLE_CHAR*);
 fragment NAME_CHAR : LETTER | DIGIT | ':' | '_' ;
 NAME : ':'? ('a'..'z') ( NAME_CHAR | ('.' NAME_CHAR) )*;
 
+TYPENAME : 'A'..'Z' ( NAME_CHAR | ('.' NAME_CHAR) )*;
+DOT_TYPE : '.' TYPENAME;
+
+// PAIR_TYPE : '.Pair';
+// TUPLE_TYPE : '.Tuple';
+// OPTION_TYPE : '.Option';
+// LIST_TYPE : '.List';
+// STRUCT_TYPE : '.Struct';
+// MAP_TYPE : '.Map';
+// UNION_TYPE : '.Union';
+// SINGLETON_TYPE : '.Singleton';
 
 fragment CONSTANT_CHAR : LETTER | DIGIT | '.' | '-' | '_' | '~' | '%';
 CONSTANT : '/' CONSTANT_CHAR+ ('/' CONSTANT_CHAR+)*;

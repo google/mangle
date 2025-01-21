@@ -1,4 +1,4 @@
-// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
 package gen // Mangle
 import "github.com/antlr4-go/antlr/v4"
@@ -83,10 +83,6 @@ func (v *BaseMangleVisitor) VisitBStr(ctx *BStrContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseMangleVisitor) VisitAppl(ctx *ApplContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
 func (v *BaseMangleVisitor) VisitList(ctx *ListContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -96,6 +92,18 @@ func (v *BaseMangleVisitor) VisitMap(ctx *MapContext) interface{} {
 }
 
 func (v *BaseMangleVisitor) VisitStruct(ctx *StructContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseMangleVisitor) VisitDotType(ctx *DotTypeContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseMangleVisitor) VisitAppl(ctx *ApplContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseMangleVisitor) VisitMember(ctx *MemberContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

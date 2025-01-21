@@ -105,5 +105,5 @@ disjunctions:
 		// All constraints from this disjunction element have worked out.
 		return nil
 	}
-	return fmt.Errorf("none of the inclusion constraints are satisfied. reasons: " + strings.Join(reasons, ","))
+	return fmt.Errorf("none of the inclusion constraints are satisfied. reasons: %s", strings.Join(reasons, ","))
 }

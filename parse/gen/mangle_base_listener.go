@@ -1,4 +1,4 @@
-// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
 package gen // Mangle
 import "github.com/antlr4-go/antlr/v4"
@@ -134,12 +134,6 @@ func (s *BaseMangleListener) EnterBStr(ctx *BStrContext) {}
 // ExitBStr is called when production BStr is exited.
 func (s *BaseMangleListener) ExitBStr(ctx *BStrContext) {}
 
-// EnterAppl is called when production Appl is entered.
-func (s *BaseMangleListener) EnterAppl(ctx *ApplContext) {}
-
-// ExitAppl is called when production Appl is exited.
-func (s *BaseMangleListener) ExitAppl(ctx *ApplContext) {}
-
 // EnterList is called when production List is entered.
 func (s *BaseMangleListener) EnterList(ctx *ListContext) {}
 
@@ -157,6 +151,24 @@ func (s *BaseMangleListener) EnterStruct(ctx *StructContext) {}
 
 // ExitStruct is called when production Struct is exited.
 func (s *BaseMangleListener) ExitStruct(ctx *StructContext) {}
+
+// EnterDotType is called when production DotType is entered.
+func (s *BaseMangleListener) EnterDotType(ctx *DotTypeContext) {}
+
+// ExitDotType is called when production DotType is exited.
+func (s *BaseMangleListener) ExitDotType(ctx *DotTypeContext) {}
+
+// EnterAppl is called when production Appl is entered.
+func (s *BaseMangleListener) EnterAppl(ctx *ApplContext) {}
+
+// ExitAppl is called when production Appl is exited.
+func (s *BaseMangleListener) ExitAppl(ctx *ApplContext) {}
+
+// EnterMember is called when production member is entered.
+func (s *BaseMangleListener) EnterMember(ctx *MemberContext) {}
+
+// ExitMember is called when production member is exited.
+func (s *BaseMangleListener) ExitMember(ctx *MemberContext) {}
 
 // EnterAtom is called when production atom is entered.
 func (s *BaseMangleListener) EnterAtom(ctx *AtomContext) {}

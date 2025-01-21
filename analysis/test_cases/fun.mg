@@ -2,7 +2,7 @@ Decl f(R)
   descr [
     mode("+")
   ]
-  bound [fn:Struct(/g, fn:List(/string))].
+  bound [.Struct</g : .List</string>>].
 
 f(R) :-
   :match_field(R, /g, G),

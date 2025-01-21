@@ -106,7 +106,7 @@ func (c *declChecker) checkBound(p ast.Atom, boundDecl ast.BoundDecl) {
 	}
 	for i, bound := range boundDecl.Bounds {
 		if err := symbols.WellformedBound(bound); err != nil {
-			c.errs = append(c.errs, fmt.Errorf("in decl %v: the bound for argument %d must be parseable as predicate name: %v ", p, i, bound))
+			c.errs = append(c.errs, fmt.Errorf("in decl %v: the bound for argument %d must be parseable as predicate name: %v (%w)", p, i, bound, err))
 		}
 	}
 }

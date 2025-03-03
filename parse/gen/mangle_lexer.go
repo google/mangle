@@ -44,12 +44,12 @@ func manglelexerLexerInit() {
 	}
 	staticData.LiteralNames = []string{
 		"", "'.'", "'descr'", "'inclusion'", "':'", "'{'", "'}'", "'opt'", "",
-		"", "'\\u21D0'", "'Package'", "'Use'", "'Decl'", "'bound'", "'let'",
+		"", "'\\u27F8'", "'Package'", "'Use'", "'Decl'", "'bound'", "'let'",
 		"'do'", "'('", "')'", "'['", "']'", "'='", "'!='", "','", "'!'", "'<'",
 		"'<='", "'>'", "'>='", "':-'", "'\\n'", "'|>'",
 	}
 	staticData.SymbolicNames = []string{
-		"", "", "", "", "", "", "", "", "WHITESPACE", "COMMENT", "DOUBLELEFTARROW",
+		"", "", "", "", "", "", "", "", "WHITESPACE", "COMMENT", "LONGLEFTDOUBLEARROW",
 		"PACKAGE", "USE", "DECL", "BOUND", "LET", "DO", "LPAREN", "RPAREN",
 		"LBRACKET", "RBRACKET", "EQ", "BANGEQ", "COMMA", "BANG", "LESS", "LESSEQ",
 		"GREATER", "GREATEREQ", "COLONDASH", "NEWLINE", "PIPEGREATER", "NUMBER",
@@ -58,14 +58,14 @@ func manglelexerLexerInit() {
 	}
 	staticData.RuleNames = []string{
 		"T__0", "T__1", "T__2", "T__3", "T__4", "T__5", "T__6", "WHITESPACE",
-		"COMMENT", "DOUBLELEFTARROW", "PACKAGE", "USE", "DECL", "BOUND", "LET",
-		"DO", "LPAREN", "RPAREN", "LBRACKET", "RBRACKET", "EQ", "BANGEQ", "COMMA",
-		"BANG", "LESS", "LESSEQ", "GREATER", "GREATEREQ", "COLONDASH", "NEWLINE",
-		"PIPEGREATER", "LETTER", "DIGIT", "NUMBER", "FLOAT", "EXPONENT", "VARIABLE_START",
-		"VARIABLE_CHAR", "VARIABLE", "NAME_CHAR", "NAME", "TYPENAME", "DOT_TYPE",
-		"CONSTANT_CHAR", "CONSTANT", "STRING", "BYTESTRING", "SHORT_STRING",
-		"LONG_STRING", "LONG_STRING_ITEM", "LONG_STRING_CHAR", "STRING_ESCAPE_SEQ",
-		"HEXDIGIT",
+		"COMMENT", "LONGLEFTDOUBLEARROW", "PACKAGE", "USE", "DECL", "BOUND",
+		"LET", "DO", "LPAREN", "RPAREN", "LBRACKET", "RBRACKET", "EQ", "BANGEQ",
+		"COMMA", "BANG", "LESS", "LESSEQ", "GREATER", "GREATEREQ", "COLONDASH",
+		"NEWLINE", "PIPEGREATER", "LETTER", "DIGIT", "NUMBER", "FLOAT", "EXPONENT",
+		"VARIABLE_START", "VARIABLE_CHAR", "VARIABLE", "NAME_CHAR", "NAME",
+		"TYPENAME", "DOT_TYPE", "CONSTANT_CHAR", "CONSTANT", "STRING", "BYTESTRING",
+		"SHORT_STRING", "LONG_STRING", "LONG_STRING_ITEM", "LONG_STRING_CHAR",
+		"STRING_ESCAPE_SEQ", "HEXDIGIT",
 	}
 	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
@@ -162,7 +162,7 @@ func manglelexerLexerInit() {
 		35, 0, 0, 143, 145, 8, 1, 0, 0, 144, 143, 1, 0, 0, 0, 145, 148, 1, 0, 0,
 		0, 146, 144, 1, 0, 0, 0, 146, 147, 1, 0, 0, 0, 147, 149, 1, 0, 0, 0, 148,
 		146, 1, 0, 0, 0, 149, 150, 6, 8, 0, 0, 150, 18, 1, 0, 0, 0, 151, 152, 5,
-		8656, 0, 0, 152, 20, 1, 0, 0, 0, 153, 154, 5, 80, 0, 0, 154, 155, 5, 97,
+		10232, 0, 0, 152, 20, 1, 0, 0, 0, 153, 154, 5, 80, 0, 0, 154, 155, 5, 97,
 		0, 0, 155, 156, 5, 99, 0, 0, 156, 157, 5, 107, 0, 0, 157, 158, 5, 97, 0,
 		0, 158, 159, 5, 103, 0, 0, 159, 160, 5, 101, 0, 0, 160, 22, 1, 0, 0, 0,
 		161, 162, 5, 85, 0, 0, 162, 163, 5, 115, 0, 0, 163, 164, 5, 101, 0, 0,
@@ -302,44 +302,44 @@ func NewMangleLexer(input antlr.CharStream) *MangleLexer {
 
 // MangleLexer tokens.
 const (
-	MangleLexerT__0            = 1
-	MangleLexerT__1            = 2
-	MangleLexerT__2            = 3
-	MangleLexerT__3            = 4
-	MangleLexerT__4            = 5
-	MangleLexerT__5            = 6
-	MangleLexerT__6            = 7
-	MangleLexerWHITESPACE      = 8
-	MangleLexerCOMMENT         = 9
-	MangleLexerDOUBLELEFTARROW = 10
-	MangleLexerPACKAGE         = 11
-	MangleLexerUSE             = 12
-	MangleLexerDECL            = 13
-	MangleLexerBOUND           = 14
-	MangleLexerLET             = 15
-	MangleLexerDO              = 16
-	MangleLexerLPAREN          = 17
-	MangleLexerRPAREN          = 18
-	MangleLexerLBRACKET        = 19
-	MangleLexerRBRACKET        = 20
-	MangleLexerEQ              = 21
-	MangleLexerBANGEQ          = 22
-	MangleLexerCOMMA           = 23
-	MangleLexerBANG            = 24
-	MangleLexerLESS            = 25
-	MangleLexerLESSEQ          = 26
-	MangleLexerGREATER         = 27
-	MangleLexerGREATEREQ       = 28
-	MangleLexerCOLONDASH       = 29
-	MangleLexerNEWLINE         = 30
-	MangleLexerPIPEGREATER     = 31
-	MangleLexerNUMBER          = 32
-	MangleLexerFLOAT           = 33
-	MangleLexerVARIABLE        = 34
-	MangleLexerNAME            = 35
-	MangleLexerTYPENAME        = 36
-	MangleLexerDOT_TYPE        = 37
-	MangleLexerCONSTANT        = 38
-	MangleLexerSTRING          = 39
-	MangleLexerBYTESTRING      = 40
+	MangleLexerT__0                = 1
+	MangleLexerT__1                = 2
+	MangleLexerT__2                = 3
+	MangleLexerT__3                = 4
+	MangleLexerT__4                = 5
+	MangleLexerT__5                = 6
+	MangleLexerT__6                = 7
+	MangleLexerWHITESPACE          = 8
+	MangleLexerCOMMENT             = 9
+	MangleLexerLONGLEFTDOUBLEARROW = 10
+	MangleLexerPACKAGE             = 11
+	MangleLexerUSE                 = 12
+	MangleLexerDECL                = 13
+	MangleLexerBOUND               = 14
+	MangleLexerLET                 = 15
+	MangleLexerDO                  = 16
+	MangleLexerLPAREN              = 17
+	MangleLexerRPAREN              = 18
+	MangleLexerLBRACKET            = 19
+	MangleLexerRBRACKET            = 20
+	MangleLexerEQ                  = 21
+	MangleLexerBANGEQ              = 22
+	MangleLexerCOMMA               = 23
+	MangleLexerBANG                = 24
+	MangleLexerLESS                = 25
+	MangleLexerLESSEQ              = 26
+	MangleLexerGREATER             = 27
+	MangleLexerGREATEREQ           = 28
+	MangleLexerCOLONDASH           = 29
+	MangleLexerNEWLINE             = 30
+	MangleLexerPIPEGREATER         = 31
+	MangleLexerNUMBER              = 32
+	MangleLexerFLOAT               = 33
+	MangleLexerVARIABLE            = 34
+	MangleLexerNAME                = 35
+	MangleLexerTYPENAME            = 36
+	MangleLexerDOT_TYPE            = 37
+	MangleLexerCONSTANT            = 38
+	MangleLexerSTRING              = 39
+	MangleLexerBYTESTRING          = 40
 )

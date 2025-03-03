@@ -392,17 +392,17 @@ func TestParseUnitPositive(t *testing.T) {
 		},
 		{
 			name: "one clause, with body.",
-			str:  "foo(X) \u21d0 bar(X).",
+			str:  "foo(X) ⟸ bar(X).",
 			want: []ast.Clause{ast.NewClause(ast.NewAtom("foo", ast.Variable{"X"}), []ast.Term{ast.NewAtom("bar", ast.Variable{"X"})})},
 		},
 		{
 			name: "one clause, with body, both contain '.', trailing comma",
-			str:  "foo.bar(X) :- bar.foo(X),.",
+			str:  "foo.bar(X) ⟸ bar.foo(X),.",
 			want: []ast.Clause{ast.NewClause(ast.NewAtom("foo.bar", ast.Variable{"X"}), []ast.Term{ast.NewAtom("bar.foo", ast.Variable{"X"})})},
 		},
 		{
 			name: "one clause, with body and one do-transform.",
-			str:  "foo(X) :- bar(X) |> do fn:party(), let Z = fn:foo(X).",
+			str:  "foo(X) ⟸ bar(X) |> do fn:party(), let Z = fn:foo(X).",
 			want: []ast.Clause{{
 				ast.NewAtom("foo", ast.Variable{"X"}),
 				[]ast.Term{ast.NewAtom("bar", ast.Variable{"X"})},

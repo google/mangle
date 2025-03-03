@@ -315,7 +315,7 @@ func (p Parser) VisitConstraintsBlock(ctx *gen.ConstraintsBlockContext) any {
 // VisitClause visits a parse tree produced by MangleParser#clause.
 func (p Parser) VisitClause(ctx *gen.ClauseContext) any {
 	head := p.Visit(ctx.Atom()).(ast.Atom)
-	if (ctx.COLONDASH() != nil) || (ctx.DOUBLELEFTARROW() != nil) {
+	if (ctx.COLONDASH() != nil) || (ctx.LONGLEFTDOUBLEARROW() != nil) {
 		body := p.Visit(ctx.ClauseBody()).(ast.Clause)
 		body.Head = head
 		return body

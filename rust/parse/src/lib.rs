@@ -42,53 +42,23 @@ where
     bump: &'b Bump,
 }
 
-const PACKAGE_SYM: ast::PredicateSym = ast::PredicateSym {
-    name: "Package",
-    arity: Some(0),
-};
+const PACKAGE_SYM: ast::PredicateSym = ast::PredicateSym { name: "Package", arity: Some(0) };
 
-const NAME_SYM: ast::PredicateSym = ast::PredicateSym {
-    name: "name",
-    arity: Some(1),
-};
+const NAME_SYM: ast::PredicateSym = ast::PredicateSym { name: "name", arity: Some(1) };
 
-const USE_SYM: ast::PredicateSym = ast::PredicateSym {
-    name: "Use",
-    arity: Some(0),
-};
+const USE_SYM: ast::PredicateSym = ast::PredicateSym { name: "Use", arity: Some(0) };
 
-const LT_SYM: ast::PredicateSym = ast::PredicateSym {
-    name: ":lt",
-    arity: Some(2),
-};
+const LT_SYM: ast::PredicateSym = ast::PredicateSym { name: ":lt", arity: Some(2) };
 
-const LE_SYM: ast::PredicateSym = ast::PredicateSym {
-    name: ":le",
-    arity: Some(2),
-};
+const LE_SYM: ast::PredicateSym = ast::PredicateSym { name: ":le", arity: Some(2) };
 
-const FN_LIST_SYM: ast::FunctionSym = ast::FunctionSym {
-    name: "fn:list",
-    arity: None,
-};
-const FN_MAP_SYM: ast::FunctionSym = ast::FunctionSym {
-    name: "fn:map",
-    arity: None,
-};
-const FN_STRUCT_SYM: ast::FunctionSym = ast::FunctionSym {
-    name: "fn:struct",
-    arity: None,
-};
+const FN_LIST_SYM: ast::FunctionSym = ast::FunctionSym { name: "fn:list", arity: None };
+const FN_MAP_SYM: ast::FunctionSym = ast::FunctionSym { name: "fn:map", arity: None };
+const FN_STRUCT_SYM: ast::FunctionSym = ast::FunctionSym { name: "fn:struct", arity: None };
 
 const EMPTY_PACKAGE: ast::Decl<'_> = ast::Decl {
-    atom: &ast::Atom {
-        sym: PACKAGE_SYM,
-        args: &[],
-    },
-    descr: &[&ast::Atom {
-        sym: NAME_SYM,
-        args: &[&ast::BaseTerm::Const(ast::Const::String(""))],
-    }],
+    atom: &ast::Atom { sym: PACKAGE_SYM, args: &[] },
+    descr: &[&ast::Atom { sym: NAME_SYM, args: &[&ast::BaseTerm::Const(ast::Const::String(""))] }],
     bounds: None,
     constraints: None,
 };
@@ -119,11 +89,7 @@ where
     where
         R: io::Read,
     {
-        Self {
-            sc: scan::Scanner::new(reader, path),
-            token: token::Token::Illegal,
-            bump,
-        }
+        Self { sc: scan::Scanner::new(reader, path), token: token::Token::Illegal, bump }
     }
 
     fn next_token(&mut self) -> Result<()> {
@@ -155,10 +121,7 @@ where
             decls.push(self.parse_use_decl()?);
         }
         let decls: &'b [&'b ast::Decl<'b>] = &*self.bump.alloc_slice_copy(&decls);
-        let unit: &'b ast::Unit<'b> = &*self.bump.alloc(ast::Unit {
-            clauses: &[],
-            decls,
-        });
+        let unit: &'b ast::Unit<'b> = &*self.bump.alloc(ast::Unit { clauses: &[], decls });
         Ok(unit)
     }
 
@@ -170,10 +133,8 @@ where
             _ => bail!("expected identifer got {}", self.token),
         };
 
-        let name_atom = ast::Atom {
-            sym: NAME_SYM,
-            args: &[&ast::BaseTerm::Const(ast::Const::String(name))],
-        };
+        let name_atom =
+            ast::Atom { sym: NAME_SYM, args: &[&ast::BaseTerm::Const(ast::Const::String(name))] };
         let mut descr_atoms: Vec<&ast::Atom> = vec![ast::copy_atom(self.bump, &name_atom)];
         self.next_token()?;
         if Token::LBracket == self.token {
@@ -182,13 +143,7 @@ where
 
         self.expect(Token::Bang)?;
 
-        let package_atom = alloc!(
-            self,
-            ast::Atom {
-                sym: PACKAGE_SYM,
-                args: &[],
-            }
-        );
+        let package_atom = alloc!(self, ast::Atom { sym: PACKAGE_SYM, args: &[] });
 
         //let descr_atoms = ;
         let decl: &'b ast::Decl = alloc!(
@@ -205,13 +160,7 @@ where
 
     fn parse_use_decl(&mut self) -> Result<&'b ast::Decl<'b>> {
         self.expect(Token::Use)?;
-        let use_atom = alloc!(
-            self,
-            ast::Atom {
-                sym: USE_SYM,
-                args: &[],
-            }
-        );
+        let use_atom = alloc!(self, ast::Atom { sym: USE_SYM, args: &[] });
 
         let name = match &self.token {
             Token::Ident { name } => name.as_str(),
@@ -222,10 +171,8 @@ where
         let name = alloc!(self, ast::BaseTerm::Const(ast::Const::String(name)));
         let args = alloc_slice!(self, &[name]);
 
-        let mut descr_atoms: Vec<&ast::Atom> = vec![self.bump.alloc(ast::Atom {
-            sym: NAME_SYM,
-            args,
-        })];
+        let mut descr_atoms: Vec<&ast::Atom> =
+            vec![self.bump.alloc(ast::Atom { sym: NAME_SYM, args })];
         self.next_token()?;
         if Token::LBracket == self.token {
             self.parse_bracket_atoms(&mut descr_atoms)?;
@@ -234,12 +181,7 @@ where
         let descr_atoms = alloc_slice!(self, &descr_atoms);
         Ok(alloc!(
             self,
-            ast::Decl {
-                atom: use_atom,
-                descr: descr_atoms,
-                bounds: None,
-                constraints: None,
-            }
+            ast::Decl { atom: use_atom, descr: descr_atoms, bounds: None, constraints: None }
         ))
     }
 
@@ -258,11 +200,8 @@ where
             }
             bound_decls.push(self.parse_bounds_decl()?);
         }
-        let bounds = if bound_decls.is_empty() {
-            None
-        } else {
-            Some(alloc_slice!(self, &bound_decls))
-        };
+        let bounds =
+            if bound_decls.is_empty() { None } else { Some(alloc_slice!(self, &bound_decls)) };
         let constraints = if Token::Inclusion == self.token {
             Some(self.parse_inclusion_constraint()?)
         } else {
@@ -271,12 +210,7 @@ where
         self.expect(Token::Dot)?;
         Ok(alloc!(
             self,
-            ast::Decl {
-                atom,
-                descr: alloc_slice!(self, &descr_atoms),
-                bounds,
-                constraints,
-            }
+            ast::Decl { atom, descr: alloc_slice!(self, &descr_atoms), bounds, constraints }
         ))
     }
 
@@ -297,38 +231,28 @@ where
         let mut consequences = vec![];
         self.parse_bracket_atoms(&mut consequences)?;
         let consequences = alloc_slice!(self, &consequences);
-        Ok(alloc!(
-            self,
-            Constraints {
-                consequences,
-                alternatives: &[]
-            }
-        ))
+        Ok(alloc!(self, Constraints { consequences, alternatives: &[] }))
     }
 
     fn parse_clause(&mut self) -> Result<&'b ast::Clause<'b>> {
         let head = self.parse_atom()?;
         let mut premises = vec![];
         let mut transform = vec![];
-        if let Token::ColonDash = self.token {
-            self.next_token()?;
-            self.parse_terms(&mut premises)?;
-            if let Token::PipeGt = self.token {
+        match self.token {
+            Token::ColonDash | Token::LongLeftDoubleArrow => {
                 self.next_token()?;
-                self.parse_transforms(&mut transform)?;
+                self.parse_terms(&mut premises)?;
+                if let Token::PipeGt = self.token {
+                    self.next_token()?;
+                    self.parse_transforms(&mut transform)?;
+                }
             }
+            _ => {}
         }
         self.expect(Token::Dot)?;
         let premises = alloc_slice!(self, &premises);
         let transform = alloc_slice!(self, &transform);
-        Ok(alloc!(
-            self,
-            ast::Clause {
-                head,
-                premises,
-                transform,
-            }
-        ))
+        Ok(alloc!(self, ast::Clause { head, premises, transform }))
     }
 
     /// terms ::= term { , term }
@@ -424,26 +348,14 @@ where
         }
         self.expect(Token::RParen)?;
         let args = alloc_slice!(self, &args);
-        Ok(alloc!(
-            self,
-            ast::Atom {
-                sym: ast::PredicateSym { name, arity: None },
-                args,
-            }
-        ))
+        Ok(alloc!(self, ast::Atom { sym: ast::PredicateSym { name, arity: None }, args }))
     }
 
     fn parse_transforms(&mut self, transforms: &mut Vec<&'b ast::TransformStmt<'b>>) -> Result<()> {
         if Token::Do == self.token {
             self.next_token()?;
             let expr = self.parse_base_term()?;
-            transforms.push(alloc!(
-                self,
-                ast::TransformStmt {
-                    var: None,
-                    app: expr
-                }
-            ));
+            transforms.push(alloc!(self, ast::TransformStmt { var: None, app: expr }));
             self.expect(Token::Semi)?;
         }
         loop {
@@ -456,13 +368,7 @@ where
                 self.next_token()?;
                 self.expect(Token::Eq)?;
                 let expr = self.parse_base_term()?;
-                transforms.push(alloc!(
-                    self,
-                    ast::TransformStmt {
-                        var: Some(name),
-                        app: expr
-                    }
-                ))
+                transforms.push(alloc!(self, ast::TransformStmt { var: Some(name), app: expr }))
             }
             if let Token::Dot = self.token {
                 break;
@@ -565,10 +471,7 @@ where
         if let ast::BaseTerm::Const(ast::Const::Name { .. }) = name {
             items.push(name)
         } else {
-            bail!(
-                "parse_base_term: expected name in struct expression {{ ... }} got {:?}",
-                name
-            );
+            bail!("parse_base_term: expected name in struct expression {{ ... }} got {:?}", name);
         }
         self.expect(Token::Colon)?;
         items.push(self.parse_base_term()?);
@@ -589,10 +492,7 @@ where
             items.push(self.parse_base_term()?);
         }
         self.expect(Token::RBrace)?;
-        Ok(alloc!(
-            self,
-            ast::BaseTerm::ApplyFn(FN_STRUCT_SYM, alloc_slice!(self, &items))
-        ))
+        Ok(alloc!(self, ast::BaseTerm::ApplyFn(FN_STRUCT_SYM, alloc_slice!(self, &items))))
     }
 
     /// paren_base_terms ::=  `(` [base_terms] `)`
@@ -674,21 +574,12 @@ mod test {
         let unit = p.parse_unit()?;
         match unit.decls {
             &[&ast::Decl {
-                atom: &ast::Atom {
-                    sym: PACKAGE_SYM, ..
-                },
+                atom: &ast::Atom { sym: PACKAGE_SYM, .. },
                 descr:
                     &[&ast::Atom {
                         sym: NAME_SYM,
                         args: &[ast::BaseTerm::Const(ast::Const::String("foo"))],
-                    }, &ast::Atom {
-                        sym:
-                            ast::PredicateSym {
-                                name: "bar",
-                                arity: None,
-                            },
-                        args: &[],
-                    }],
+                    }, &ast::Atom { sym: ast::PredicateSym { name: "bar", arity: None }, args: &[] }],
                 ..
             }, &ast::Decl {
                 atom: &ast::Atom { sym: USE_SYM, .. },
@@ -696,14 +587,7 @@ mod test {
                     &[&ast::Atom {
                         sym: NAME_SYM,
                         args: &[ast::BaseTerm::Const(ast::Const::String("baz"))],
-                    }, &ast::Atom {
-                        sym:
-                            ast::PredicateSym {
-                                name: "bar",
-                                arity: None,
-                            },
-                        args: &[],
-                    }],
+                    }, &ast::Atom { sym: ast::PredicateSym { name: "bar", arity: None }, args: &[] }],
                 ..
             }] => {}
             z => panic!("unexpcted {z:?}"),
@@ -720,11 +604,7 @@ mod test {
             ast::Decl {
                 atom:
                     &ast::Atom {
-                        sym:
-                            ast::PredicateSym {
-                                name: "foo",
-                                arity: None,
-                            },
+                        sym: ast::PredicateSym { name: "foo", arity: None },
                         args: &[&ast::BaseTerm::Variable("X"), &ast::BaseTerm::Variable("Y")],
                     },
                 ..
@@ -758,35 +638,20 @@ mod test {
             &ast::BaseTerm::Const(ast::Const::Float(1.5)),
             &ast::BaseTerm::Const(ast::Const::String("foo")),
             &ast::BaseTerm::Const(ast::Const::Name("/foo")),
+            &ast::BaseTerm::ApplyFn(ast::FunctionSym { name: "fn:list", arity: None }, &[]),
             &ast::BaseTerm::ApplyFn(
-                ast::FunctionSym {
-                    name: "fn:list",
-                    arity: None,
-                },
-                &[],
-            ),
-            &ast::BaseTerm::ApplyFn(
-                ast::FunctionSym {
-                    name: "fn:list",
-                    arity: None,
-                },
+                ast::FunctionSym { name: "fn:list", arity: None },
                 &[&ast::BaseTerm::Const(ast::Const::Name("/a"))],
             ),
             &ast::BaseTerm::ApplyFn(
-                ast::FunctionSym {
-                    name: "fn:list",
-                    arity: None,
-                },
+                ast::FunctionSym { name: "fn:list", arity: None },
                 &[
                     &ast::BaseTerm::Const(ast::Const::Name("/a")),
                     &ast::BaseTerm::Const(ast::Const::Number(3)),
                 ],
             ),
         ];
-        assert!(
-            expected == got_base_terms,
-            "want: {expected:?}\n got: {got_base_terms:?}"
-        );
+        assert!(expected == got_base_terms, "want: {expected:?}\n got: {got_base_terms:?}");
         Ok(())
     }
 
@@ -810,17 +675,11 @@ mod test {
         }
         let expected = vec![
             &ast::Term::Atom(&ast::Atom {
-                sym: ast::PredicateSym {
-                    name: "foo",
-                    arity: None,
-                },
+                sym: ast::PredicateSym { name: "foo", arity: None },
                 args: &[&ast::BaseTerm::Const(ast::Const::Name("/bar"))],
             }),
             &ast::Term::NegAtom(&ast::Atom {
-                sym: ast::PredicateSym {
-                    name: "bar",
-                    arity: None,
-                },
+                sym: ast::PredicateSym { name: "bar", arity: None },
                 args: &[],
             }),
             &ast::Term::Eq(&ast::BaseTerm::Variable("X"), &ast::BaseTerm::Variable("Z")),
@@ -829,20 +688,14 @@ mod test {
                 &ast::BaseTerm::Const(ast::Const::Number(3)),
             ),
             &ast::Term::Atom(&ast::Atom {
-                sym: ast::PredicateSym {
-                    name: ":lt",
-                    arity: Some(2),
-                },
+                sym: ast::PredicateSym { name: ":lt", arity: Some(2) },
                 args: &[
                     &ast::BaseTerm::Const(ast::Const::Number(3)),
                     &ast::BaseTerm::Const(ast::Const::Number(1)),
                 ],
             }),
             &ast::Term::Atom(&ast::Atom {
-                sym: ast::PredicateSym {
-                    name: ":le",
-                    arity: Some(2),
-                },
+                sym: ast::PredicateSym { name: ":le", arity: Some(2) },
                 args: &[
                     &ast::BaseTerm::Const(ast::Const::Number(3)),
                     &ast::BaseTerm::Const(ast::Const::Number(1)),
@@ -854,10 +707,7 @@ mod test {
                 println!("{:?} == {:?} ? {}", l, r, l == r)
             }
         }
-        assert!(
-            expected == got_terms,
-            "want: {expected:?}\n got: {got_terms:?}"
-        );
+        assert!(expected == got_terms, "want: {expected:?}\n got: {got_terms:?}");
         Ok(())
     }
 
@@ -891,10 +741,7 @@ mod test {
             clause,
             ast::Clause {
                 head: ast::Atom {
-                    sym: ast::PredicateSym {
-                        name: "foo",
-                        arity: None
-                    },
+                    sym: ast::PredicateSym { name: "foo", arity: None },
                     args: &[ast::BaseTerm::Variable("X")]
                 },
                 premises: &[],
@@ -906,10 +753,7 @@ mod test {
         assert!(matches!(
             clause,
             ast::Clause {
-                head: ast::Atom {
-                    sym: ast::PredicateSym { name: "foo", .. },
-                    args: _
-                },
+                head: ast::Atom { sym: ast::PredicateSym { name: "foo", .. }, args: _ },
                 premises: &[&ast::Term::NegAtom(ast::Atom {
                     sym: ast::PredicateSym { name: "bar", .. },
                     args: _
@@ -917,41 +761,26 @@ mod test {
                 transform: &[],
             }
         ));
-        let mut p = make_parser(
-            &bump,
-            "foo(Z) :- bar(Y) |> do fn:group_by(); let X = fn:count(Y).",
-        );
+        let mut p = make_parser(&bump, "foo(Z) ⟸ bar(Y) |> do fn:group_by(); let X = fn:count(Y).");
 
         let clause = p.parse_clause()?;
         assert!(matches!(
             clause,
             ast::Clause {
-                head: ast::Atom {
-                    sym: ast::PredicateSym {
-                        name: "foo",
-                        arity: None
-                    },
-                    args: _
-                },
+                head: ast::Atom { sym: ast::PredicateSym { name: "foo", arity: None }, args: _ },
                 premises: &[&ast::Term::Atom(ast::Atom { .. })],
                 transform: &[
                     &ast::TransformStmt {
                         var: None,
                         app: ast::BaseTerm::ApplyFn(
-                            ast::FunctionSym {
-                                name: "fn:group_by",
-                                arity: None
-                            },
+                            ast::FunctionSym { name: "fn:group_by", arity: None },
                             _
                         )
                     },
                     &ast::TransformStmt {
                         var: Some("X"),
                         app: ast::BaseTerm::ApplyFn(
-                            ast::FunctionSym {
-                                name: "fn:count",
-                                arity: None
-                            },
+                            ast::FunctionSym { name: "fn:count", arity: None },
                             _
                         )
                     }

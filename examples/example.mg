@@ -5,11 +5,10 @@
 foo().
 
 # A rule for a 1-argument predicate. Note that it is possible to have numbers
-# or strings, by default there are no constraints on predicate arguments. 
+# or strings, by default there are no constraints on predicate arguments.
 bar(/some/name/constant).
 bar(606).
 bar("a").
-bar(/truthy).
 
 # You can use single quote for strings
 bar('aaa').

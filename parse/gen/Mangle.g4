@@ -48,7 +48,7 @@ constraintsBlock
     ;
 
 clause
-    : atom ((':-'|DOUBLELEFTARROW) clauseBody)? '.'
+    : atom ((':-'|LONGLEFTDOUBLEARROW) clauseBody)? '.'
     ;
 
 clauseBody
@@ -102,7 +102,7 @@ atoms
 WHITESPACE : ( '\t' | ' ' | '\r' | '\n'| '\u000C' )+ -> channel(HIDDEN) ;
 COMMENT : '#' (~'\n')* -> channel(HIDDEN) ;
 
-DOUBLELEFTARROW : '\u21D0';
+LONGLEFTDOUBLEARROW : '⟸';  // \u27F8
 
 PACKAGE : 'Package';
 USE : 'Use';

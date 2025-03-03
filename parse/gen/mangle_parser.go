@@ -33,12 +33,12 @@ func mangleParserInit() {
 	staticData := &MangleParserStaticData
 	staticData.LiteralNames = []string{
 		"", "'.'", "'descr'", "'inclusion'", "':'", "'{'", "'}'", "'opt'", "",
-		"", "'\\u21D0'", "'Package'", "'Use'", "'Decl'", "'bound'", "'let'",
+		"", "'\\u27F8'", "'Package'", "'Use'", "'Decl'", "'bound'", "'let'",
 		"'do'", "'('", "')'", "'['", "']'", "'='", "'!='", "','", "'!'", "'<'",
 		"'<='", "'>'", "'>='", "':-'", "'\\n'", "'|>'",
 	}
 	staticData.SymbolicNames = []string{
-		"", "", "", "", "", "", "", "", "WHITESPACE", "COMMENT", "DOUBLELEFTARROW",
+		"", "", "", "", "", "", "", "", "WHITESPACE", "COMMENT", "LONGLEFTDOUBLEARROW",
 		"PACKAGE", "USE", "DECL", "BOUND", "LET", "DO", "LPAREN", "RPAREN",
 		"LBRACKET", "RBRACKET", "EQ", "BANGEQ", "COMMA", "BANG", "LESS", "LESSEQ",
 		"GREATER", "GREATEREQ", "COLONDASH", "NEWLINE", "PIPEGREATER", "NUMBER",
@@ -217,47 +217,47 @@ func NewMangleParser(input antlr.TokenStream) *MangleParser {
 
 // MangleParser tokens.
 const (
-	MangleParserEOF             = antlr.TokenEOF
-	MangleParserT__0            = 1
-	MangleParserT__1            = 2
-	MangleParserT__2            = 3
-	MangleParserT__3            = 4
-	MangleParserT__4            = 5
-	MangleParserT__5            = 6
-	MangleParserT__6            = 7
-	MangleParserWHITESPACE      = 8
-	MangleParserCOMMENT         = 9
-	MangleParserDOUBLELEFTARROW = 10
-	MangleParserPACKAGE         = 11
-	MangleParserUSE             = 12
-	MangleParserDECL            = 13
-	MangleParserBOUND           = 14
-	MangleParserLET             = 15
-	MangleParserDO              = 16
-	MangleParserLPAREN          = 17
-	MangleParserRPAREN          = 18
-	MangleParserLBRACKET        = 19
-	MangleParserRBRACKET        = 20
-	MangleParserEQ              = 21
-	MangleParserBANGEQ          = 22
-	MangleParserCOMMA           = 23
-	MangleParserBANG            = 24
-	MangleParserLESS            = 25
-	MangleParserLESSEQ          = 26
-	MangleParserGREATER         = 27
-	MangleParserGREATEREQ       = 28
-	MangleParserCOLONDASH       = 29
-	MangleParserNEWLINE         = 30
-	MangleParserPIPEGREATER     = 31
-	MangleParserNUMBER          = 32
-	MangleParserFLOAT           = 33
-	MangleParserVARIABLE        = 34
-	MangleParserNAME            = 35
-	MangleParserTYPENAME        = 36
-	MangleParserDOT_TYPE        = 37
-	MangleParserCONSTANT        = 38
-	MangleParserSTRING          = 39
-	MangleParserBYTESTRING      = 40
+	MangleParserEOF                 = antlr.TokenEOF
+	MangleParserT__0                = 1
+	MangleParserT__1                = 2
+	MangleParserT__2                = 3
+	MangleParserT__3                = 4
+	MangleParserT__4                = 5
+	MangleParserT__5                = 6
+	MangleParserT__6                = 7
+	MangleParserWHITESPACE          = 8
+	MangleParserCOMMENT             = 9
+	MangleParserLONGLEFTDOUBLEARROW = 10
+	MangleParserPACKAGE             = 11
+	MangleParserUSE                 = 12
+	MangleParserDECL                = 13
+	MangleParserBOUND               = 14
+	MangleParserLET                 = 15
+	MangleParserDO                  = 16
+	MangleParserLPAREN              = 17
+	MangleParserRPAREN              = 18
+	MangleParserLBRACKET            = 19
+	MangleParserRBRACKET            = 20
+	MangleParserEQ                  = 21
+	MangleParserBANGEQ              = 22
+	MangleParserCOMMA               = 23
+	MangleParserBANG                = 24
+	MangleParserLESS                = 25
+	MangleParserLESSEQ              = 26
+	MangleParserGREATER             = 27
+	MangleParserGREATEREQ           = 28
+	MangleParserCOLONDASH           = 29
+	MangleParserNEWLINE             = 30
+	MangleParserPIPEGREATER         = 31
+	MangleParserNUMBER              = 32
+	MangleParserFLOAT               = 33
+	MangleParserVARIABLE            = 34
+	MangleParserNAME                = 35
+	MangleParserTYPENAME            = 36
+	MangleParserDOT_TYPE            = 37
+	MangleParserCONSTANT            = 38
+	MangleParserSTRING              = 39
+	MangleParserBYTESTRING          = 40
 )
 
 // MangleParser rules.
@@ -1807,7 +1807,7 @@ type IClauseContext interface {
 	Atom() IAtomContext
 	ClauseBody() IClauseBodyContext
 	COLONDASH() antlr.TerminalNode
-	DOUBLELEFTARROW() antlr.TerminalNode
+	LONGLEFTDOUBLEARROW() antlr.TerminalNode
 
 	// IsClauseContext differentiates from other interfaces.
 	IsClauseContext()
@@ -1881,8 +1881,8 @@ func (s *ClauseContext) COLONDASH() antlr.TerminalNode {
 	return s.GetToken(MangleParserCOLONDASH, 0)
 }
 
-func (s *ClauseContext) DOUBLELEFTARROW() antlr.TerminalNode {
-	return s.GetToken(MangleParserDOUBLELEFTARROW, 0)
+func (s *ClauseContext) LONGLEFTDOUBLEARROW() antlr.TerminalNode {
+	return s.GetToken(MangleParserLONGLEFTDOUBLEARROW, 0)
 }
 
 func (s *ClauseContext) GetRuleContext() antlr.RuleContext {
@@ -1932,12 +1932,12 @@ func (p *MangleParser) Clause() (localctx IClauseContext) {
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	if _la == MangleParserDOUBLELEFTARROW || _la == MangleParserCOLONDASH {
+	if _la == MangleParserLONGLEFTDOUBLEARROW || _la == MangleParserCOLONDASH {
 		{
 			p.SetState(105)
 			_la = p.GetTokenStream().LA(1)
 
-			if !(_la == MangleParserDOUBLELEFTARROW || _la == MangleParserCOLONDASH) {
+			if !(_la == MangleParserLONGLEFTDOUBLEARROW || _la == MangleParserCOLONDASH) {
 				p.GetErrorHandler().RecoverInline(p)
 			} else {
 				p.GetErrorHandler().ReportMatch(p)

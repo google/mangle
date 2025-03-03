@@ -9,7 +9,7 @@ null
 'opt'
 null
 null
-'\u21D0'
+'\u27F8'
 'Package'
 'Use'
 'Decl'
@@ -52,7 +52,7 @@ null
 null
 WHITESPACE
 COMMENT
-DOUBLELEFTARROW
+LONGLEFTDOUBLEARROW
 PACKAGE
 USE
 DECL

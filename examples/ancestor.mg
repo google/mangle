@@ -1,8 +1,28 @@
-# This is an example from the Alice Book (Foundations of Databases), Ch. 13
-# The ancestor predicate is an example of a non-linear rule.
+# The ancestor predicate is an example of a relation that can be defined
+# using a recursive rule.
 
-anc(X, Y) :- par(X, Y).
-anc(X, Y) :- anc(X, Z), anc(Z, Y).
+# Rules with a head but without a body simply define facts.
 
-par(1, 2).
-par(2, 3).
+parent(/Oedipus, /Polynices).
+parent(/Polynices, /Thersander).
+parent(/Polynices, /Timeas).
+parent(/Polynices, /Adrastus).
+
+# Rules with a body define how to produce new facts from existing ones.
+# We use `⟸` here but you can also use `:-` to separate head and body.
+
+# - Every parent of Y is an ancestor of Y.
+ancestor(X, Y) ⟸ parent(X, Y).
+
+# - Every parent of an ancestor of Z is also an ancestor of Z.
+ancestor(X, Z) ⟸ parent(X, Y), ancestor(Y, Z).
+
+# Try loading this file and querying Adrastus' ancestors.
+# mg > ?ancestor(_, /Adrastus)
+# ancestor(/Oedipus,/Adrastus)
+# ancestor(/Polynices,/Adrastus)
+# Found 2 entries for ancestor(_,/Adrastus).
+
+# There are other ways to define this relation. Try changing the second clause
+# to "Every ancestor of an  # ancestor of Z is also an ancestor of Z" and
+# reloading the file.

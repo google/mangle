@@ -24,34 +24,35 @@ pub enum Token {
     String { decoded: String }, // "foo" or 'foo' or '''foo''' or r'foo' or r"foo"
     Bytes { decoded: Vec<u8> }, // b"foo", etc
 
-    Semi,      // ;
-    Package,   // Package
-    Decl,      // Decl
-    Use,       // Use
-    Bound,     // bound
-    Descr,     // descr
-    Inclusion, // inclusion
-    Let,       // let
-    Do,        // do
-    LParen,    // (
-    RParen,    // )
-    LBracket,  // [
-    RBracket,  // ]
-    LBrace,    // {
-    RBrace,    // }
-    Colon,     // :
-    ColonDash, // :-
-    Eq,        // =
-    Bang,      // !
-    BangEq,    // !=
-    Comma,     // ,
-    Lt,        // <
-    Le,        // <=
-    Gt,        // >
-    Ge,        // >=
-    Pipe,      // |
-    PipeGt,    // |>
-    Dot,       // .
+    Semi,                // ;
+    Package,             // Package
+    Decl,                // Decl
+    Use,                 // Use
+    Bound,               // bound
+    Descr,               // descr
+    Inclusion,           // inclusion
+    Let,                 // let
+    Do,                  // do
+    LParen,              // (
+    RParen,              // )
+    LBracket,            // [
+    RBracket,            // ]
+    LBrace,              // {
+    RBrace,              // }
+    Colon,               // :
+    ColonDash,           // :-
+    Eq,                  // =
+    Bang,                // !
+    BangEq,              // !=
+    Comma,               // ,
+    Lt,                  // <
+    Le,                  // <=
+    Gt,                  // >
+    Ge,                  // >=
+    Pipe,                // |
+    PipeGt,              // |>
+    Dot,                 // .
+    LongLeftDoubleArrow, // ⟸ unicode \u27F8
 }
 
 impl std::fmt::Display for Token {
@@ -104,6 +105,7 @@ impl std::fmt::Display for Token {
             Token::Gt => token_text![">"],
             Token::Ge => token_text!["<="],
             Token::Dot => token_text!["."],
+            Token::LongLeftDoubleArrow => token_text!["⟸"],
         }
     }
 }

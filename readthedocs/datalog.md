@@ -16,8 +16,15 @@ Take a look at this table:
 | 3 | Alyssa P. Hacker  | Software Development |
 
 The Datalog view of a table is that it is an enumeration of
-facts. We can write a program that generates
-facts:
+facts. A fact is an expression like
+`volunteer(1, "Aisha Salehi", /teaching)` which describes
+all data that is found in a row. The name of the table
+becomes a predicate, and the data in every column becomes an
+argument. As we will see, formal notation (syntax) enables us to
+do precise reasoning with rules. This approach has its roots in
+mathematical logic.
+
+We can write a Datalog program that generates facts:
 
 ```
 volunteer(1, "Aisha Salehi", /teaching).
@@ -28,26 +35,29 @@ volunteer(3, "Alyssa P. Hacker", /software_development).
 The above program contains rules. They are special cases of rules,
 since they just state facts, without any premises.
 
-Normally, a database is not defined within a program, but given outside.
-This is just an example to get familiar.
+Normally, a database is not defined within a program, but exists outside
+the program. This is just an example to get familiar.
 
 ## Atoms and Matching
 
 A rule describes how to obtain new facts from existing ones. Before we look
-at rules, we need to understand matching.
+at rules that have premises, we need to understand matching.
 
-We can variables like `X` as placeholders to describe fact patterns. Such
-fact patterns are called atoms. A known fact can match an atom when there is a
-way to assign values to the atom's variables that make the atom and the fact
-equal. So the fact `volunteer(3, "Alyssa P. Hacker", /software_development)`
+Predicates can also be applied to variables like `X`. Variables act
+as placeholders for data. A predicate expression that contains variables is
+called an atom. A known fact *matches* an atom when there is a way to assign 
+values to the atom's variables that make the atom and the fact equal.
+
+For example, the fact `volunteer(3, "Alyssa P. Hacker", /software_development)`
 matches the atom `volunteer(1, "Aisha Salehi", X)` because we can set
-`X` to `/software_development`.
+`X` to `/software_development`. The other facts above do not match, since the
+ID and Name arguments are different.
 
 Now we can define a proper rule. Let's define one that picks
 everyone who has the `/teaching` skill:
 
 ```
-teacher(ID, Name) ⟸ volunteer(ID, Name, /software_development).
+teacher(ID, Name) ⟸ volunteer(ID, Name, /teaching).
 ```
 
 (Mangle Datalog also supports the older notation `:-` instead of `⟸`.)
@@ -60,8 +70,9 @@ possible combination of values that could lead to a match for each atom in the
 body. When this is successful, the engine uses the variable assignment to
 create a new fact.
 
-Rules can database:
+Rules are connected to databases in more than one way:
 
+- a rule mentions atom, which match rows in tables - a simple query
 - we can think of rules as a database queries
 - we can also think of rules as defining a new table `teacher` and
 populating it with a subset of the rows from table `volunteer`.
@@ -111,7 +122,9 @@ teacher_and_coder(ID, Name) ⟸
     volunteer(ID, Name, /software_development).
 ```
 
-In our current data set, the result will be empty.
+In our current data set, the result will be empty. This rules is an
+example of a database join: the body states that two rows have the
+same ID and Name fields.
 
 ## Recursive rules
 

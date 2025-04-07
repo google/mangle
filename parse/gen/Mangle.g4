@@ -147,15 +147,6 @@ NAME : ':'? ('a'..'z') ( NAME_CHAR | ('.' NAME_CHAR) )*;
 TYPENAME : 'A'..'Z' ( NAME_CHAR | ('.' NAME_CHAR) )*;
 DOT_TYPE : '.' TYPENAME;
 
-// PAIR_TYPE : '.Pair';
-// TUPLE_TYPE : '.Tuple';
-// OPTION_TYPE : '.Option';
-// LIST_TYPE : '.List';
-// STRUCT_TYPE : '.Struct';
-// MAP_TYPE : '.Map';
-// UNION_TYPE : '.Union';
-// SINGLETON_TYPE : '.Singleton';
-
 fragment CONSTANT_CHAR : LETTER | DIGIT | '.' | '-' | '_' | '~' | '%';
 CONSTANT : '/' CONSTANT_CHAR+ ('/' CONSTANT_CHAR+)*;
 

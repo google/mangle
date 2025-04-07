@@ -118,7 +118,13 @@ where
                 }
                 _ => Ok(Token::Pipe),
             },
-            Some('.') => Ok(Token::Dot),
+            Some('.') => match self.peek()? {
+                Some('A'..'Z') => {
+                    let first = self.next_char()?.expect("could not get peeked character.");
+                    self.ident_or_dot_ident(first, true)
+                }
+                _ => Ok(Token::Dot),
+            },
             Some('/') => self.name(),
             Some('⟸') => Ok(Token::LongLeftDoubleArrow),
             Some(delim @ '\'') => self.string(delim, false),
@@ -217,6 +223,10 @@ where
     }
 
     fn ident(&mut self, first: char) -> Result<Token> {
+        self.ident_or_dot_ident(first, false)
+    }
+
+    fn ident_or_dot_ident(&mut self, first: char, dot_ident: bool) -> Result<Token> {
         self.text.clear();
         self.text.push(first);
         loop {
@@ -239,6 +249,12 @@ where
                         "do" => Ok(Token::Do),
                         "descr" => Ok(Token::Descr),
                         "let" => Ok(Token::Let),
+                        _ if dot_ident => {
+                            let mut fn_name = String::new();
+                            fn_name.push_str("fn:");
+                            fn_name.push_str(&self.text);
+                            Ok(Token::DotIdent { name: fn_name })
+                        }
                         _ => Ok(Token::Ident { name: self.text.clone() }),
                     }
                 }

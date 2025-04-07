@@ -18,6 +18,7 @@ pub enum Token {
     Eof,
 
     Name { name: String },      // /foo/bar
+    DotIdent { name: String },  // used for type syntax .List, name does not include `.`
     Ident { name: String },     // x
     Int { decoded: i64 },       // 123
     Float { decoded: f64 },     // 1.23e45
@@ -73,6 +74,7 @@ impl std::fmt::Display for Token {
             Token::Decl => token_text!["Decl"],
 
             Token::Name { name } => token_text!["{}", name],
+            Token::DotIdent { name } => token_text![".{}", name],
             Token::Ident { name } => token_text!["{}", name],
             Token::Int { decoded } => token_text!["{}", decoded],
             Token::Float { decoded } => token_text!["{}", decoded],

@@ -392,6 +392,7 @@ where
             _ => {}
         }
 
+        let mut is_type = false;
         let mut base_term = match &self.token {
             Token::Ident { name } if is_variable(name) => {
                 let name = alloc_str!(self, &name);
@@ -399,6 +400,12 @@ where
             }
             Token::Ident { name } if is_fn(name) => {
                 let name = self.bump.alloc_str(name);
+                // Arguments parsed below.
+                ast::BaseTerm::ApplyFn(ast::FunctionSym { name, arity: None }, &[])
+            }
+            Token::DotIdent { name } => {
+                let name = self.bump.alloc_str(name);
+                is_type = true;
                 // Arguments parsed below.
                 ast::BaseTerm::ApplyFn(ast::FunctionSym { name, arity: None }, &[])
             }
@@ -421,7 +428,11 @@ where
         self.next_token()?;
         if let ast::BaseTerm::ApplyFn(fn_sym, _) = base_term {
             let mut fn_args = vec![];
-            self.parse_paren_base_terms(&mut fn_args)?;
+            if is_type {
+                self.parse_langle_base_terms(&mut fn_args)?;
+            } else {
+                self.parse_paren_base_terms(&mut fn_args)?;
+            }
             let fn_args = self.bump.alloc_slice_copy(&fn_args);
             base_term = ast::BaseTerm::ApplyFn(fn_sym, fn_args);
         }
@@ -433,7 +444,7 @@ where
         self.expect(Token::LBracket)?;
         if Token::RBracket == self.token {
             self.next_token()?;
-            return Ok(alloc!(self, ast::BaseTerm::ApplyFn(FN_MAP_SYM, &[])));
+            return Ok(alloc!(self, ast::BaseTerm::ApplyFn(FN_LIST_SYM, &[])));
         }
         let first = self.parse_base_term()?;
         let expr = if Token::Colon != self.token {
@@ -495,6 +506,19 @@ where
         Ok(alloc!(self, ast::BaseTerm::ApplyFn(FN_STRUCT_SYM, alloc_slice!(self, &items))))
     }
 
+    /// paren_langle_terms ::=  `<` [base_terms] `>`
+    fn parse_langle_base_terms(
+        &mut self,
+        base_terms: &mut Vec<&'b ast::BaseTerm<'b>>,
+    ) -> Result<()> {
+        self.expect(Token::Lt)?;
+        if Token::Gt != self.token {
+            self.parse_base_terms(base_terms)?;
+        }
+        self.expect(Token::Gt)?;
+        Ok(())
+    }
+
     /// paren_base_terms ::=  `(` [base_terms] `)`
     fn parse_paren_base_terms(
         &mut self,
@@ -536,7 +560,8 @@ fn base_term_start(t: &Token) -> bool {
         | Token::String { .. }
         | Token::Bytes { .. }
         | Token::LBracket
-        | Token::LBrace => true,
+        | Token::LBrace
+        | Token::DotIdent { .. } => true,
         Token::Ident { name } => is_variable(name) || is_fn(name),
         _ => false,
     }
@@ -712,9 +737,10 @@ mod test {
     }
 
     #[test]
-    fn test_base_terms() -> Result<()> {
+    fn test_structured_data_and_types() -> Result<()> {
         let bump = Bump::new();
-        let input = "[] [1,2,3] [1: 'one', 2: 'two'] {} {/foo: /bar}";
+        let input =
+            "[] [1,2,3] [1: 'one', 2: 'two'] {} {/foo: /bar} .List<.Option</name>, /string>";
         let mut p = make_parser(&bump, input);
         let mut got_base_terms = vec![];
         loop {
@@ -729,6 +755,45 @@ mod test {
                 }
             }
         }
+        let expected = vec![
+            &ast::BaseTerm::ApplyFn(ast::FunctionSym { name: "fn:list", arity: None }, &[]),
+            &ast::BaseTerm::ApplyFn(
+                ast::FunctionSym { name: "fn:list", arity: None },
+                &[
+                    &ast::BaseTerm::Const(ast::Const::Number(1)),
+                    &ast::BaseTerm::Const(ast::Const::Number(2)),
+                    &ast::BaseTerm::Const(ast::Const::Number(3)),
+                ],
+            ),
+            &ast::BaseTerm::ApplyFn(
+                ast::FunctionSym { name: "fn:map", arity: None },
+                &[
+                    &ast::BaseTerm::Const(ast::Const::Number(1)),
+                    &ast::BaseTerm::Const(ast::Const::String("one")),
+                    &ast::BaseTerm::Const(ast::Const::Number(2)),
+                    &ast::BaseTerm::Const(ast::Const::String("two")),
+                ],
+            ),
+            &ast::BaseTerm::ApplyFn(ast::FunctionSym { name: "fn:struct", arity: None }, &[]),
+            &ast::BaseTerm::ApplyFn(
+                ast::FunctionSym { name: "fn:struct", arity: None },
+                &[
+                    &ast::BaseTerm::Const(ast::Const::Name("/foo")),
+                    &ast::BaseTerm::Const(ast::Const::Name("/bar")),
+                ],
+            ),
+            &ast::BaseTerm::ApplyFn(
+                ast::FunctionSym { name: "fn:List", arity: None },
+                &[
+                    &ast::BaseTerm::ApplyFn(
+                        ast::FunctionSym { name: "fn:Option", arity: None },
+                        &[&ast::BaseTerm::Const(ast::Const::Name("/name"))],
+                    ),
+                    &ast::BaseTerm::Const(ast::Const::Name("/string")),
+                ],
+            ),
+        ];
+        assert!(expected == got_base_terms, "want: {expected:?}\n got: {got_base_terms:?}");
         Ok(())
     }
 

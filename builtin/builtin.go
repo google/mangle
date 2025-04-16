@@ -62,6 +62,7 @@ var (
 		symbols.Mult:     emptyType,
 		symbols.Plus:     emptyType,
 		symbols.Minus:    emptyType,
+		symbols.Sqrt:     emptyType,
 
 		// This is only used to start a "do-transform".
 		symbols.GroupBy: emptyType,

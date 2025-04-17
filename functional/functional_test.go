@@ -816,3 +816,48 @@ func TestStringConcatenateFailure(t *testing.T) {
 		}
 	}
 }
+
+func TestSqrt(t *testing.T) {
+	tests := []struct {
+		arg  ast.Constant
+		want ast.Constant
+	}{
+		{ast.Number(0), ast.Float64(0)},
+		{ast.Number(4), ast.Float64(2)},
+		{ast.Number(9), ast.Float64(3)},
+		{ast.Float64(2.25), ast.Float64(1.5)},
+	}
+	for _, tc := range tests {
+		term := ast.ApplyFn{symbols.Sqrt, []ast.BaseTerm{tc.arg}}
+		gotBase, err := EvalExpr(term, ast.ConstSubstMap{})
+		if err != nil {
+			t.Fatalf("EvalExpr(%v) error: %v", term, err)
+		}
+		got, ok := gotBase.(ast.Constant)
+		if !ok {
+			t.Fatalf("EvalExpr(%v) did not return Constant, got %T", term, gotBase)
+		}
+		if !got.Equals(tc.want) {
+			t.Errorf("EvalExpr(%v) = %v want %v", term, got, tc.want)
+		}
+	}
+}
+
+func TestSqrtNegative(t *testing.T) {
+	term := ast.ApplyFn{symbols.Sqrt, []ast.BaseTerm{ast.Number(-1)}}
+	gotBase, err := EvalExpr(term, ast.ConstSubstMap{})
+	if err != nil {
+		t.Fatalf("EvalExpr(%v) error: %v", term, err)
+	}
+	got, ok := gotBase.(ast.Constant)
+	if !ok {
+		t.Fatalf("EvalExpr(%v) did not return Constant, got %T", term, gotBase)
+	}
+	f, err := got.Float64Value()
+	if err != nil {
+		t.Fatalf("got.Float64Value() error: %v", err)
+	}
+	if !math.IsNaN(f) {
+		t.Errorf("EvalExpr(%v) = %v want NaN", term, f)
+	}
+}

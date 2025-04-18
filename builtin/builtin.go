@@ -57,11 +57,12 @@ var (
 
 	// Functions has all built-in functions.
 	Functions = map[ast.FunctionSym]ast.BaseTerm{
-		symbols.Div:      emptyType,
-		symbols.FloatDiv: emptyType,
-		symbols.Mult:     emptyType,
-		symbols.Plus:     emptyType,
-		symbols.Minus:    emptyType,
+		symbols.Div:       emptyType,
+		symbols.FloatDiv:  emptyType,
+		symbols.FloatMult: emptyType,
+		symbols.Mult:      emptyType,
+		symbols.Plus:      emptyType,
+		symbols.Minus:     emptyType,
 
 		// This is only used to start a "do-transform".
 		symbols.GroupBy: emptyType,

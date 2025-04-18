@@ -858,6 +858,26 @@ func TestFunctionEval(t *testing.T) {
 			want:    atom("fun(2.5)"),
 		},
 		{
+			program: `fun(O) :- one(I) |> let O = fn:float:mult().`,
+			want:    atom("fun(1.0)"),
+		},
+		{
+			program: `fun(O) :- f_one(I) |> let O = fn:float:mult(I).`,
+			want:    atom("fun(1.0)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:float:mult(2).`,
+			want:    atom("fun(2.0)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:float:mult(1.5, 2).`,
+			want:    atom("fun(3.0)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:float:mult(0.5, 1.5, 2.0).`,
+			want:    atom("fun(1.5)"),
+		},
+		{
 			program: `e(fn:min()).`,
 			wantErr: true,
 		},

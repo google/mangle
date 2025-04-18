@@ -6,7 +6,7 @@ require (
 	bitbucket.org/creachadair/stringset v0.0.11
 	github.com/antlr4-go/antlr/v4 v4.13.0
 	github.com/chzyer/readline v1.5.1
-	github.com/golang/glog v1.2.0
+	github.com/golang/glog v1.2.4
 	github.com/google/go-cmp v0.6.0
 	go.uber.org/multierr v1.11.0
 	google.golang.org/protobuf v1.34.0

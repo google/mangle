@@ -18,6 +18,30 @@ func name(n string) ast.Constant {
 	return c
 }
 
+func TestEvalFloatPlus(t *testing.T) {
+	tests := []struct {
+		args []ast.BaseTerm
+		want ast.Constant
+	}{
+		{[]ast.BaseTerm{}, ast.Float64(0)},
+		{[]ast.BaseTerm{ast.Float64(1.5)}, ast.Float64(1.5)},
+		{[]ast.BaseTerm{ast.Float64(1.5), ast.Float64(2.5)}, ast.Float64(4.0)},
+		{[]ast.BaseTerm{ast.Number(2), ast.Float64(3.5)}, ast.Float64(5.5)},
+		{[]ast.BaseTerm{ast.Float64(2.5), ast.Number(1)}, ast.Float64(3.5)},
+	}
+	for _, test := range tests {
+		expr := ast.ApplyFn{symbols.FloatPlus, test.args}
+		got, err := EvalExpr(expr, ast.ConstSubstMap{})
+		if err != nil {
+			t.Errorf("EvalExpr(%v) error: %v", expr, err)
+			continue
+		}
+		if !got.Equals(test.want) {
+			t.Errorf("EvalExpr(%v) = %v, want %v", expr, got, test.want)
+		}
+	}
+}
+
 func TestListContains(t *testing.T) {
 	tests := []struct {
 		listTerm   ast.BaseTerm

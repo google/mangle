@@ -85,6 +85,8 @@ var (
 	Plus = ast.FunctionSym{"fn:plus", -1}
 	// Minus is a family of functions mapping X,Y1,.. to (X - Y1) - Y2 ...MINUS(x) is -X.
 	Minus = ast.FunctionSym{"fn:minus", -1}
+	// Sqrt returns the square root of a numeric argument.
+	Sqrt = ast.FunctionSym{"fn:sqrt", 1}
 
 	// Collect turns a collection { tuple_1,...tuple_n } into a list [tuple_1, ..., tuple_n].
 	Collect = ast.FunctionSym{"fn:collect", -1}

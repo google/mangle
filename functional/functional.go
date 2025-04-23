@@ -394,9 +394,6 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 			return ast.Constant{}, fmt.Errorf("expected 2 arguments, got %d argument(s)", l)
 		}
 		arg := evaluatedArgs[0]
-		if err != nil {
-			return ast.Constant{}, err
-		}
 		indexConstant := evaluatedArgs[1]
 		index, err := indexConstant.NumberValue()
 		if err != nil {
@@ -510,6 +507,15 @@ func EvalNumericApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, err
 			return ast.Constant{}, err
 		}
 		return ast.Float64(resF), nil
+	case symbols.Sqrt.Symbol:
+		if len(args) != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 argument for sqrt, got %d", len(args))
+		}
+		fval, err := valueAsFloat(args[0])
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return ast.Float64(math.Sqrt(fval)), nil
 	default:
 		return ast.Constant{}, fmt.Errorf("unknown function %s in %s", applyFn, applyFn.Function)
 	}

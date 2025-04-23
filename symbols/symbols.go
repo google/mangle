@@ -79,6 +79,8 @@ var (
 	FloatDiv = ast.FunctionSym{"fn:float:div", -1}
 	// FloatMult is a family of functions mapping multiplication: X,Y1,.. to (X * Y1) * Y2 ... FloatMult(x) is x.
 	FloatMult = ast.FunctionSym{"fn:float:mult", -1}
+	// FloatPlus is a family of functions mapping addition: X,Y1,.. to (X + Y1) + Y2 ... FloatPlus(x) is x.
+	FloatPlus = ast.FunctionSym{"fn:float:plus", -1}
 	// Mult is a family of functions mapping X,Y1,.. to (X * Y1) * Y2 ... MULT(x) is x.
 	Mult = ast.FunctionSym{"fn:mult", -1}
 	// Plus is a family of functions mapping X,Y1,.. to (X + Y1) + Y2 ... PLUS(x) is x.

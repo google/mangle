@@ -60,6 +60,7 @@ var (
 		symbols.Div:       emptyType,
 		symbols.FloatDiv:  emptyType,
 		symbols.FloatMult: emptyType,
+		symbols.FloatPlus: emptyType,
 		symbols.Mult:      emptyType,
 		symbols.Plus:      emptyType,
 		symbols.Minus:     emptyType,

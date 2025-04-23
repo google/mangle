@@ -516,6 +516,12 @@ func EvalNumericApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, err
 			return ast.Constant{}, err
 		}
 		return ast.Float64(math.Sqrt(fval)), nil
+	case symbols.FloatPlus.Symbol:
+		resF, err := evalFloatPlus(args)
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return ast.Float64(resF), nil
 	default:
 		return ast.Constant{}, fmt.Errorf("unknown function %s in %s", applyFn, applyFn.Function)
 	}
@@ -619,6 +625,18 @@ func evalFloatMult(args []ast.Constant) (float64, error) {
 		product *= f
 	}
 	return product, nil
+}
+
+func evalFloatPlus(args []ast.Constant) (float64, error) {
+	var sum float64
+	for _, c := range args {
+		f, err := valueAsFloat(c)
+		if err != nil {
+			return 0, err
+		}
+		sum += f
+	}
+	return sum, nil
 }
 
 func evalMult(args []ast.Constant) (int64, error) {

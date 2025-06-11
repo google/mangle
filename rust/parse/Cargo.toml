@@ -11,6 +11,6 @@ readme = "README.md"
 
 [dependencies]
 anyhow.workspace = true
-bumpalo.workspace = true
+googletest.workspace = true
 mangle-ast.workspace = true
 thiserror.workspace = true

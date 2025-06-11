@@ -11,7 +11,7 @@ readme = "README.md"
 
 [dependencies]
 anyhow.workspace = true
-bumpalo.workspace = true
 mangle-analysis.workspace = true
 mangle-ast.workspace = true
 mangle-factstore.workspace = true
+fxhash.workspace = true

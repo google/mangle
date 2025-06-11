@@ -18,23 +18,24 @@ mod simple_program;
 
 pub use simple_program::{SimpleProgram, SimpleStratifiedProgram};
 
-type PredicateSet<'a> = std::collections::HashSet<&'a ast::PredicateSym<'a>>;
+type PredicateSet = std::collections::HashSet<ast::PredicateIndex>;
 
 /// Represents a program.
 /// `extensional_preds` and `intensional_preds` are disjoint.
 pub trait Program<'p> {
+    fn arena(&'p self) -> &'p ast::Arena;
+
     /// Returns predicates for extensional DB.
     /// May return an empty iterator.
-    fn extensional_preds(&'p self) -> impl Iterator<Item = &'p ast::PredicateSym<'p>>;
+    fn extensional_preds(&'p self) -> PredicateSet;
 
     /// Returns predicates for intensional DB.
     /// May return an empty iterator.
-    fn intensional_preds(&'p self) -> impl Iterator<Item = &'p ast::PredicateSym<'p>>;
+    fn intensional_preds(&'p self) -> PredicateSet;
 
     /// Maps predicates of intensional DB to rules.
     /// May return an empty iterator.
-    fn rules(&'p self, sym: &'p ast::PredicateSym<'p>)
-        -> impl Iterator<Item = &'p ast::Clause<'p>>;
+    fn rules(&'p self, sym: ast::PredicateIndex) -> impl Iterator<Item = &'p ast::Clause<'p>>;
 }
 
 // A stratified program is a program that can be separated in
@@ -43,8 +44,8 @@ pub trait Program<'p> {
 pub trait StratifiedProgram<'p>: Program<'p> {
     /// Returns an iterator of strata, in dependency order.
     /// TODO: consider Iterator<Iterator<PredicateSet>>.
-    fn strata(&'p self) -> impl Iterator<Item = &'p PredicateSet<'p>>;
+    fn strata(&'p self) -> Vec<PredicateSet>;
 
     /// Returns the stratum (index into strata list).
-    fn pred_to_index(&'p self, sym: &ast::PredicateSym) -> Option<usize>;
+    fn pred_to_index(&'p self, sym: ast::PredicateIndex) -> Option<usize>;
 }

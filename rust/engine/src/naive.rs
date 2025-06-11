@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
+use fxhash::FxHashMap;
 
+use crate::ast::{Arena, BaseTerm, Term};
 use crate::Engine;
 use crate::Result;
-use bumpalo::Bump;
+use anyhow::anyhow;
 
 pub struct Naive {}
 
@@ -30,7 +31,7 @@ impl<'e> Engine<'e> for Naive {
         for pred in program.intensional_preds() {
             for rule in program.rules(pred) {
                 if rule.premises.is_empty() {
-                    store.add(rule.head)?;
+                    store.add(program.arena(), rule.head)?;
                 }
             }
         }
@@ -41,29 +42,43 @@ impl<'e> Engine<'e> for Naive {
                     if rule.premises.is_empty() {
                         continue; // initial facts added previously
                     }
-                    let bump = Bump::new();
-                    let mut subst: HashMap<&str, &crate::ast::BaseTerm> = HashMap::new();
+                    let arena = Arena::new_global();
+                    let mut subst: FxHashMap<u32, &crate::ast::BaseTerm> = FxHashMap::default();
+                    let mut all_ok = true;
                     for premise in rule.premises.iter() {
                         let ok = match premise {
-                            mangle_ast::Term::Atom(query) => {
+                            Term::Atom(query) => {
                                 // TODO: eval ApplyFn terms.
-                                let query = query.apply_subst(&bump, &subst);
-
-                                // if all arguments are constants:
+                                let query = query.apply_subst(&arena, &subst);
                                 let mut found = false;
                                 let _ = store.get(query, |atom| {
+                                    let mut mismatch = false;
                                     for (i, arg) in query.args.iter().enumerate() {
-                                        if let crate::ast::BaseTerm::Variable(v) = arg {
-                                            subst.insert(v, atom.args[i]);
+                                        match arg {
+                                            BaseTerm::Variable(v) => {
+                                                subst.insert(v.0, atom.args[i]);
+                                            }
+                                            c @ BaseTerm::Const(_) => {
+                                                if *c == atom.args[i] {
+                                                    continue;
+                                                }
+                                                mismatch = true;
+                                                break;
+                                            }
+                                            _ => {
+                                                return Err(anyhow!(format!(
+                                                    "Unsupported term: {arg}"
+                                                )))
+                                            }
                                         }
                                     }
-                                    found = true;
+                                    found = !mismatch;
                                     Ok(())
                                 });
                                 found
                             }
-                            mangle_ast::Term::NegAtom(query) => {
-                                let query = query.apply_subst(&bump, &subst);
+                            Term::NegAtom(query) => {
+                                let query = query.apply_subst(&arena, &subst);
 
                                 let mut found = false;
                                 let _ = store.get(query, |_| {
@@ -72,20 +87,25 @@ impl<'e> Engine<'e> for Naive {
                                 });
                                 !found
                             }
-                            mangle_ast::Term::Eq(left, right) => {
-                                let left = left.apply_subst(&bump, &subst);
-                                let right = right.apply_subst(&bump, &subst);
+                            Term::Eq(left, right) => {
+                                let left = left.apply_subst(&arena, &subst);
+                                let right = right.apply_subst(&arena, &subst);
                                 left == right
                             }
-                            mangle_ast::Term::Ineq(left, right) => {
-                                let left = left.apply_subst(&bump, &subst);
-                                let right = right.apply_subst(&bump, &subst);
+                            Term::Ineq(left, right) => {
+                                let left = left.apply_subst(&arena, &subst);
+                                let right = right.apply_subst(&arena, &subst);
                                 left != right
                             }
                         };
-                        if ok {
-                            fact_added = store.add(rule.head)?;
+                        if !ok {
+                            all_ok = false;
+                            break;
                         }
+                    }
+                    if all_ok {
+                        let head = rule.head.apply_subst(&arena, &subst);
+                        fact_added = store.add(program.arena(), head)?;
                     }
                 }
             }
@@ -109,97 +129,103 @@ mod test {
 
     #[test]
     pub fn test_naive() -> Result<()> {
-        let edge = ast::PredicateSym {
-            name: "edge",
-            arity: Some(2),
-        };
-        let reachable = ast::PredicateSym {
-            name: "reachable",
-            arity: Some(2),
-        };
-        let schema: TableStoreSchema = HashMap::from([
-            (&edge, TableConfig::InMemory),
-            (&reachable, TableConfig::InMemory),
-        ]);
+        let arena = Arena::new_global();
+        let edge = arena.predicate_sym("edge", Some(2));
+        let reachable = arena.predicate_sym("reachable", Some(2));
+        let mut schema: TableStoreSchema = FxHashMap::default();
+        schema.insert(edge, TableConfig::InMemory);
+        schema.insert(reachable, TableConfig::InMemory);
         let store = TableStoreImpl::new(&schema);
 
         use crate::factstore::FactStore;
-        store.add(&ast::Atom {
-            sym: edge,
-            args: &[
-                &ast::BaseTerm::Const(ast::Const::Number(1)),
-                &ast::BaseTerm::Const(ast::Const::Number(2)),
-            ],
-        })?;
-        store.add(&ast::Atom {
-            sym: edge,
-            args: &[
-                &ast::BaseTerm::Const(ast::Const::Number(2)),
-                &ast::BaseTerm::Const(ast::Const::Number(3)),
-            ],
-        })?;
-        store.add(&ast::Atom {
-            sym: edge,
-            args: &[
-                &ast::BaseTerm::Const(ast::Const::Number(3)),
-                &ast::BaseTerm::Const(ast::Const::Number(4)),
-            ],
-        })?;
+        store.add(
+            &arena,
+            arena.atom(
+                edge,
+                &[
+                    &ast::BaseTerm::Const(ast::Const::Number(10)),
+                    &ast::BaseTerm::Const(ast::Const::Number(20)),
+                ],
+            ),
+        )?;
+        store.add(
+            &arena,
+            arena.atom(
+                edge,
+                &[
+                    &ast::BaseTerm::Const(ast::Const::Number(20)),
+                    &ast::BaseTerm::Const(ast::Const::Number(30)),
+                ],
+            ),
+        )?;
+        store.add(
+            &arena,
+            arena.atom(
+                edge,
+                &[
+                    &ast::BaseTerm::Const(ast::Const::Number(30)),
+                    &ast::BaseTerm::Const(ast::Const::Number(40)),
+                ],
+            ),
+        )?;
 
-        let bump = Bump::new();
         let mut simple = SimpleProgram {
-            bump: &bump,
+            arena: &arena,
             ext_preds: vec![edge],
-            rules: HashMap::new(),
+            rules: FxHashMap::default(),
         };
 
+        let head = arena.alloc(ast::Atom {
+            sym: reachable,
+            args: arena.alloc_slice_copy(&[arena.variable("X"), arena.variable("Y")]),
+        });
         // Add a clause.
-        simple.add_clause(&ast::Clause {
-            head: &ast::Atom {
-                sym: reachable,
-                args: &[&ast::BaseTerm::Variable("X"), &ast::BaseTerm::Variable("Y")],
-            },
-            premises: &[&ast::Term::Atom(&ast::Atom {
-                sym: edge,
-                args: &[&ast::BaseTerm::Variable("X"), &ast::BaseTerm::Variable("Y")],
-            })],
-            transform: &[],
-        });
-        simple.add_clause(&ast::Clause {
-            head: &ast::Atom {
-                sym: reachable,
-                args: &[&ast::BaseTerm::Variable("X"), &ast::BaseTerm::Variable("Z")],
-            },
-            premises: &[
-                &ast::Term::Atom(&ast::Atom {
-                    sym: edge,
-                    args: &[&ast::BaseTerm::Variable("X"), &ast::BaseTerm::Variable("Y")],
-                }),
-                &ast::Term::Atom(&ast::Atom {
-                    sym: reachable,
-                    args: &[&ast::BaseTerm::Variable("Y"), &ast::BaseTerm::Variable("X")],
-                }),
-            ],
-            transform: &[],
-        });
+        simple.add_clause(
+            &arena,
+            arena.alloc(ast::Clause {
+                head,
+                premises: arena.alloc_slice_copy(&[arena.alloc(ast::Term::Atom(
+                    arena.atom(edge, &[arena.variable("X"), arena.variable("Y")]),
+                ))]),
+                transform: &[],
+            }),
+        );
+        simple.add_clause(
+            &arena,
+            arena.alloc(ast::Clause {
+                head: arena.atom(reachable, &[arena.variable("X"), arena.variable("Z")]),
+                premises: arena.alloc_slice_copy(&[
+                    arena.alloc(ast::Term::Atom(
+                        arena.atom(edge, &[arena.variable("X"), arena.variable("Y")]),
+                    )),
+                    arena.alloc(ast::Term::Atom(
+                        arena.atom(reachable, &[arena.variable("Y"), arena.variable("X")]),
+                    )),
+                ]),
+                transform: &[],
+            }),
+        );
 
         let mut single_layer = HashSet::new();
-        single_layer.insert(&reachable);
-        let strata = vec![single_layer.clone()];
-        let stratified_program = simple.stratify(strata.iter());
+        single_layer.insert(reachable);
+        let strata = vec![single_layer];
+        let stratified_program = simple.stratify(strata);
 
         let engine = Naive {};
         engine.eval(&store, &stratified_program)?;
 
         use crate::factstore::ReadOnlyFactStore;
         assert!(store
-            .contains(&ast::Atom {
-                sym: edge,
-                args: &[
-                    &ast::BaseTerm::Const(ast::Const::Number(3)),
-                    &ast::BaseTerm::Const(ast::Const::Number(4))
-                ],
-            })
+            .contains(
+                &arena,
+                arena.atom(
+                    edge,
+                    &[
+                        &ast::BaseTerm::Const(ast::Const::Number(30)),
+                        &ast::BaseTerm::Const(ast::Const::Number(40))
+                    ],
+                )
+            )
             .unwrap());
         Ok(())
     }

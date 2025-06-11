@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use anyhow::{anyhow, Result};
-use bumpalo::Bump;
+use ast::Arena;
 use mangle_ast as ast;
 
 mod tablestore;
@@ -21,7 +21,7 @@ pub use tablestore::{TableConfig, TableStoreImpl, TableStoreSchema};
 
 /// Lifetime 'a is used for data held by this store.
 pub trait ReadOnlyFactStore<'a> {
-    fn contains(&'a self, fact: &ast::Atom) -> Result<bool>;
+    fn contains<'src>(&'a self, src: &'src Arena, fact: &'src ast::Atom) -> Result<bool>;
 
     // Invokes cb for fact that matches query.
     fn get(
@@ -34,9 +34,8 @@ pub trait ReadOnlyFactStore<'a> {
     //where
     //    F: FnMut(&'a ast::Atom<'a>) -> Result<()>;
 
-    // Invokes cb for every predicate available in this store.
-    // It would be nice to use `impl Iterator` here.
-    fn list_predicates(&'a self, cb: impl FnMut(&'a ast::PredicateSym));
+    // Iterator over every predicate available in this store.
+    fn predicates(&'a self) -> Vec<ast::PredicateIndex>;
 
     // Returns approximae number of facts.
     fn estimate_fact_count(&self) -> u32;
@@ -45,27 +44,12 @@ pub trait ReadOnlyFactStore<'a> {
 pub trait FactStore<'a>: ReadOnlyFactStore<'a> {
     /// Returns true if fact did not exist before.
     /// The fact is copied.
-    fn add(&'a self, fact: &ast::Atom) -> Result<bool>;
+    fn add<'src>(&'a self, src: &'src Arena, fact: &'src ast::Atom<'src>) -> Result<bool>;
 
     /// Adds all facts from given store.
-    fn merge<'other, S>(&'a self, store: &'other S)
+    fn merge<'src, S>(&'a self, src: &'src Arena, store: &'src S)
     where
-        S: ReadOnlyFactStore<'other>;
-}
-
-/// Constructs a query (allocated in bump).
-/// `pred.arity` must be present.
-/// TODO: move to ast
-/// TODO: make an allocator interface that has slice with all _ arguments.
-fn new_query<'b>(bump: &'b Bump, pred: &'b ast::PredicateSym) -> &'b ast::Atom<'b> {
-    let var = &*bump.alloc(ast::BaseTerm::Variable("_"));
-    let mut args = vec![];
-    for _ in 0..pred.arity.unwrap() {
-        args.push(var);
-    }
-    let args = &*bump.alloc_slice_copy(&args);
-
-    bump.alloc(ast::Atom { sym: *pred, args })
+        S: ReadOnlyFactStore<'src>;
 }
 
 pub fn get_all_facts<'a, S>(
@@ -75,13 +59,10 @@ pub fn get_all_facts<'a, S>(
 where
     S: ReadOnlyFactStore<'a> + 'a,
 {
-    let bump = Bump::new();
-    let mut preds = vec![];
-    store.list_predicates(|pred: &ast::PredicateSym| {
-        preds.push(pred);
-    });
+    let arena = Arena::new_global();
+    let preds = store.predicates();
     for pred in preds {
-        store.get(new_query(&bump, pred), &mut cb)?;
+        store.get(&arena.new_query(pred), &mut cb)?;
     }
     Ok(())
 }
@@ -92,22 +73,38 @@ mod test {
 
     use super::*;
 
-    static TEST_ATOM: ast::Atom = ast::Atom {
-        sym: ast::PredicateSym {
-            name: "foo",
-            arity: Some(1),
-        },
-        args: &[&ast::BaseTerm::Const(ast::Const::String("bar"))],
-    };
+    fn test_atom<'arena>(arena: &'arena Arena) -> ast::Atom<'arena> {
+        ast::Atom {
+            sym: arena.predicate_sym("foo", Some(1)),
+            args: &[&ast::BaseTerm::Const(ast::Const::String("bar"))],
+        }
+    }
 
     struct TestStore<'a> {
-        bump: &'a Bump,
+        arena: &'a Arena,
         facts: RefCell<Vec<&'a ast::Atom<'a>>>,
     }
 
     impl<'a> ReadOnlyFactStore<'a> for TestStore<'a> {
-        fn contains<'store>(&'store self, fact: &ast::Atom) -> Result<bool> {
-            Ok(self.facts.borrow().iter().any(|x| *x == fact))
+        fn contains<'src>(&'a self, src: &'src Arena, fact: &'src ast::Atom) -> Result<bool> {
+            if self.arena as *const _ as usize == src as *const _ as usize {
+                return Ok(self.facts.borrow().iter().any(|x| *x == fact));
+            }
+            let src_predicate_name = self.arena.predicate_name(fact.sym);
+            if src_predicate_name.is_none() {
+                return Ok(false);
+            }
+            match self.arena.lookup_opt(src_predicate_name.unwrap()) {
+                None => Ok(false),
+                Some(n) => match self.arena.lookup_predicate_sym(n) {
+                    None => Ok(false),
+                    Some(sym) => Ok(self
+                        .facts
+                        .borrow()
+                        .iter()
+                        .any(|x| x.sym == sym && x.args == fact.args)),
+                },
+            }
         }
 
         fn get(
@@ -124,15 +121,13 @@ mod test {
             Ok(())
         }
 
-        fn list_predicates(&'a self, mut cb: impl FnMut(&'a ast::PredicateSym)) {
+        fn predicates(&'a self) -> Vec<ast::PredicateIndex> {
             let mut seen = HashSet::new();
             for fact in self.facts.borrow().iter() {
                 let pred = &fact.sym;
-                if !seen.contains(pred) {
-                    seen.insert(pred);
-                    cb(pred)
-                }
+                seen.insert(*pred);
             }
+            seen.iter().map(|x| *x).collect()
         }
 
         fn estimate_fact_count(&self) -> u32 {
@@ -141,22 +136,23 @@ mod test {
     }
 
     impl<'a> FactStore<'a> for TestStore<'a> {
-        fn add(&'a self, fact: &ast::Atom) -> Result<bool> {
-            if self.contains(fact)? {
+        fn add<'src>(&'a self, src: &'src Arena, fact: &'src ast::Atom) -> Result<bool> {
+            // TODO: If it is from a separate arena, need to copy.
+            if self.contains(src, fact)? {
                 return Ok(false);
             }
             self.facts
                 .borrow_mut()
-                .push(ast::copy_atom(&self.bump, fact));
+                .push(self.arena.copy_atom(src, fact));
             Ok(true)
         }
 
-        fn merge<'other, S>(&'a self, store: &'other S)
+        fn merge<'src, S>(&'a self, src: &'src Arena, store: &'src S)
         where
-            S: ReadOnlyFactStore<'other>,
+            S: ReadOnlyFactStore<'src>,
         {
             let _ = get_all_facts(store, move |fact| {
-                let atom = ast::copy_atom(&self.bump, fact);
+                let atom = self.arena.copy_atom(src, fact);
                 self.facts.borrow_mut().push(atom);
                 Ok(())
             });
@@ -165,12 +161,14 @@ mod test {
 
     #[test]
     fn test_get_factsa() {
-        let bump = Bump::new();
+        let arena = Arena::new_global();
         let simple = TestStore {
-            bump: &bump,
+            arena: &arena,
             facts: RefCell::new(vec![]),
         };
-        assert!(!simple.contains(&TEST_ATOM).unwrap());
-        assert!(simple.add(&TEST_ATOM).unwrap());
+        let atom = test_atom(&arena);
+        assert!(!simple.contains(&arena, &atom).unwrap());
+        assert!(simple.add(&arena, &atom).unwrap());
+        assert!(simple.contains(&arena, &atom).unwrap());
     }
 }

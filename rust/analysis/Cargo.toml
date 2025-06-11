@@ -10,6 +10,7 @@ repository.workspace = true
 readme = "README.md"
 
 [dependencies]
-bumpalo.workspace = true
+fxhash.workspace = true
+googletest.workspace = true
 mangle-ast.workspace = true
 mangle-factstore.workspace = true

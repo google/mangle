@@ -2,6 +2,16 @@
 
 All notable changes in mangle/rust will be documented in this file.
 
+## upcoming - [0.2.0]
+
+### 🐛 Bug Fixes
+
+- add missing parser code
+
+### ⚙️ Miscellaneous Tasks
+
+- change AST, use interning (changes API)
+
 ## [0.1.1] - 2024-07-24
 
 ### 🚀 Features

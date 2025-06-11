@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use fxhash::FxHashMap;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::path::Path;
 
 use crate::ast;
-use crate::Bump;
 use crate::FactStore;
 use crate::ReadOnlyFactStore;
 use crate::{anyhow, Result};
+use ast::Arena;
 
 #[derive(Clone)]
 pub enum TableConfig<'a> {
@@ -28,20 +28,20 @@ pub enum TableConfig<'a> {
     RowFile(&'a Path),
 }
 
-pub type TableStoreSchema<'a> = HashMap<&'a ast::PredicateSym<'a>, TableConfig<'a>>;
+pub type TableStoreSchema<'a> = FxHashMap<ast::PredicateIndex, TableConfig<'a>>;
 
 pub struct TableStoreImpl<'a> {
     schema: &'a TableStoreSchema<'a>,
-    bump: Bump,
-    tables: RefCell<HashMap<&'a ast::PredicateSym<'a>, Vec<&'a ast::Atom<'a>>>>,
+    arena: Arena,
+    tables: RefCell<FxHashMap<ast::PredicateIndex, Vec<&'a ast::Atom<'a>>>>,
 }
 
 impl<'a> ReadOnlyFactStore<'a> for TableStoreImpl<'a> {
-    fn contains(&'a self, fact: &ast::Atom) -> Result<bool> {
+    fn contains<'src>(&'a self, _src: &'src Arena, fact: &'src ast::Atom) -> Result<bool> {
         if let Some(table) = self.tables.borrow().get(&fact.sym) {
             return Ok(table.contains(&fact));
         }
-        Err(anyhow!("unknown predicate {}", fact.sym.name))
+        Err(anyhow!("unknown predicate index {}", fact.sym))
     }
 
     fn get(
@@ -57,13 +57,11 @@ impl<'a> ReadOnlyFactStore<'a> for TableStoreImpl<'a> {
             }
             return Ok(());
         }
-        Err(anyhow!("unknown predicate {}", query.sym.name))
+        Err(anyhow!("unknown predicate index {}", query.sym))
     }
 
-    fn list_predicates(&'a self, mut cb: impl FnMut(&'a ast::PredicateSym)) {
-        for pred in self.tables.borrow().keys() {
-            cb(pred);
-        }
+    fn predicates(&'a self) -> Vec<ast::PredicateIndex> {
+        self.tables.borrow().keys().copied().collect()
     }
 
     fn estimate_fact_count(&self) -> u32 {
@@ -75,29 +73,27 @@ impl<'a> ReadOnlyFactStore<'a> for TableStoreImpl<'a> {
 }
 
 impl<'a> FactStore<'a> for TableStoreImpl<'a> {
-    fn add(&'a self, fact: &ast::Atom) -> Result<bool> {
-        {
-            if let Some(table) = self.tables.borrow().get(&fact.sym) {
-                if table.contains(&fact) {
-                    return Ok(false);
-                }
-            } else {
-                return Err(anyhow!("no table for {:?}", fact.sym.name));
+    fn add<'src>(&'a self, src: &'src Arena, fact: &'src ast::Atom) -> Result<bool> {
+        let mut tables = self.tables.borrow_mut();
+        let table = tables.get_mut(&fact.sym);
+        match table {
+            None => Err(anyhow!("no table for {:?}", fact.sym)),
+            Some(table) => {
+                Ok(if table.contains(&fact) {
+                    false
+                } else {
+                    // We trust that `fact` is, in fact, a fact.
+                    let fact = self.arena.copy_atom(src, fact);
+                    table.push(fact);
+                    true
+                })
             }
         }
-        // Consider checking that `fact` is, in fact, a fact.
-        let fact = ast::copy_atom(&self.bump, fact);
-        self.tables
-            .borrow_mut()
-            .get_mut(&fact.sym)
-            .unwrap()
-            .push(fact);
-        Ok(true)
     }
 
-    fn merge<'other, S>(&'a self, _store: &'other S)
+    fn merge<'src, S>(&'a self, _src: &'src Arena, _store: &'src S)
     where
-        S: crate::ReadOnlyFactStore<'other>,
+        S: crate::ReadOnlyFactStore<'src>,
     {
         todo!()
     }
@@ -105,13 +101,13 @@ impl<'a> FactStore<'a> for TableStoreImpl<'a> {
 
 impl<'a> TableStoreImpl<'a> {
     pub fn new(schema: &'a TableStoreSchema<'a>) -> Self {
-        let mut tables = HashMap::new();
+        let mut tables = FxHashMap::default();
         for entry in schema.keys() {
             tables.insert(*entry, vec![]);
         }
         TableStoreImpl {
             schema,
-            bump: Bump::new(),
+            arena: Arena::new_global(),
             tables: RefCell::new(tables),
         }
     }

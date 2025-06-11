@@ -12,9 +12,397 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-
 use bumpalo::Bump;
+use fxhash::FxHashMap;
+use std::cell::RefCell;
+use std::mem;
+use std::num::NonZeroUsize;
+use std::sync::{Arc, Mutex};
+
+const INTERNER_DEFAULT_CAPACITY: NonZeroUsize = NonZeroUsize::new(4096).unwrap();
+
+/// A simple way to intern strings and refer to them using u32 indices.
+/// This is following the blog post here:
+/// https://matklad.github.io/2020/03/22/fast-simple-rust-interner.html
+pub struct Interner {
+    map: FxHashMap<&'static str, u32>,
+    vec: Vec<&'static str>,
+    buf: String,
+    full: Vec<String>,
+}
+
+impl Interner {
+    fn new_global_interner() -> Arc<Mutex<Interner>> {
+        Arc::new(Mutex::new(Interner::with_capacity(
+            INTERNER_DEFAULT_CAPACITY.into(),
+        )))
+    }
+
+    pub fn with_capacity(cap: usize) -> Interner {
+        let cap = cap.next_power_of_two();
+        let mut interner = Interner {
+            map: FxHashMap::default(),
+            vec: Vec::new(),
+            buf: String::with_capacity(cap),
+            full: Vec::new(),
+        };
+        interner.intern("_");
+        interner
+    }
+
+    /// Interns the argument and returns a unique index.
+    pub fn intern(&mut self, name: &str) -> u32 {
+        if let Some(&id) = self.map.get(name) {
+            return id;
+        }
+        let name = unsafe { self.alloc(name) };
+        let id = self.map.len() as u32;
+        self.map.insert(name, id);
+        self.vec.push(name);
+        debug_assert!(self.lookup(id) == name);
+        debug_assert!(self.intern(name) == id);
+        id
+    }
+    pub fn lookup(&self, id: u32) -> &'static str {
+        self.vec[id as usize]
+    }
+    unsafe fn alloc(&mut self, name: &str) -> &'static str {
+        let cap = self.buf.capacity();
+        if cap < self.buf.len() + name.len() {
+            let new_cap = (cap.max(name.len()) + 1).next_power_of_two();
+            let new_buf = String::with_capacity(new_cap);
+            let old_buf = mem::replace(&mut self.buf, new_buf);
+            self.full.push(old_buf);
+        }
+        let interned = {
+            let start = self.buf.len();
+            self.buf.push_str(name);
+            &self.buf[start..]
+        };
+        &*(interned as *const str)
+    }
+}
+
+pub struct Arena {
+    pub(crate) bump: Bump,
+    pub(crate) interner: Arc<Mutex<Interner>>,
+    pub(crate) predicate_syms: RefCell<Vec<PredicateSym>>,
+    pub(crate) function_syms: RefCell<Vec<FunctionSym>>,
+}
+
+impl<'arena> Arena {
+    pub fn new(interner: Arc<Mutex<Interner>>) -> Self {
+        Self {
+            bump: Bump::new(),
+            interner,
+            predicate_syms: RefCell::new(Vec::new()),
+            function_syms: RefCell::new(Vec::new()),
+        }
+    }
+
+    pub fn new_global() -> Self {
+        Self::new(Interner::new_global_interner())
+    }
+
+    pub fn intern(&'arena self, name: &str) -> u32 {
+        self.interner.lock().unwrap().intern(name)
+    }
+
+    // Returns index for name, if it exists.
+    pub fn lookup_opt(&'arena self, name: &str) -> Option<u32> {
+        self.interner.lock().unwrap().map.get(name).copied()
+    }
+
+    pub fn name(&'arena self, name: &str) -> Const<'arena> {
+        Const::Name(self.intern(name))
+    }
+
+    pub fn variable(&'arena self, name: &str) -> &'arena BaseTerm<'arena> {
+        self.alloc(BaseTerm::Variable(self.variable_sym(name)))
+    }
+
+    pub fn const_(&'arena self, c: Const<'arena>) -> &'arena BaseTerm<'arena> {
+        self.alloc(BaseTerm::Const(c))
+    }
+
+    pub fn atom(
+        &'arena self,
+        p: PredicateIndex,
+        args: &[&'arena BaseTerm<'arena>],
+    ) -> &'arena Atom<'arena> {
+        self.alloc(Atom {
+            sym: p,
+            args: self.alloc_slice_copy(args),
+        })
+    }
+
+    pub fn apply_fn(
+        &'arena self,
+        fun: FunctionIndex,
+        args: &[&'arena BaseTerm<'arena>],
+    ) -> &'arena BaseTerm<'arena> {
+        //let fun = &self.function_syms.borrow()[fun.0];
+        //let name = self.lookup_name(fun.name);
+        let args = self.alloc_slice_copy(args);
+        self.alloc(BaseTerm::ApplyFn(fun, args))
+    }
+
+    pub fn alloc<T>(&self, x: T) -> &mut T {
+        self.bump.alloc(x)
+    }
+
+    pub fn alloc_slice_copy<T: Copy>(&self, x: &[T]) -> &[T] {
+        self.bump.alloc_slice_copy(x)
+    }
+
+    pub fn alloc_str(&'arena self, s: &str) -> &'arena str {
+        self.bump.alloc_str(s)
+    }
+
+    pub fn new_query(&'arena self, p: PredicateIndex) -> Atom<'arena> {
+        let arity = self.predicate_syms.borrow()[p.0].arity;
+        let args: Vec<_> = match arity {
+            Some(arity) => (0..arity).map(|_i| &ANY_VAR_TERM).collect(),
+            None => Vec::new(),
+        };
+
+        let args = self.alloc_slice_copy(&args);
+        Atom { sym: p, args }
+    }
+
+    pub fn lookup_name(&self, name_index: u32) -> &'static str {
+        self.interner.lock().unwrap().lookup(name_index)
+    }
+
+    pub fn predicate_name(&self, predicate_index: PredicateIndex) -> Option<&'static str> {
+        let syms = self.predicate_syms.borrow();
+        let i = predicate_index.0;
+        if i >= syms.len() {
+            return None;
+        }
+        let n = syms[i].name;
+        Some(self.interner.lock().unwrap().lookup(n))
+    }
+
+    /// Returns index for this predicate symbol.
+    pub fn lookup_predicate_sym(&'arena self, predicate_name: u32) -> Option<PredicateIndex> {
+        for (index, p) in self.predicate_syms.borrow().iter().enumerate() {
+            if p.name == predicate_name {
+                return Some(PredicateIndex(index));
+            }
+        }
+        None
+    }
+
+    /// Constructs a new variable symbol.
+    pub fn variable_sym(&'arena self, name: &str) -> VariableIndex {
+        let n = self.interner.lock().unwrap().intern(name);
+        VariableIndex(n)
+    }
+
+    // Looks up a function sym, copies if it doesn't exist.
+    pub fn function_sym(&'arena self, name: &str, arity: Option<u8>) -> FunctionIndex {
+        let n = self.interner.lock().unwrap().intern(name);
+        let f = FunctionSym { name: n, arity };
+        for (index, f) in self.function_syms.borrow().iter().enumerate() {
+            if f.name == n {
+                return FunctionIndex(index);
+            }
+        }
+
+        self.function_syms.borrow_mut().push(f);
+        FunctionIndex(self.function_syms.borrow().len() - 1)
+    }
+
+    // Looks up or creates a predicate_sym, copies if it doesn't exist.
+    pub fn predicate_sym(&'arena self, name: &str, arity: Option<u8>) -> PredicateIndex {
+        let n = self.interner.lock().unwrap().intern(name);
+        let p = PredicateSym { name: n, arity };
+        for (index, p) in self.predicate_syms.borrow().iter().enumerate() {
+            if p.name == n {
+                return PredicateIndex(index);
+            }
+        }
+
+        self.predicate_syms.borrow_mut().push(p);
+        PredicateIndex(self.predicate_syms.borrow().len() - 1)
+    }
+
+    pub fn copy_function_sym<'src>(
+        &'arena self,
+        src: &'src Arena,
+        f: FunctionIndex,
+    ) -> FunctionIndex {
+        let function_sym = &src.function_syms.borrow()[f.0];
+        let name = src.lookup_name(function_sym.name);
+        self.function_sym(name, function_sym.arity)
+    }
+
+    pub fn copy_predicate_sym<'src>(
+        &'arena self,
+        src: &'src Arena,
+        p: PredicateIndex, //predicate_sym: &'src PredicateSym,
+    ) -> PredicateIndex {
+        let predicate_sym = &src.predicate_syms.borrow()[p.0];
+        let name = src.lookup_name(predicate_sym.name);
+        self.predicate_sym(name, predicate_sym.arity)
+    }
+
+    // Copies BaseTerm from another [`Arena`].
+    pub fn copy_atom<'src>(
+        &'arena self,
+        src: &'src Arena,
+        atom: &'src Atom<'src>,
+    ) -> &'arena Atom<'arena> {
+        let args: Vec<_> = atom
+            .args
+            .iter()
+            .map(|arg| self.copy_base_term(src, arg))
+            .collect();
+        let args = self.alloc_slice_copy(&args);
+        // TODO: have to look up predicate syms from !source!
+        self.alloc(Atom {
+            sym: self.copy_predicate_sym(src, atom.sym),
+            args,
+        })
+    }
+
+    // Copies BaseTerm to another Arena
+    pub fn copy_base_term<'src>(
+        &'arena self,
+        src: &'src Arena,
+        b: &'src BaseTerm<'src>,
+    ) -> &'arena BaseTerm<'arena> {
+        match b {
+            BaseTerm::Const(c) =>
+            // Should it be a reference?
+            {
+                self.alloc(BaseTerm::Const(*self.copy_const(src, c)))
+            }
+            BaseTerm::Variable(v) => {
+                let name = src.interner.lock().unwrap().lookup(v.0).to_string();
+                let v = self.variable_sym(&name);
+                self.alloc(BaseTerm::Variable(v))
+            }
+            BaseTerm::ApplyFn(fun, args) => {
+                let fun = self.copy_function_sym(src, *fun);
+                //let fun = FunctionSym { name: self.alloc_str(fun.name), arity: fun.arity };
+                let args: Vec<_> = args.iter().map(|a| self.copy_base_term(src, a)).collect();
+                let args = self.alloc_slice_copy(&args);
+                self.alloc(BaseTerm::ApplyFn(fun, args))
+            }
+        }
+    }
+
+    // Copies Const to another Arena
+    pub fn copy_const<'src>(
+        &'arena self,
+        src: &'src Arena,
+        c: &'src Const<'src>,
+    ) -> &'arena Const<'arena> {
+        match c {
+            Const::Name(name) => {
+                let name = src.interner.lock().unwrap().lookup(*name);
+                let name = self.interner.lock().unwrap().intern(name);
+                self.alloc(Const::Name(name))
+            }
+            Const::Bool(b) => self.alloc(Const::Bool(*b)),
+            Const::Number(n) => self.alloc(Const::Number(*n)),
+            Const::Float(f) => self.alloc(Const::Float(*f)),
+            Const::String(s) => {
+                let s = self.alloc_str(s);
+                self.alloc(Const::String(s))
+            }
+            Const::Bytes(b) => {
+                let b = self.alloc_slice_copy(b);
+                self.alloc(Const::Bytes(b))
+            }
+            Const::List(cs) => {
+                let cs: Vec<_> = cs.iter().map(|c| self.copy_const(src, c)).collect();
+                let cs = self.alloc_slice_copy(&cs);
+                self.alloc(Const::List(cs))
+            }
+            Const::Map { keys, values } => {
+                let keys: Vec<_> = keys.iter().map(|c| self.copy_const(src, c)).collect();
+                let keys = self.alloc_slice_copy(&keys);
+
+                let values: Vec<_> = values.iter().map(|c| self.copy_const(src, c)).collect();
+                let values = self.alloc_slice_copy(&values);
+
+                self.alloc(Const::Map { keys, values })
+            }
+            Const::Struct { fields, values } => {
+                let fields: Vec<_> = fields.iter().map(|s| self.alloc_str(s)).collect();
+                let fields = self.alloc_slice_copy(&fields);
+
+                let values: Vec<_> = values.iter().map(|c| self.copy_const(src, c)).collect();
+                let values = self.alloc_slice_copy(&values);
+
+                self.alloc(Const::Struct { fields, values })
+            }
+        }
+    }
+
+    pub fn copy_transform<'src>(
+        &'arena self,
+        src: &'src Arena,
+        stmt: &'src TransformStmt<'src>,
+    ) -> &'arena TransformStmt<'arena> {
+        let TransformStmt { var, app } = stmt;
+        let var = var.map(|s| self.alloc_str(s));
+        let app = self.copy_base_term(src, app);
+        self.alloc(TransformStmt { var, app })
+    }
+
+    pub fn copy_clause<'src>(
+        &'arena self,
+        src: &'src Arena,
+        src_clause: &'src Clause<'src>,
+    ) -> &'arena Clause<'arena> {
+        let Clause {
+            head,
+            premises,
+            transform,
+        } = src_clause;
+        let premises: Vec<_> = premises.iter().map(|x| self.copy_term(src, x)).collect();
+        let transform: Vec<_> = transform
+            .iter()
+            .map(|x| self.copy_transform(src, x))
+            .collect();
+        self.alloc(Clause {
+            head: self.copy_atom(src, head),
+            premises: self.alloc_slice_copy(&premises),
+            transform: self.alloc_slice_copy(&transform),
+        })
+    }
+
+    fn copy_term<'src>(
+        &'arena self,
+        src: &'src Arena,
+        term: &'src Term<'src>,
+    ) -> &'arena Term<'arena> {
+        match term {
+            Term::Atom(atom) => {
+                let atom = self.copy_atom(src, atom);
+                self.alloc(Term::Atom(atom))
+            }
+            Term::NegAtom(atom) => {
+                let atom = self.copy_atom(src, atom);
+                self.alloc(Term::NegAtom(atom))
+            }
+            Term::Eq(left, right) => {
+                let left = self.copy_base_term(src, left);
+                let right = self.copy_base_term(src, right);
+                self.alloc(Term::Eq(left, right))
+            }
+            Term::Ineq(left, right) => {
+                let left = self.copy_base_term(src, left);
+                let right = self.copy_base_term(src, right);
+                self.alloc(Term::Ineq(left, right))
+            }
+        }
+    }
+}
 
 // Immutable representation of syntax.
 // We use references instead of a smart pointer,
@@ -77,7 +465,7 @@ pub enum Term<'a> {
     Ineq(&'a BaseTerm<'a>, &'a BaseTerm<'a>),
 }
 
-impl<'a> std::fmt::Display for Term<'a> {
+impl std::fmt::Display for Term<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Term::Atom(atom) => write!(f, "{atom}"),
@@ -89,21 +477,21 @@ impl<'a> std::fmt::Display for Term<'a> {
 }
 
 impl<'a> Term<'a> {
-    pub fn apply_subst<'b>(
+    pub fn apply_subst(
         &'a self,
-        bump: &'b Bump,
-        subst: &HashMap<&'a str, &'a BaseTerm<'a>>,
-    ) -> &'b Term<'b> {
-        &*bump.alloc(match self {
-            Term::Atom(atom) => Term::Atom(atom.apply_subst(bump, subst)),
-            Term::NegAtom(atom) => Term::NegAtom(atom.apply_subst(bump, subst)),
+        arena: &'a Arena,
+        subst: &FxHashMap<u32, &'a BaseTerm<'a>>,
+    ) -> &'a Term<'a> {
+        &*arena.alloc(match self {
+            Term::Atom(atom) => Term::Atom(atom.apply_subst(arena, subst)),
+            Term::NegAtom(atom) => Term::NegAtom(atom.apply_subst(arena, subst)),
             Term::Eq(left, right) => Term::Eq(
-                left.apply_subst(bump, subst),
-                right.apply_subst(bump, subst),
+                left.apply_subst(arena, subst),
+                right.apply_subst(arena, subst),
             ),
             Term::Ineq(left, right) => Term::Ineq(
-                left.apply_subst(bump, subst),
-                right.apply_subst(bump, subst),
+                left.apply_subst(arena, subst),
+                right.apply_subst(arena, subst),
             ),
         })
     }
@@ -112,51 +500,52 @@ impl<'a> Term<'a> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BaseTerm<'a> {
     Const(Const<'a>),
-    Variable(&'a str),
-    ApplyFn(FunctionSym<'a>, &'a [&'a BaseTerm<'a>]),
+    Variable(VariableIndex),
+    ApplyFn(FunctionIndex, &'a [&'a BaseTerm<'a>]),
 }
 
-impl<'a> BaseTerm<'a> {
-    pub fn apply_subst<'b>(
-        &'a self,
-        bump: &'b Bump,
-        subst: &HashMap<&'a str, &'a BaseTerm<'a>>,
-    ) -> &'b BaseTerm<'b> {
+impl<'arena> BaseTerm<'arena> {
+    pub fn apply_subst(
+        &'arena self,
+        arena: &'arena Arena,
+        subst: &FxHashMap<u32, &'arena BaseTerm<'arena>>,
+    ) -> &'arena BaseTerm<'arena> {
         match self {
-            BaseTerm::Const(_) => copy_base_term(bump, self),
-            BaseTerm::Variable(v) => subst
-                .get(v)
-                .map_or(copy_base_term(bump, self), |b| copy_base_term(bump, b)),
+            BaseTerm::Const(_) => self,
+            BaseTerm::Variable(v) => subst.get(&v.0).unwrap_or(&self),
             BaseTerm::ApplyFn(fun, args) => {
-                let args: Vec<&'b BaseTerm<'b>> = args
+                let args: Vec<&'arena BaseTerm<'arena>> = args
                     .iter()
-                    .map(|arg| arg.apply_subst(bump, subst))
+                    .map(|arg| arg.apply_subst(arena, subst))
                     .collect();
-                copy_base_term(bump, &BaseTerm::ApplyFn(*fun, &args))
+                let args = arena.alloc_slice_copy(&args);
+                arena.alloc(BaseTerm::ApplyFn(*fun, args))
             }
         }
     }
 }
 
-impl<'a> std::fmt::Display for BaseTerm<'a> {
+impl std::fmt::Display for BaseTerm<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BaseTerm::Const(c) => write!(f, "{c}"),
             BaseTerm::Variable(v) => write!(f, "{v}"),
-            BaseTerm::ApplyFn(FunctionSym { name: n, .. }, args) => write!(
-                f,
-                "{n}({})",
-                args.iter()
-                    .map(|x| x.to_string())
-                    .collect::<Vec<_>>()
-                    .join(",")
-            ),
+            BaseTerm::ApplyFn(fun, args) => {
+                write!(
+                    f,
+                    "{fun}({})",
+                    args.iter()
+                        .map(|x| x.to_string())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                )
+            }
         }
     }
 }
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Const<'a> {
-    Name(&'a str),
+    Name(u32),
     Bool(bool),
     Number(i64),
     Float(f64),
@@ -173,12 +562,12 @@ pub enum Const<'a> {
     },
 }
 
-impl<'a> Eq for Const<'a> {}
+impl Eq for Const<'_> {}
 
-impl<'a> std::fmt::Display for Const<'a> {
+impl std::fmt::Display for Const<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
-            Const::Name(v) => write!(f, "{v}"),
+            Const::Name(v) => write!(f, "n${v}"),
             Const::Bool(v) => write!(f, "{v}"),
             Const::Number(v) => write!(f, "{v}"),
             Const::Float(v) => write!(f, "{v}"),
@@ -203,22 +592,52 @@ impl<'a> std::fmt::Display for Const<'a> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct PredicateSym<'a> {
-    pub name: &'a str,
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PredicateSym {
+    pub name: u32,
     pub arity: Option<u8>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct FunctionSym<'a> {
-    pub name: &'a str,
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct PredicateIndex(usize);
+
+impl std::fmt::Display for PredicateIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "p${}", self.0)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FunctionSym {
+    pub name: u32,
     pub arity: Option<u8>,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct FunctionIndex(usize);
+
+impl std::fmt::Display for FunctionIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "f${}", self.0)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct VariableIndex(pub u32);
+
+impl std::fmt::Display for VariableIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.0 == 0 {
+            write!(f, "_")
+        } else {
+            write!(f, "v${}", self.0)
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Atom<'a> {
-    pub sym: PredicateSym<'a>,
-
+    pub sym: PredicateIndex,
     pub args: &'a [&'a BaseTerm<'a>],
 }
 
@@ -237,27 +656,23 @@ impl<'a> Atom<'a> {
         true
     }
 
-    pub fn apply_subst<'b>(
+    pub fn apply_subst(
         &'a self,
-        bump: &'b Bump,
-        subst: &HashMap<&'a str, &'a BaseTerm<'a>>,
-    ) -> &'b Atom<'b> {
-        let args: Vec<&'b BaseTerm<'b>> = self
+        arena: &'a Arena,
+        subst: &FxHashMap<u32, &'a BaseTerm<'a>>,
+    ) -> &'a Atom<'a> {
+        let args: Vec<&'a BaseTerm<'a>> = self
             .args
             .iter()
-            .map(|arg| arg.apply_subst(bump, subst))
+            .map(|arg| arg.apply_subst(arena, subst))
             .collect();
-        let args = &*bump.alloc_slice_copy(&args);
-        bump.alloc(Atom {
-            sym: copy_predicate_sym(bump, self.sym),
-            args,
-        })
+        arena.atom(self.sym, &args)
     }
 }
 
-impl<'a> std::fmt::Display for Atom<'a> {
+impl std::fmt::Display for Atom<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}(", self.sym.name)?;
+        write!(f, "{}(", self.sym)?;
         for (i, arg) in self.args.iter().enumerate() {
             if i > 0 {
                 write!(f, ", ")?;
@@ -268,203 +683,35 @@ impl<'a> std::fmt::Display for Atom<'a> {
     }
 }
 
-static ANY_VAR_TERM: BaseTerm = BaseTerm::Variable("_");
-
-pub fn new_query<'dest>(bump: &'dest Bump, predicate: &'dest PredicateSym) -> Atom<'dest> {
-    let args: Vec<_> = match predicate.arity {
-        Some(arity) => (0..arity).map(|_i| &ANY_VAR_TERM).collect(),
-        None => Vec::new(),
-    };
-
-    let args = &*bump.alloc_slice_copy(&args);
-
-    Atom {
-        sym: *predicate,
-        args,
-    }
-}
-
-pub fn copy_predicate_sym<'dest>(bump: &'dest Bump, p: PredicateSym) -> PredicateSym<'dest> {
-    PredicateSym {
-        name: bump.alloc_str(p.name),
-        arity: p.arity,
-    }
-}
-
-// Copies BaseTerm to another Bump
-pub fn copy_atom<'dest, 'src>(bump: &'dest Bump, atom: &'src Atom<'src>) -> &'dest Atom<'dest> {
-    let args: Vec<_> = atom
-        .args
-        .iter()
-        .map(|arg| copy_base_term(bump, arg))
-        .collect();
-    let args = &*bump.alloc_slice_copy(&args);
-    bump.alloc(Atom {
-        sym: copy_predicate_sym(bump, atom.sym),
-        args,
-    })
-}
-
-// Copies BaseTerm to another Bump
-pub fn copy_base_term<'dest, 'src>(
-    bump: &'dest Bump,
-    b: &'src BaseTerm<'src>,
-) -> &'dest BaseTerm<'dest> {
-    match b {
-        BaseTerm::Const(c) =>
-        // Should it be a reference?
-        {
-            bump.alloc(BaseTerm::Const(*copy_const(bump, c)))
-        }
-        BaseTerm::Variable(s) => bump.alloc(BaseTerm::Variable(bump.alloc_str(s))),
-        BaseTerm::ApplyFn(fun, args) => {
-            let fun = FunctionSym {
-                name: bump.alloc_str(fun.name),
-                arity: fun.arity,
-            };
-            let args: Vec<_> = args.iter().map(|a| copy_base_term(bump, a)).collect();
-            let args = bump.alloc_slice_copy(&args);
-            bump.alloc(BaseTerm::ApplyFn(fun, args))
-        }
-    }
-}
-
-// Copies Const to another Bump
-pub fn copy_const<'dest, 'src>(bump: &'dest Bump, c: &'src Const<'src>) -> &'dest Const<'dest> {
-    match c {
-        Const::Name(name) => {
-            let name = &*bump.alloc_str(name);
-            bump.alloc(Const::Name(name))
-        }
-        Const::Bool(b) => bump.alloc(Const::Bool(*b)),
-        Const::Number(n) => bump.alloc(Const::Number(*n)),
-        Const::Float(f) => bump.alloc(Const::Float(*f)),
-        Const::String(s) => {
-            let s = &*bump.alloc_str(s);
-            bump.alloc(Const::String(s))
-        }
-        Const::Bytes(b) => {
-            let b = &*bump.alloc_slice_copy(b);
-            bump.alloc(Const::Bytes(b))
-        }
-        Const::List(cs) => {
-            let cs: Vec<_> = cs.iter().map(|c| copy_const(bump, c)).collect();
-            let cs = &*bump.alloc_slice_copy(&cs);
-            bump.alloc(Const::List(cs))
-        }
-        Const::Map { keys, values } => {
-            let keys: Vec<_> = keys.iter().map(|c| copy_const(bump, c)).collect();
-            let keys = &*bump.alloc_slice_copy(&keys);
-
-            let values: Vec<_> = values.iter().map(|c| copy_const(bump, c)).collect();
-            let values = &*bump.alloc_slice_copy(&values);
-
-            bump.alloc(Const::Map { keys, values })
-        }
-        Const::Struct { fields, values } => {
-            let fields: Vec<_> = fields.iter().map(|s| &*bump.alloc_str(s)).collect();
-            let fields = &*bump.alloc_slice_copy(&fields);
-
-            let values: Vec<_> = values.iter().map(|c| copy_const(bump, c)).collect();
-            let values = &*bump.alloc_slice_copy(&values);
-
-            bump.alloc(Const::Struct { fields, values })
-        }
-    }
-}
-
-pub fn copy_transform<'dest, 'src>(
-    bump: &'dest Bump,
-    stmt: &'src TransformStmt<'src>,
-) -> &'dest TransformStmt<'dest> {
-    let TransformStmt { var, app } = stmt;
-    let var = var.map(|s| &*bump.alloc_str(s));
-    let app = copy_base_term(bump, app);
-    bump.alloc(TransformStmt { var, app })
-}
-
-pub fn copy_clause<'dest, 'src>(
-    bump: &'dest Bump,
-    clause: &'src Clause<'src>,
-) -> &'dest Clause<'dest> {
-    let Clause {
-        head,
-        premises,
-        transform,
-    } = clause;
-    let premises: Vec<_> = premises.iter().map(|x| copy_term(bump, x)).collect();
-    let transform: Vec<_> = transform.iter().map(|x| copy_transform(bump, x)).collect();
-    bump.alloc(Clause {
-        head: copy_atom(bump, head),
-        premises: &*bump.alloc_slice_copy(&premises),
-        transform: &*bump.alloc_slice_copy(&transform),
-    })
-}
-
-fn copy_term<'dest, 'src>(bump: &'dest Bump, term: &'src Term<'src>) -> &'dest Term<'dest> {
-    match term {
-        Term::Atom(atom) => {
-            let atom = copy_atom(bump, atom);
-            bump.alloc(Term::Atom(atom))
-        }
-        Term::NegAtom(atom) => {
-            let atom = copy_atom(bump, atom);
-            bump.alloc(Term::NegAtom(atom))
-        }
-        Term::Eq(left, right) => {
-            let left = copy_base_term(bump, left);
-            let right = copy_base_term(bump, right);
-            bump.alloc(Term::Eq(left, right))
-        }
-        Term::Ineq(left, right) => {
-            let left = copy_base_term(bump, left);
-            let right = copy_base_term(bump, right);
-            bump.alloc(Term::Ineq(left, right))
-        }
-    }
-}
+static ANY_VAR_TERM: BaseTerm = BaseTerm::Variable(VariableIndex(0));
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bumpalo::Bump;
     use googletest::prelude::*;
 
     #[test]
     fn copying_atom_works() {
-        let bump = Bump::new();
-        let foo = &*bump.alloc(BaseTerm::Const(Const::Name("/foo")));
-        let bar = bump.alloc(PredicateSym {
-            name: "bar",
-            arity: Some(1),
-        });
-        let bar_args = bump.alloc_slice_copy(&[foo]);
-        let head = bump.alloc(Atom {
-            sym: *bar,
-            args: &*bar_args,
-        });
-        assert_that!("bar(/foo)", eq(head.to_string()));
+        let arena = Arena::new_global();
+        let foo = arena.const_(arena.name("/foo"));
+        let bar = arena.predicate_sym("bar", Some(1));
+        let head = arena.atom(bar, &[foo]);
+        assert_that!(head.to_string(), eq("p$0(n$1)"));
     }
 
     #[test]
     fn atom_display_works() {
-        let bar = BaseTerm::Const(Const::Name("/bar"));
-        assert_that!(bar, displays_as(eq("/bar")));
-
-        let atom = Atom {
-            sym: PredicateSym {
-                name: "foo",
-                arity: Some(1),
-            },
-            args: &[&bar],
-        };
-        assert_that!(atom, displays_as(eq("foo(/bar)")));
+        let arena = Arena::new_global();
+        let bar = arena.const_(arena.name("/bar"));
+        let sym = arena.predicate_sym("foo", Some(1));
+        let atom = Atom { sym, args: &[&bar] };
+        assert_that!(atom, displays_as(eq("p$0(n$1)")));
 
         let tests = vec![
-            (Term::Atom(&atom), "foo(/bar)"),
-            (Term::NegAtom(&atom), "!foo(/bar)"),
-            (Term::Eq(&bar, &bar), "/bar = /bar"),
-            (Term::Ineq(&bar, &bar), "/bar != /bar"),
+            (Term::Atom(&atom), "p$0(n$1)"),
+            (Term::NegAtom(&atom), "!p$0(n$1)"),
+            (Term::Eq(&bar, &bar), "n$1 = n$1"),
+            (Term::Ineq(&bar, &bar), "n$1 != n$1"),
         ];
         for (term, s) in tests {
             assert_that!(term, displays_as(eq(s)));
@@ -473,27 +720,44 @@ mod tests {
 
     #[test]
     fn new_query_works() {
-        let bump = Bump::new();
+        let arena = Arena::new_global();
 
-        let pred = PredicateSym {
-            name: "foo",
-            arity: Some(1),
-        };
-        let query = new_query(&bump, &pred);
-        assert_that!(query, displays_as(eq("foo(_)")));
+        let pred = arena.predicate_sym("foo", Some(1));
+        let query = arena.new_query(pred);
+        assert_that!(query, displays_as(eq("p$0(_)")));
 
-        let pred = PredicateSym {
-            name: "foo",
-            arity: Some(2),
-        };
-        let query = new_query(&bump, &pred);
-        assert_that!(query, displays_as(eq("foo(_, _)")));
+        let pred = arena.predicate_sym("bar", Some(2));
+        let query = arena.new_query(pred);
+        assert_that!(query, displays_as(eq("p$1(_, _)")));
 
-        let pred = PredicateSym {
-            name: "none",
-            arity: None,
-        };
-        let query = new_query(&bump, &pred);
-        assert_that!(query, displays_as(eq("none()")));
+        let pred = arena.predicate_sym("frob", None);
+        let query = arena.new_query(pred);
+        assert_that!(query, displays_as(eq("p$2()")));
+    }
+
+    #[test]
+    fn subst_works() {
+        let arena = Arena::new_global();
+        let atom = arena.atom(arena.predicate_sym("foo", Some(1)), &[arena.variable("x")]);
+
+        let mut subst = FxHashMap::default();
+        subst.insert(arena.variable_sym("x").0, arena.const_(arena.name("/bar")));
+
+        let subst_atom = atom.apply_subst(&arena, &subst);
+        assert_that!(arena.name("/bar"), displays_as(eq("n$3")));
+        assert_that!(subst_atom, displays_as(eq("p$0(n$3)")));
+    }
+
+    #[test]
+    fn do_intern_beyond_initial_capacity() {
+        let arena = Arena::new_global();
+
+        let p = arena.predicate_sym("/foo", Some(1));
+        let mut name = "".to_string();
+        for _ in 0..INTERNER_DEFAULT_CAPACITY.into() {
+            name = name + "a";
+        }
+        arena.interner.lock().unwrap().intern(&name);
+        assert_that!(arena.predicate_name(p), eq(Some("/foo")));
     }
 }

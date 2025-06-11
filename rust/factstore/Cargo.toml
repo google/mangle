@@ -11,5 +11,5 @@ readme = "README.md"
 
 [dependencies]
 anyhow.workspace = true
-bumpalo.workspace = true
+fxhash.workspace = true
 mangle-ast.workspace = true

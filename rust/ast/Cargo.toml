@@ -11,4 +11,6 @@ readme = "README.md"
 
 [dependencies]
 bumpalo.workspace = true
+fxhash.workspace = true
 googletest.workspace = true
+smol_str.workspace = true

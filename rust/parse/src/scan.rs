@@ -119,7 +119,7 @@ where
                 _ => Ok(Token::Pipe),
             },
             Some('.') => match self.peek()? {
-                Some('A'..'Z') => {
+                Some('A'..='Z') => {
                     let first = self.next_char()?.expect("could not get peeked character.");
                     self.ident_or_dot_ident(first, true)
                 }
@@ -169,7 +169,9 @@ where
         if !seen_char {
             anyhow::bail!("name constant: expected name char after {}", self.text)
         }
-        Ok(Token::Name { name: self.text.to_string() })
+        Ok(Token::Name {
+            name: self.text.to_string(),
+        })
     }
 
     // TODO: this only handles single-double quoted (short. not long).
@@ -255,7 +257,9 @@ where
                             fn_name.push_str(&self.text);
                             Ok(Token::DotIdent { name: fn_name })
                         }
-                        _ => Ok(Token::Ident { name: self.text.clone() }),
+                        _ => Ok(Token::Ident {
+                            name: self.text.clone(),
+                        }),
                     }
                 }
             }
@@ -378,7 +382,7 @@ mod test {
         let token = sc.next_token()?;
         match token {
             Token::Ident { name } if name == "hello" => {}
-            _ => assert!(false, "did not match"),
+            _ => panic!("did not match"),
         }
         Ok(())
     }
@@ -399,7 +403,16 @@ mod test {
     fn test_keywords() -> Result<()> {
         let got = scan_all("do ⟸ let bound descr inclusion Package Use")?;
         use Token::*;
-        let want = vec![Do, LongLeftDoubleArrow, Let, Bound, Descr, Inclusion, Package, Use];
+        let want = vec![
+            Do,
+            LongLeftDoubleArrow,
+            Let,
+            Bound,
+            Descr,
+            Inclusion,
+            Package,
+            Use,
+        ];
         assert!(want == got, "want {:?} got {:?}", want, got);
         Ok(())
     }
@@ -410,10 +423,18 @@ mod test {
         let want = vec![
             Token::Int { decoded: 1 },
             Token::Float { decoded: 3.14 },
-            Token::String { decoded: "foo🤖".to_string() },
-            Token::Bytes { decoded: "foo👷‍♀️".as_bytes().into() },
-            Token::String { decoded: "bar".to_string() },
-            Token::Bytes { decoded: "bar".as_bytes().into() },
+            Token::String {
+                decoded: "foo🤖".to_string(),
+            },
+            Token::Bytes {
+                decoded: "foo👷‍♀️".as_bytes().into(),
+            },
+            Token::String {
+                decoded: "bar".to_string(),
+            },
+            Token::Bytes {
+                decoded: "bar".as_bytes().into(),
+            },
         ];
         assert!(want == got, "want {:?} got {:?}", want, got);
         Ok(())
@@ -435,8 +456,12 @@ mod test {
     fn test_names() -> Result<()> {
         let got = scan_all("/foo /foo/bar")?;
         let want = vec![
-            Token::Name { name: "/foo".to_string() },
-            Token::Name { name: "/foo/bar".to_string() },
+            Token::Name {
+                name: "/foo".to_string(),
+            },
+            Token::Name {
+                name: "/foo/bar".to_string(),
+            },
         ];
         assert!(want == got, "want {:?} got {:?}", want, got);
         Ok(())

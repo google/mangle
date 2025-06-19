@@ -323,17 +323,23 @@ func (SimpleColumn) readPred(scanner *bufio.Scanner, p ast.PredicateSym, numFact
 			if skip[i] { // Fact does not match anyway.
 				continue
 			}
-			s, err := percentUnescape(scanner.Text())
-			if err != nil {
-				return fmt.Errorf("reading pred %v column %d fact %d: %w", p, j, i, ErrCouldNotRead)
+			text := scanner.Text()
+			if text[0] == '/' {
+				var err error
+				text, err = percentUnescape(text)
+				if err != nil {
+					return fmt.Errorf("unescape failed pred %v column %d fact %d: %w", p, j, i, ErrCouldNotRead)
+				}
 			}
-			e, err := parse.BaseTerm(s)
+			e, err := parse.BaseTerm(text)
 			if err != nil {
-				return fmt.Errorf("parsing pred %v column %d fact %d: %w", p, j, i, err)
+				return fmt.Errorf("parsing failed pred %v column %d fact %d: %w", p, j, i, err)
 			}
+
 			c, err := functional.EvalExpr(e, nil)
+
 			if err != nil {
-				return fmt.Errorf("evaluating pred %v column %d fact %d: %w", p, j, i, ErrCouldNotRead)
+				return fmt.Errorf("evaluating failed pred %v column %d fact %d: %w", p, j, i, ErrCouldNotRead)
 			}
 			args[i][j] = c
 			if filter == nil {

@@ -243,7 +243,7 @@ func TestNewBytes(t *testing.T) {
 
 func TestGzip(t *testing.T) {
 	tmpStore := NewSimpleInMemoryStore()
-	tmpStore.Add(atom("i(/persist)"))
+	tmpStore.Add(atom("i(/persist, '%%')"))
 	tmpStore.Add(atom("we(/persist)"))
 	var b bytes.Buffer
 	w := gzip.NewWriter(&b)
@@ -262,8 +262,8 @@ func TestGzip(t *testing.T) {
 		cmpopts.SortSlices(sortBySymbol)); diff != "" {
 		t.Errorf("NewSimpleColumnStoreFromGzipBytes: diff (-want +got) %v", diff)
 	}
-	if !store.Contains(atom("i(/persist)")) {
-		t.Errorf("NewSimpleColumnStoreFromGzipBytes: expected atom i(/persist)")
+	if !store.Contains(atom("i(/persist, '%%')")) {
+		t.Errorf("NewSimpleColumnStoreFromGzipBytes: expected atom i(/persist, '%%')")
 	}
 	if !store.Contains(atom("we(/persist)")) {
 		t.Errorf("NewSimpleColumnStoreFromGzipBytes: expected atom i(/persist)")

@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use fxhash::FxHashMap;
-
 use crate::ast::{Arena, BaseTerm, Term};
 use crate::Engine;
 use crate::Result;
 use anyhow::anyhow;
+use fxhash::FxHashMap;
 
 pub struct Naive {}
 
@@ -119,11 +118,10 @@ impl<'e> Engine<'e> for Naive {
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashSet;
-
     use super::*;
     use crate::ast;
     use anyhow::Result;
+    use fxhash::FxHashSet;
     use mangle_analysis::SimpleProgram;
     use mangle_factstore::{TableConfig, TableStoreImpl, TableStoreSchema};
 
@@ -169,11 +167,8 @@ mod test {
             ),
         )?;
 
-        let mut simple = SimpleProgram {
-            arena: &arena,
-            ext_preds: vec![edge],
-            rules: FxHashMap::default(),
-        };
+        let mut simple =
+            SimpleProgram { arena: &arena, ext_preds: vec![edge], rules: FxHashMap::default() };
 
         let head = arena.alloc(ast::Atom {
             sym: reachable,
@@ -206,7 +201,7 @@ mod test {
             }),
         );
 
-        let mut single_layer = HashSet::new();
+        let mut single_layer = FxHashSet::default();
         single_layer.insert(reachable);
         let strata = vec![single_layer];
         let stratified_program = simple.stratify(strata);

@@ -14,8 +14,7 @@
 
 use crate::{ast, PredicateSet, Program, StratifiedProgram};
 use ast::Arena;
-use fxhash::FxHashMap;
-use std::collections::HashSet;
+use fxhash::{FxHashMap, FxHashSet};
 
 /// An implementation of the `Program` trait.
 pub struct SimpleProgram<'p> {
@@ -37,13 +36,13 @@ impl<'p> Program<'p> for SimpleProgram<'p> {
     }
 
     fn extensional_preds(&'p self) -> PredicateSet {
-        let mut set = HashSet::new();
+        let mut set = FxHashSet::default();
         set.extend(self.ext_preds.iter());
         set
     }
 
     fn intensional_preds(&'p self) -> PredicateSet {
-        let mut set = HashSet::new();
+        let mut set = FxHashSet::default();
         set.extend(self.rules.keys());
         set
     }
@@ -72,10 +71,7 @@ impl<'p> SimpleProgram<'p> {
         self,
         strata: impl IntoIterator<Item = PredicateSet>,
     ) -> SimpleStratifiedProgram<'p> {
-        SimpleStratifiedProgram {
-            program: self,
-            strata: strata.into_iter().collect(),
-        }
+        SimpleStratifiedProgram { program: self, strata: strata.into_iter().collect() }
     }
 }
 
@@ -112,18 +108,14 @@ mod test {
     use super::*;
     use googletest::matchers::{elements_are, eq};
     use googletest::verify_that;
-    use std::collections::HashSet;
 
     #[test]
     fn try_eval() -> googletest::Result<()> {
         let arena = Arena::new_global();
         let foo = arena.predicate_sym("foo", Some(2));
         let bar = arena.predicate_sym("bar", Some(1));
-        let mut simple = SimpleProgram {
-            arena: &arena,
-            ext_preds: vec![foo],
-            rules: FxHashMap::default(),
-        };
+        let mut simple =
+            SimpleProgram { arena: &arena, ext_preds: vec![foo], rules: FxHashMap::default() };
 
         // Add a clause.
         let clause = ast::Clause {
@@ -138,7 +130,7 @@ mod test {
         verify_that!(simple.extensional_preds(), elements_are![&foo])?;
         verify_that!(simple.intensional_preds(), elements_are![&bar])?;
 
-        let mut single_layer = HashSet::new();
+        let mut single_layer = FxHashSet::default();
         single_layer.insert(bar);
         let strata = vec![single_layer.clone()];
         let stratified = simple.stratify(strata.into_iter());

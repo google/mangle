@@ -18,19 +18,21 @@ mod simple_program;
 
 pub use simple_program::{SimpleProgram, SimpleStratifiedProgram};
 
-type PredicateSet = std::collections::HashSet<ast::PredicateIndex>;
+type PredicateSet = fxhash::FxHashSet<ast::PredicateIndex>;
 
 /// Represents a program.
-/// `extensional_preds` and `intensional_preds` are disjoint.
+///
+/// INVARIANT:
+/// `extensional_preds` and `intensional_preds` always return disjoint sets.
 pub trait Program<'p> {
     fn arena(&'p self) -> &'p ast::Arena;
 
     /// Returns predicates for extensional DB.
-    /// May return an empty iterator.
+    /// May return empty set.
     fn extensional_preds(&'p self) -> PredicateSet;
 
     /// Returns predicates for intensional DB.
-    /// May return an empty iterator.
+    /// May return empty set.
     fn intensional_preds(&'p self) -> PredicateSet;
 
     /// Maps predicates of intensional DB to rules.

@@ -121,7 +121,6 @@ mod test {
     use super::*;
     use crate::ast;
     use anyhow::Result;
-    use fxhash::FxHashSet;
     use mangle_analysis::SimpleProgram;
     use mangle_factstore::{TableConfig, TableStoreImpl, TableStoreSchema};
 
@@ -201,10 +200,7 @@ mod test {
             }),
         );
 
-        let mut single_layer = FxHashSet::default();
-        single_layer.insert(reachable);
-        let strata = vec![single_layer];
-        let stratified_program = simple.stratify(strata);
+        let stratified_program = simple.stratify().unwrap();
 
         let engine = Naive {};
         engine.eval(&store, &stratified_program)?;

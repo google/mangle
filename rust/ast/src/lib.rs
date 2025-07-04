@@ -33,9 +33,7 @@ pub struct Interner {
 
 impl Interner {
     fn new_global_interner() -> Arc<Mutex<Interner>> {
-        Arc::new(Mutex::new(Interner::with_capacity(
-            INTERNER_DEFAULT_CAPACITY.into(),
-        )))
+        Arc::new(Mutex::new(Interner::with_capacity(INTERNER_DEFAULT_CAPACITY.into())))
     }
 
     pub fn with_capacity(cap: usize) -> Interner {
@@ -130,10 +128,7 @@ impl<'arena> Arena {
         p: PredicateIndex,
         args: &[&'arena BaseTerm<'arena>],
     ) -> &'arena Atom<'arena> {
-        self.alloc(Atom {
-            sym: p,
-            args: self.alloc_slice_copy(args),
-        })
+        self.alloc(Atom { sym: p, args: self.alloc_slice_copy(args) })
     }
 
     pub fn apply_fn(
@@ -254,17 +249,10 @@ impl<'arena> Arena {
         src: &'src Arena,
         atom: &'src Atom<'src>,
     ) -> &'arena Atom<'arena> {
-        let args: Vec<_> = atom
-            .args
-            .iter()
-            .map(|arg| self.copy_base_term(src, arg))
-            .collect();
+        let args: Vec<_> = atom.args.iter().map(|arg| self.copy_base_term(src, arg)).collect();
         let args = self.alloc_slice_copy(&args);
         // TODO: have to look up predicate syms from !source!
-        self.alloc(Atom {
-            sym: self.copy_predicate_sym(src, atom.sym),
-            args,
-        })
+        self.alloc(Atom { sym: self.copy_predicate_sym(src, atom.sym), args })
     }
 
     // Copies BaseTerm to another Arena
@@ -359,16 +347,9 @@ impl<'arena> Arena {
         src: &'src Arena,
         src_clause: &'src Clause<'src>,
     ) -> &'arena Clause<'arena> {
-        let Clause {
-            head,
-            premises,
-            transform,
-        } = src_clause;
+        let Clause { head, premises, transform } = src_clause;
         let premises: Vec<_> = premises.iter().map(|x| self.copy_term(src, x)).collect();
-        let transform: Vec<_> = transform
-            .iter()
-            .map(|x| self.copy_transform(src, x))
-            .collect();
+        let transform: Vec<_> = transform.iter().map(|x| self.copy_transform(src, x)).collect();
         self.alloc(Clause {
             head: self.copy_atom(src, head),
             premises: self.alloc_slice_copy(&premises),
@@ -485,14 +466,12 @@ impl<'a> Term<'a> {
         &*arena.alloc(match self {
             Term::Atom(atom) => Term::Atom(atom.apply_subst(arena, subst)),
             Term::NegAtom(atom) => Term::NegAtom(atom.apply_subst(arena, subst)),
-            Term::Eq(left, right) => Term::Eq(
-                left.apply_subst(arena, subst),
-                right.apply_subst(arena, subst),
-            ),
-            Term::Ineq(left, right) => Term::Ineq(
-                left.apply_subst(arena, subst),
-                right.apply_subst(arena, subst),
-            ),
+            Term::Eq(left, right) => {
+                Term::Eq(left.apply_subst(arena, subst), right.apply_subst(arena, subst))
+            }
+            Term::Ineq(left, right) => {
+                Term::Ineq(left.apply_subst(arena, subst), right.apply_subst(arena, subst))
+            }
         })
     }
 }
@@ -514,10 +493,8 @@ impl<'arena> BaseTerm<'arena> {
             BaseTerm::Const(_) => self,
             BaseTerm::Variable(v) => subst.get(&v.0).unwrap_or(&self),
             BaseTerm::ApplyFn(fun, args) => {
-                let args: Vec<&'arena BaseTerm<'arena>> = args
-                    .iter()
-                    .map(|arg| arg.apply_subst(arena, subst))
-                    .collect();
+                let args: Vec<&'arena BaseTerm<'arena>> =
+                    args.iter().map(|arg| arg.apply_subst(arena, subst)).collect();
                 let args = arena.alloc_slice_copy(&args);
                 arena.alloc(BaseTerm::ApplyFn(*fun, args))
             }
@@ -534,10 +511,7 @@ impl std::fmt::Display for BaseTerm<'_> {
                 write!(
                     f,
                     "{fun}({})",
-                    args.iter()
-                        .map(|x| x.to_string())
-                        .collect::<Vec<_>>()
-                        .join(",")
+                    args.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",")
                 )
             }
         }
@@ -552,14 +526,8 @@ pub enum Const<'a> {
     String(&'a str),
     Bytes(&'a [u8]),
     List(&'a [&'a Const<'a>]),
-    Map {
-        keys: &'a [&'a Const<'a>],
-        values: &'a [&'a Const<'a>],
-    },
-    Struct {
-        fields: &'a [&'a str],
-        values: &'a [&'a Const<'a>],
-    },
+    Map { keys: &'a [&'a Const<'a>], values: &'a [&'a Const<'a>] },
+    Struct { fields: &'a [&'a str], values: &'a [&'a Const<'a>] },
 }
 
 impl Eq for Const<'_> {}
@@ -574,20 +542,10 @@ impl std::fmt::Display for Const<'_> {
             Const::String(v) => write!(f, "{v}"),
             Const::Bytes(v) => write!(f, "{:?}", v),
             Const::List(v) => {
-                write!(
-                    f,
-                    "[{}]",
-                    v.iter()
-                        .map(|x| x.to_string())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                )
+                write!(f, "[{}]", v.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(", "))
             }
             Const::Map { keys: _, values: _ } => write!(f, "{{...}}"),
-            Const::Struct {
-                fields: _,
-                values: _,
-            } => write!(f, "{{...}}"),
+            Const::Struct { fields: _, values: _ } => write!(f, "{{...}}"),
         }
     }
 }
@@ -598,7 +556,7 @@ pub struct PredicateSym {
     pub arity: Option<u8>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PredicateIndex(usize);
 
 impl std::fmt::Display for PredicateIndex {
@@ -661,11 +619,8 @@ impl<'a> Atom<'a> {
         arena: &'a Arena,
         subst: &FxHashMap<u32, &'a BaseTerm<'a>>,
     ) -> &'a Atom<'a> {
-        let args: Vec<&'a BaseTerm<'a>> = self
-            .args
-            .iter()
-            .map(|arg| arg.apply_subst(arena, subst))
-            .collect();
+        let args: Vec<&'a BaseTerm<'a>> =
+            self.args.iter().map(|arg| arg.apply_subst(arena, subst)).collect();
         arena.atom(self.sym, &args)
     }
 }

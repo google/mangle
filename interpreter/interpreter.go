@@ -115,12 +115,12 @@ func (i *Interpreter) showPredicate(p ast.PredicateSym) {
 		}
 		spacer := strings.Repeat(" ", docStringMargin-prefixLen)
 		if len(atomText) < docStringMargin {
-			fmt.Printf("%s%s%s\n", atomText, spacer, docLines[0])
+			fmt.Fprintf(i.out, "%s%s%s\n", atomText, spacer, docLines[0])
 		} else {
-			fmt.Printf("%s\n%s%s\n", atomText, spacer, docLines[0])
+			fmt.Fprintf(i.out, "%s\n%s%s\n", atomText, spacer, docLines[0])
 		}
 	} else {
-		fmt.Printf("%s\n", atomText)
+		fmt.Fprintf(i.out, "%s\n", atomText)
 	}
 }
 

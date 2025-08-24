@@ -21,7 +21,6 @@ import (
 	"sort"
 	"strings"
 
-	"go.uber.org/multierr"
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/builtin"
 	"github.com/google/mangle/functional"
@@ -29,6 +28,7 @@ import (
 	"github.com/google/mangle/parse"
 	"github.com/google/mangle/symbols"
 	"github.com/google/mangle/unionfind"
+	"go.uber.org/multierr"
 )
 
 // BoundsCheckingMode represents a mode for bounds checking.
@@ -709,12 +709,16 @@ func (a *Analyzer) checkPredicates(clause ast.Clause) error {
 			}
 		}
 
+		var arities []int
 		for declared := range a.decl {
 			if declared.Symbol == sym.Symbol {
-				// We know `a.decl[sym] == nil`, so it is .Arity that does not match.
-				return fmt.Errorf("in clause %q calling predicate %v with %d arguments, expected %d",
-					clause, declared.Symbol, sym.Arity, declared.Arity)
+				arities = append(arities, declared.Arity)
 			}
+		}
+		if len(arities) > 0 {
+			return fmt.Errorf(
+				"in clause %q: predicate %s called with %d arguments, but available arities are: %v",
+				clause, sym.Symbol, sym.Arity, arities)
 		}
 		return fmt.Errorf("in clause %q could not find predicate %v", clause, sym)
 	}, clause)

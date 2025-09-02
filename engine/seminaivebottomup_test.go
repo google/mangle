@@ -108,7 +108,17 @@ func analyzeAndEvalProgramWithDecls(t *testing.T, clauses []ast.Clause, decls []
 	for _, f := range programInfo.InitialFacts {
 		store.Add(f)
 	}
-	return EvalProgram(programInfo, store, options...)
+
+	strata, predToStratum, err := analysis.Stratify(analysis.Program{
+		EdbPredicates: programInfo.EdbPredicates,
+		IdbPredicates: programInfo.IdbPredicates,
+		Rules:         programInfo.Rules,
+	})
+	if err != nil {
+		return fmt.Errorf("stratification: %w", err)
+	}
+	_, err = EvalStratifiedProgramWithStats(programInfo, strata, predToStratum, store, options...)
+	return err
 }
 
 func TestSingleDeltaRule(t *testing.T) {
@@ -142,13 +152,22 @@ func TestRewriteIdempotency(t *testing.T) {
 		store.Add(f)
 	}
 
-	if err := EvalProgram(programInfo, store); err != nil {
+	strata, predToStratum, err := analysis.Stratify(analysis.Program{
+		EdbPredicates: programInfo.EdbPredicates,
+		IdbPredicates: programInfo.IdbPredicates,
+		Rules:         programInfo.Rules,
+	})
+	if err != nil {
+		t.Fatalf("stratification: %v", err)
+	}
+
+	if _, err := EvalStratifiedProgramWithStats(programInfo, strata, predToStratum, store); err != nil {
 		t.Fatalf("Program evaluation failed %v program %v", err, program)
 	}
 	facts := store.EstimateFactCount()
 
 	for i := 0; i < 10; i++ {
-		if err := EvalProgram(programInfo, store); err != nil {
+		if _, err := EvalStratifiedProgramWithStats(programInfo, strata, predToStratum, store); err != nil {
 			t.Fatalf("Program evaluation failed %v program %v", err, program)
 		}
 	}
@@ -1343,7 +1362,15 @@ func BenchmarkJoin(b *testing.B) {
 		if err != nil {
 			b.Fatal(fmt.Errorf("analysis: %w", err))
 		}
-		if err := EvalProgram(programInfo, store); err != nil {
+		strata, predToStratum, err := analysis.Stratify(analysis.Program{
+			EdbPredicates: programInfo.EdbPredicates,
+			IdbPredicates: programInfo.IdbPredicates,
+			Rules:         programInfo.Rules,
+		})
+		if err != nil {
+			b.Fatal(fmt.Errorf("stratification: %w", err))
+		}
+		if _, err := EvalStratifiedProgramWithStats(programInfo, strata, predToStratum, store); err != nil {
 			b.Fatal(fmt.Errorf("evaluation: %w", err))
 		}
 	}

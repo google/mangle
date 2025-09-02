@@ -73,6 +73,7 @@ func WithCreatedFactLimit(limit int) EvalOption {
 }
 
 // EvalProgram evaluates a given program on the given facts, modifying the fact store in the process.
+// Deprecated: use EvalStratifiedProgramWithStats instead.
 func EvalProgram(programInfo *analysis.ProgramInfo, store factstore.FactStore, options ...EvalOption) error {
 	_, err := EvalProgramWithStats(programInfo, store, options...)
 	return err
@@ -91,6 +92,7 @@ func newEvalOptions(options ...EvalOption) EvalOptions {
 }
 
 // EvalProgramWithStats evaluates a given program on the given facts, modifying the fact store in the process.
+// Deprecated: use EvalStratifiedProgramWithStats instead.
 func EvalProgramWithStats(programInfo *analysis.ProgramInfo, store factstore.FactStore, options ...EvalOption) (Stats, error) {
 	strata, predToStratum, err := analysis.Stratify(analysis.Program{
 		EdbPredicates: programInfo.EdbPredicates,

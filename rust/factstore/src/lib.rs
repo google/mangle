@@ -19,28 +19,41 @@ use mangle_ast as ast;
 mod tablestore;
 pub use tablestore::{TableConfig, TableStoreImpl, TableStoreSchema};
 
+pub trait Receiver<'a> {
+    fn next(&self, item: &'a ast::Atom<'a>) -> Result<()>;
+}
+
+impl<'a, Closure: Fn(&'a ast::Atom<'a>) -> Result<()>> Receiver<'a> for Closure {
+    fn next(&self, item: &'a ast::Atom<'a>) -> Result<()> {
+        (*self)(item)
+    }
+}
+
 /// Lifetime 'a is used for data held by this store.
 pub trait ReadOnlyFactStore<'a> {
-    fn contains<'src>(&'a self, src: &'src Arena, fact: &'src ast::Atom) -> Result<bool>;
+    fn arena(&'a self) -> &'a Arena;
 
-    // Invokes cb for fact that matches query.
-    fn get(
+    fn contains<'src>(&'a self, src: &'src Arena, fact: &'src ast::Atom<'src>) -> Result<bool>;
+
+    // Sends atoms that matches query `Atom{ sym: query_sym, args: query_args}`.
+    // pub sym: PredicateIndex,
+    fn get<'query, R: Receiver<'a>>(
         &'a self,
-        query: &ast::Atom,
-        cb: impl FnMut(&'a ast::Atom<'a>) -> Result<()>,
+        query_sym: ast::PredicateIndex,
+        query_args: &'query [&'query ast::BaseTerm<'query>],
+        cb: &R,
     ) -> Result<()>;
 
-    //fn get<F>(&'a self, query: &ast::Atom, cb: F) -> Result<()>
-    //where
-    //    F: FnMut(&'a ast::Atom<'a>) -> Result<()>;
-
-    // Iterator over every predicate available in this store.
+    // Invokes cb for every predicate available in this store.
+    // It would be nice to use `impl Iterator` here.
     fn predicates(&'a self) -> Vec<ast::PredicateIndex>;
 
     // Returns approximae number of facts.
     fn estimate_fact_count(&self) -> u32;
 }
 
+/// A fact store that can be mutated.
+/// Implementations must make use of interior mutability.
 pub trait FactStore<'a>: ReadOnlyFactStore<'a> {
     /// Returns true if fact did not exist before.
     /// The fact is copied.
@@ -52,17 +65,17 @@ pub trait FactStore<'a>: ReadOnlyFactStore<'a> {
         S: ReadOnlyFactStore<'src>;
 }
 
-pub fn get_all_facts<'a, S>(
-    store: &'a S,
-    mut cb: impl FnMut(&'a ast::Atom<'a>) -> Result<()>,
-) -> Result<()>
+/// Invokes cb for every fact in the store.
+pub fn get_all_facts<'a, S, R: Receiver<'a>>(store: &'a S, cb: &R) -> Result<()>
 where
     S: ReadOnlyFactStore<'a> + 'a,
 {
-    let arena = Arena::new_global();
+    let arena = Arena::new_with_global_interner();
     let preds = store.predicates();
+
     for pred in preds {
-        store.get(&arena.new_query(pred), &mut cb)?;
+        arena.copy_predicate_sym(store.arena(), pred);
+        store.get(pred, &arena.new_query(pred).args, cb)?;
     }
     Ok(())
 }
@@ -86,7 +99,11 @@ mod test {
     }
 
     impl<'a> ReadOnlyFactStore<'a> for TestStore<'a> {
-        fn contains<'src>(&'a self, src: &'src Arena, fact: &'src ast::Atom) -> Result<bool> {
+        fn arena(&'a self) -> &'a Arena {
+            self.arena
+        }
+
+        fn contains<'src>(&'a self, src: &'src Arena, fact: &'src ast::Atom<'src>) -> Result<bool> {
             if self.arena as *const _ as usize == src as *const _ as usize {
                 return Ok(self.facts.borrow().iter().any(|x| *x == fact));
             }
@@ -98,24 +115,24 @@ mod test {
                 None => Ok(false),
                 Some(n) => match self.arena.lookup_predicate_sym(n) {
                     None => Ok(false),
-                    Some(sym) => Ok(self
-                        .facts
-                        .borrow()
-                        .iter()
-                        .any(|x| x.sym == sym && x.args == fact.args)),
+                    Some(sym) => {
+                        Ok(self.facts.borrow().iter().any(|x| x.sym == sym && x.args == fact.args))
+                    }
                 },
             }
         }
 
-        fn get(
+        fn get<'query, R: Receiver<'a>>(
             &'a self,
-            query: &ast::Atom,
-            mut cb: impl FnMut(&'a ast::Atom<'a>) -> Result<()>,
+            query_sym: ast::PredicateIndex,
+            query_args: &'query [&'query ast::BaseTerm<'query>],
+            cb: &R,
         ) -> Result<()> {
             for fact in self.facts.borrow().iter() {
-                // TODO matches
-                if fact.sym == query.sym {
-                    cb(fact)?;
+                if fact.sym == query_sym {
+                    if fact.matches(query_args) {
+                        cb.next(&fact)?;
+                    }
                 }
             }
             Ok(())
@@ -137,13 +154,11 @@ mod test {
 
     impl<'a> FactStore<'a> for TestStore<'a> {
         fn add<'src>(&'a self, src: &'src Arena, fact: &'src ast::Atom) -> Result<bool> {
-            // TODO: If it is from a separate arena, need to copy.
+            // If the fact is from a different arena, it must be copied.
             if self.contains(src, fact)? {
                 return Ok(false);
             }
-            self.facts
-                .borrow_mut()
-                .push(self.arena.copy_atom(src, fact));
+            self.facts.borrow_mut().push(self.arena.copy_atom(src, fact));
             Ok(true)
         }
 
@@ -151,7 +166,7 @@ mod test {
         where
             S: ReadOnlyFactStore<'src>,
         {
-            let _ = get_all_facts(store, move |fact| {
+            let _ = get_all_facts(store, &move |fact| {
                 let atom = self.arena.copy_atom(src, fact);
                 self.facts.borrow_mut().push(atom);
                 Ok(())
@@ -161,14 +176,44 @@ mod test {
 
     #[test]
     fn test_get_factsa() {
-        let arena = Arena::new_global();
-        let simple = TestStore {
-            arena: &arena,
-            facts: RefCell::new(vec![]),
-        };
+        let arena = Arena::new_with_global_interner();
+        let simple = TestStore { arena: &arena, facts: RefCell::new(vec![]) };
         let atom = test_atom(&arena);
+
         assert!(!simple.contains(&arena, &atom).unwrap());
         assert!(simple.add(&arena, &atom).unwrap());
         assert!(simple.contains(&arena, &atom).unwrap());
+    }
+
+    #[test]
+    fn test_multi_arena() {
+        let arena1 = Arena::new_with_global_interner();
+        let arena2 = Arena::new_with_global_interner();
+        let store = TestStore { arena: &arena1, facts: RefCell::new(vec![]) };
+
+        let atom_in_arena2 = test_atom(&arena2);
+
+        // Register the predicate symbol in the store's arena as well.
+        let index1 = arena1.predicate_sym("foo", Some(1));
+
+        println!("predicate_sym: {:?}", index1);
+
+        // Add atom from arena2 to store with arena1
+        assert!(store.add(&arena2, &atom_in_arena2).unwrap());
+
+        // Check if the atom is now in the store
+        assert!(store.contains(&arena2, &atom_in_arena2).unwrap());
+
+        // Verify that the stored atom is in arena1
+        let found = RefCell::new(false);
+        let _ = get_all_facts(&store, &|fact: &ast::Atom| {
+            // This is a bit of a hack to check if the atom is in arena1.
+            // We can't directly compare arenas, but we can check if the symbols
+            // are the same.
+            assert_eq!(fact.sym, arena1.predicate_sym("foo", Some(1)));
+            *found.borrow_mut() = true;
+            Ok(())
+        });
+        assert!(*found.borrow());
     }
 }

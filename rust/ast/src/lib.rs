@@ -57,13 +57,19 @@ impl Interner {
         let id = self.map.len() as u32;
         self.map.insert(name, id);
         self.vec.push(name);
-        debug_assert!(self.lookup(id) == name);
+        debug_assert!(self.lookup(id).expect("expected to find name") == name);
         debug_assert!(self.intern(name) == id);
         id
     }
-    pub fn lookup(&self, id: u32) -> &'static str {
-        self.vec[id as usize]
+
+    pub fn lookup_name_index(&self, name: &str) -> Option<u32> {
+        self.map.get(name).copied()
     }
+
+    pub fn lookup(&self, id: u32) -> Option<&'static str> {
+        self.vec.get(id as usize).copied()
+    }
+
     unsafe fn alloc(&mut self, name: &str) -> &'static str {
         let cap = self.buf.capacity();
         if cap < self.buf.len() + name.len() {
@@ -98,7 +104,7 @@ impl<'arena> Arena {
         }
     }
 
-    pub fn new_global() -> Self {
+    pub fn new_with_global_interner() -> Self {
         Self::new(Interner::new_global_interner())
     }
 
@@ -165,10 +171,17 @@ impl<'arena> Arena {
         Atom { sym: p, args }
     }
 
-    pub fn lookup_name(&self, name_index: u32) -> &'static str {
+    /// Given a name index, returns the name.
+    pub fn lookup_name(&self, name_index: u32) -> Option<&'static str> {
         self.interner.lock().unwrap().lookup(name_index)
     }
 
+    /// Given a name, returns the index of the name if it exists in the interner.
+    pub fn lookup_name_index(&self, name: &str) -> Option<u32> {
+        self.interner.lock().unwrap().lookup_name_index(name)
+    }
+
+    /// Given predicate index, returns name of predicate symbol.
     pub fn predicate_name(&self, predicate_index: PredicateIndex) -> Option<&'static str> {
         let syms = self.predicate_syms.borrow();
         let i = predicate_index.0;
@@ -176,7 +189,7 @@ impl<'arena> Arena {
             return None;
         }
         let n = syms[i].name;
-        Some(self.interner.lock().unwrap().lookup(n))
+        self.interner.lock().unwrap().lookup(n)
     }
 
     /// Returns index for this predicate symbol.
@@ -229,7 +242,7 @@ impl<'arena> Arena {
         f: FunctionIndex,
     ) -> FunctionIndex {
         let function_sym = &src.function_syms.borrow()[f.0];
-        let name = src.lookup_name(function_sym.name);
+        let name = src.lookup_name(function_sym.name).expect("expected to find name");
         self.function_sym(name, function_sym.arity)
     }
 
@@ -239,7 +252,7 @@ impl<'arena> Arena {
         p: PredicateIndex, //predicate_sym: &'src PredicateSym,
     ) -> PredicateIndex {
         let predicate_sym = &src.predicate_syms.borrow()[p.0];
-        let name = src.lookup_name(predicate_sym.name);
+        let name = src.lookup_name(predicate_sym.name).expect("expected to find name");
         self.predicate_sym(name, predicate_sym.arity)
     }
 
@@ -268,7 +281,13 @@ impl<'arena> Arena {
                 self.alloc(BaseTerm::Const(*self.copy_const(src, c)))
             }
             BaseTerm::Variable(v) => {
-                let name = src.interner.lock().unwrap().lookup(v.0).to_string();
+                let name = src
+                    .interner
+                    .lock()
+                    .unwrap()
+                    .lookup(v.0)
+                    .expect("expected to find name")
+                    .to_string();
                 let v = self.variable_sym(&name);
                 self.alloc(BaseTerm::Variable(v))
             }
@@ -290,7 +309,8 @@ impl<'arena> Arena {
     ) -> &'arena Const<'arena> {
         match c {
             Const::Name(name) => {
-                let name = src.interner.lock().unwrap().lookup(*name);
+                let name =
+                    src.interner.lock().unwrap().lookup(*name).expect("expected to find name");
                 let name = self.interner.lock().unwrap().intern(name);
                 self.alloc(Const::Name(name))
             }
@@ -647,7 +667,7 @@ mod tests {
 
     #[test]
     fn copying_atom_works() {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let foo = arena.const_(arena.name("/foo"));
         let bar = arena.predicate_sym("bar", Some(1));
         let head = arena.atom(bar, &[foo]);
@@ -656,7 +676,7 @@ mod tests {
 
     #[test]
     fn atom_display_works() {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let bar = arena.const_(arena.name("/bar"));
         let sym = arena.predicate_sym("foo", Some(1));
         let atom = Atom { sym, args: &[&bar] };
@@ -675,7 +695,7 @@ mod tests {
 
     #[test]
     fn new_query_works() {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
 
         let pred = arena.predicate_sym("foo", Some(1));
         let query = arena.new_query(pred);
@@ -692,7 +712,7 @@ mod tests {
 
     #[test]
     fn subst_works() {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let atom = arena.atom(arena.predicate_sym("foo", Some(1)), &[arena.variable("x")]);
 
         let mut subst = FxHashMap::default();
@@ -705,7 +725,7 @@ mod tests {
 
     #[test]
     fn do_intern_beyond_initial_capacity() {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
 
         let p = arena.predicate_sym("/foo", Some(1));
         let mut name = "".to_string();

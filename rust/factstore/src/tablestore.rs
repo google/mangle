@@ -18,8 +18,8 @@ use std::path::Path;
 
 use crate::ast;
 use crate::FactStore;
-use crate::ReadOnlyFactStore;
 use crate::{anyhow, Result};
+use crate::{ReadOnlyFactStore, Receiver};
 use ast::Arena;
 
 #[derive(Clone)]
@@ -32,32 +32,38 @@ pub type TableStoreSchema<'a> = FxHashMap<ast::PredicateIndex, TableConfig<'a>>;
 
 pub struct TableStoreImpl<'a> {
     schema: &'a TableStoreSchema<'a>,
-    arena: Arena,
+    arena: &'a Arena,
     tables: RefCell<FxHashMap<ast::PredicateIndex, Vec<&'a ast::Atom<'a>>>>,
 }
 
 impl<'a> ReadOnlyFactStore<'a> for TableStoreImpl<'a> {
-    fn contains<'src>(&'a self, _src: &'src Arena, fact: &'src ast::Atom) -> Result<bool> {
+    fn arena(&'a self) -> &'a Arena {
+        self.arena
+    }
+
+    fn contains<'src>(&'a self, _src: &'src Arena, fact: &'src ast::Atom<'src>) -> Result<bool> {
         if let Some(table) = self.tables.borrow().get(&fact.sym) {
-            return Ok(table.contains(&fact));
+            return Ok(table.iter().any(|e| *e == fact));
         }
         Err(anyhow!("unknown predicate index {}", fact.sym))
     }
 
-    fn get(
+    // Sends atoms that matches query.
+    fn get<'query, R: Receiver<'a>>(
         &'a self,
-        query: &ast::Atom,
-        mut cb: impl FnMut(&'a ast::Atom<'a>) -> anyhow::Result<()>,
-    ) -> anyhow::Result<()> {
-        if let Some(table) = self.tables.borrow().get(&query.sym) {
+        query_sym: ast::PredicateIndex,
+        query_args: &'query [&'query ast::BaseTerm<'query>],
+        cb: &R,
+    ) -> Result<()> {
+        if let Some(table) = self.tables.borrow().get(&query_sym) {
             for fact in table {
-                if fact.matches(query.args) {
-                    cb(fact)?;
+                if fact.matches(query_args) {
+                    cb.next(&fact)?;
                 }
             }
             return Ok(());
         }
-        Err(anyhow!("unknown predicate index {}", query.sym))
+        Err(anyhow!("unknown predicate index {}", query_sym))
     }
 
     fn predicates(&'a self) -> Vec<ast::PredicateIndex> {
@@ -65,10 +71,7 @@ impl<'a> ReadOnlyFactStore<'a> for TableStoreImpl<'a> {
     }
 
     fn estimate_fact_count(&self) -> u32 {
-        self.tables
-            .borrow()
-            .values()
-            .fold(0, |x, y| x + y.len() as u32)
+        self.tables.borrow().values().fold(0, |x, y| x + y.len() as u32)
     }
 }
 
@@ -100,15 +103,11 @@ impl<'a> FactStore<'a> for TableStoreImpl<'a> {
 }
 
 impl<'a> TableStoreImpl<'a> {
-    pub fn new(schema: &'a TableStoreSchema<'a>) -> Self {
+    pub fn new(arena: &'a Arena, schema: &'a TableStoreSchema<'a>) -> Self {
         let mut tables = FxHashMap::default();
         for entry in schema.keys() {
             tables.insert(*entry, vec![]);
         }
-        TableStoreImpl {
-            schema,
-            arena: Arena::new_global(),
-            tables: RefCell::new(tables),
-        }
+        TableStoreImpl { schema, arena, tables: RefCell::new(tables) }
     }
 }

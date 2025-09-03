@@ -76,10 +76,7 @@ fn fn_option_type_sym(arena: &Arena) -> ast::FunctionIndex {
 
 fn empty_package_decl(arena: &Arena) -> ast::Decl<'_> {
     ast::Decl {
-        atom: arena.alloc(ast::Atom {
-            sym: package_sym(arena),
-            args: &[],
-        }),
+        atom: arena.alloc(ast::Atom { sym: package_sym(arena), args: &[] }),
         descr: arena.alloc_slice_copy(&[arena.alloc(ast::Atom {
             sym: name_sym(arena),
             args: arena
@@ -116,11 +113,7 @@ where
     where
         R: io::Read,
     {
-        Self {
-            sc: scan::Scanner::new(reader, path),
-            token: token::Token::Illegal,
-            arena,
-        }
+        Self { sc: scan::Scanner::new(reader, path), token: token::Token::Illegal, arena }
     }
 
     fn next_token(&mut self) -> Result<()> {
@@ -189,36 +182,17 @@ where
 
         self.expect(Token::Bang)?;
 
-        let package_atom = alloc!(
-            self,
-            ast::Atom {
-                sym: package_sym(self.arena),
-                args: &[]
-            }
-        );
+        let package_atom = alloc!(self, ast::Atom { sym: package_sym(self.arena), args: &[] });
 
         //let descr_atoms = ;
-        let decl: &'arena ast::Decl = alloc!(
-            self,
-            ast::Decl {
-                atom: package_atom,
-                bounds: None,
-                descr,
-                constraints: None
-            }
-        );
+        let decl: &'arena ast::Decl =
+            alloc!(self, ast::Decl { atom: package_atom, bounds: None, descr, constraints: None });
         Ok(decl)
     }
 
     fn parse_use_decl(&mut self) -> Result<&'arena ast::Decl<'arena>> {
         self.expect(Token::Use)?;
-        let use_atom = alloc!(
-            self,
-            ast::Atom {
-                sym: use_sym(self.arena),
-                args: &[]
-            }
-        );
+        let use_atom = alloc!(self, ast::Atom { sym: use_sym(self.arena), args: &[] });
 
         let name = match &self.token {
             Token::Ident { name } => name.as_str(),
@@ -229,10 +203,8 @@ where
         let name = alloc!(self, ast::BaseTerm::Const(ast::Const::String(name)));
         let args = alloc_slice!(self, &[name]);
 
-        let mut descr_atoms: Vec<&ast::Atom> = vec![self.arena.alloc(ast::Atom {
-            sym: name_sym(self.arena),
-            args,
-        })];
+        let mut descr_atoms: Vec<&ast::Atom> =
+            vec![self.arena.alloc(ast::Atom { sym: name_sym(self.arena), args })];
         self.next_token()?;
         if Token::LBracket == self.token {
             self.parse_bracket_atoms(&mut descr_atoms)?;
@@ -242,12 +214,7 @@ where
         let descr_atoms = alloc_slice!(self, &descr_atoms);
         Ok(alloc!(
             self,
-            ast::Decl {
-                atom: use_atom,
-                descr: descr_atoms,
-                bounds: None,
-                constraints: None
-            }
+            ast::Decl { atom: use_atom, descr: descr_atoms, bounds: None, constraints: None }
         ))
     }
 
@@ -266,11 +233,8 @@ where
             }
             bound_decls.push(self.parse_bounds_decl()?);
         }
-        let bounds = if bound_decls.is_empty() {
-            None
-        } else {
-            Some(alloc_slice!(self, &bound_decls))
-        };
+        let bounds =
+            if bound_decls.is_empty() { None } else { Some(alloc_slice!(self, &bound_decls)) };
         let constraints = if Token::Inclusion == self.token {
             Some(self.parse_inclusion_constraint()?)
         } else {
@@ -279,12 +243,7 @@ where
         self.expect(Token::Dot)?;
         Ok(alloc!(
             self,
-            ast::Decl {
-                atom,
-                descr: alloc_slice!(self, &descr_atoms),
-                bounds,
-                constraints
-            }
+            ast::Decl { atom, descr: alloc_slice!(self, &descr_atoms), bounds, constraints }
         ))
     }
 
@@ -305,13 +264,7 @@ where
         let mut consequences = vec![];
         self.parse_bracket_atoms(&mut consequences)?;
         let consequences = alloc_slice!(self, &consequences);
-        Ok(alloc!(
-            self,
-            Constraints {
-                consequences,
-                alternatives: &[]
-            }
-        ))
+        Ok(alloc!(self, Constraints { consequences, alternatives: &[] }))
     }
 
     pub fn parse_clause(&mut self) -> Result<&'arena ast::Clause<'arena>> {
@@ -332,14 +285,7 @@ where
         self.expect(Token::Dot)?;
         let premises = alloc_slice!(self, &premises);
         let transform = alloc_slice!(self, &transform);
-        Ok(alloc!(
-            self,
-            ast::Clause {
-                head,
-                premises,
-                transform
-            }
-        ))
+        Ok(alloc!(self, ast::Clause { head, premises, transform }))
     }
 
     /// terms ::= term { , term }
@@ -435,13 +381,7 @@ where
         }
         self.expect(Token::RParen)?;
         let args = alloc_slice!(self, &args);
-        Ok(alloc!(
-            self,
-            ast::Atom {
-                sym: self.arena.predicate_sym(name, None),
-                args
-            }
-        ))
+        Ok(alloc!(self, ast::Atom { sym: self.arena.predicate_sym(name, None), args }))
     }
 
     fn parse_transforms(
@@ -451,13 +391,7 @@ where
         if Token::Do == self.token {
             self.next_token()?;
             let expr = self.parse_base_term()?;
-            transforms.push(alloc!(
-                self,
-                ast::TransformStmt {
-                    var: None,
-                    app: expr
-                }
-            ));
+            transforms.push(alloc!(self, ast::TransformStmt { var: None, app: expr }));
             self.expect(Token::Semi)?;
         }
         loop {
@@ -470,13 +404,7 @@ where
                 self.next_token()?;
                 self.expect(Token::Eq)?;
                 let expr = self.parse_base_term()?;
-                transforms.push(alloc!(
-                    self,
-                    ast::TransformStmt {
-                        var: Some(name),
-                        app: expr
-                    }
-                ))
+                transforms.push(alloc!(self, ast::TransformStmt { var: Some(name), app: expr }))
             }
             if let Token::Dot = self.token {
                 break;
@@ -551,10 +479,7 @@ where
         self.expect(Token::LBracket)?;
         if Token::RBracket == self.token {
             self.next_token()?;
-            return Ok(alloc!(
-                self,
-                ast::BaseTerm::ApplyFn(fn_list_sym(self.arena), &[])
-            ));
+            return Ok(alloc!(self, ast::BaseTerm::ApplyFn(fn_list_sym(self.arena), &[])));
         }
         let first = self.parse_base_term()?;
         let expr = if Token::Colon != self.token {
@@ -585,20 +510,14 @@ where
         self.expect(Token::LBrace)?;
         if Token::RBrace == self.token {
             self.next_token()?;
-            return Ok(alloc!(
-                self,
-                ast::BaseTerm::ApplyFn(fn_struct_sym(self.arena), &[])
-            ));
+            return Ok(alloc!(self, ast::BaseTerm::ApplyFn(fn_struct_sym(self.arena), &[])));
         }
         let mut items = vec![];
         let name = self.parse_base_term()?;
         if let ast::BaseTerm::Const(ast::Const::Name { .. }) = name {
             items.push(name)
         } else {
-            bail!(
-                "parse_base_term: expected name in struct expression {{ ... }} got {:?}",
-                name
-            );
+            bail!("parse_base_term: expected name in struct expression {{ ... }} got {:?}", name);
         }
         self.expect(Token::Colon)?;
         items.push(self.parse_base_term()?);
@@ -706,7 +625,7 @@ mod test {
 
     #[test]
     fn test_empty_unit() -> Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut p = make_parser(&arena, "");
         match p.parse_unit()? {
             ast::Unit { decls: &[pkg], .. } => {
@@ -719,39 +638,27 @@ mod test {
 
     #[test]
     fn test_package_use() -> Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let input = "Package foo[bar()]! Use baz[bar()]!";
 
         let mut p = make_parser(&arena, input);
         let unit = p.parse_unit()?;
         match unit.decls {
             &[&ast::Decl {
-                atom:
-                    &ast::Atom {
-                        sym: got_package_sym,
-                        ..
-                    },
+                atom: &ast::Atom { sym: got_package_sym, .. },
                 descr:
                     &[&ast::Atom {
                         sym: got_name_sym1,
                         args: &[ast::BaseTerm::Const(ast::Const::String("foo"))],
-                    }, &ast::Atom {
-                        sym: got_bar_sym1,
-                        args: &[],
-                    }],
+                    }, &ast::Atom { sym: got_bar_sym1, args: &[] }],
                 ..
             }, &ast::Decl {
-                atom: &ast::Atom {
-                    sym: got_use_sym, ..
-                },
+                atom: &ast::Atom { sym: got_use_sym, .. },
                 descr:
                     &[&ast::Atom {
                         sym: got_name_sym2,
                         args: &[ast::BaseTerm::Const(ast::Const::String("baz"))],
-                    }, &ast::Atom {
-                        sym: got_bar_sym2,
-                        args: &[],
-                    }],
+                    }, &ast::Atom { sym: got_bar_sym2, args: &[] }],
                 ..
             }] => {
                 assert_eq!(got_use_sym, use_sym(&arena));
@@ -768,7 +675,7 @@ mod test {
 
     #[test]
     fn test_decl() -> Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let input = "Decl foo(X, Y).";
         let mut p = make_parser(&arena, input);
         match p.parse_decl()? {
@@ -791,7 +698,7 @@ mod test {
 
     #[test]
     fn test_base_term() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let input = "X 3 1.5 'foo' /foo fn:list() fn:list(/a) fn:list(/a, 3)"; //.as_bytes();
         let mut p = make_parser(&arena, input);
         let mut got_base_terms = vec![];
@@ -813,10 +720,7 @@ mod test {
             arena.apply_fn(fn_list_sym(&arena), &[arena.const_(arena.name("/a"))]),
             arena.apply_fn(
                 fn_list_sym(&arena),
-                &[
-                    arena.const_(arena.name("/a")),
-                    arena.const_(ast::Const::Number(3)),
-                ],
+                &[arena.const_(arena.name("/a")), arena.const_(ast::Const::Number(3))],
             ),
         ];
         verify_that!(got_base_terms, eq(&expected))
@@ -824,7 +728,7 @@ mod test {
 
     #[test]
     fn test_term() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let input = "foo(/bar) !bar() X = Z X != 3 3 < 1 3 <= 1";
         let mut p = make_parser(&arena, input);
         let mut got_terms = vec![];
@@ -836,10 +740,9 @@ mod test {
             got_terms.push(p.parse_term().unwrap());
         }
         let expected = [
-            &ast::Term::Atom(arena.atom(
-                arena.predicate_sym("foo", None),
-                &[arena.const_(arena.name("/bar"))],
-            )),
+            &ast::Term::Atom(
+                arena.atom(arena.predicate_sym("foo", None), &[arena.const_(arena.name("/bar"))]),
+            ),
             &ast::Term::NegAtom(arena.atom(arena.predicate_sym("bar", None), &[])),
             &ast::Term::Eq(arena.variable("X"), arena.variable("Z")),
             &ast::Term::Ineq(
@@ -848,17 +751,11 @@ mod test {
             ),
             &ast::Term::Atom(arena.atom(
                 arena.predicate_sym(":lt", Some(2)),
-                &[
-                    arena.const_(ast::Const::Number(3)),
-                    arena.const_(ast::Const::Number(1)),
-                ],
+                &[arena.const_(ast::Const::Number(3)), arena.const_(ast::Const::Number(1))],
             )),
             &ast::Term::Atom(arena.atom(
                 arena.predicate_sym(":le", Some(2)),
-                &[
-                    arena.const_(ast::Const::Number(3)),
-                    arena.const_(ast::Const::Number(1)),
-                ],
+                &[arena.const_(ast::Const::Number(3)), arena.const_(ast::Const::Number(1))],
             )),
         ];
         verify_that!(got_terms, eq(&expected))
@@ -866,7 +763,7 @@ mod test {
 
     #[gtest]
     fn test_structured_data_and_types() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let input =
             "[] [1,2,3] [1: 'one', 2: 'two'] {} {/foo: /bar} .List<.Option</name>, /string>";
         let mut p = make_parser(&arena, input);
@@ -901,18 +798,13 @@ mod test {
             arena.apply_fn(fn_struct_sym(&arena), &[]),
             arena.apply_fn(
                 fn_struct_sym(&arena),
-                &[
-                    arena.const_(arena.name("/foo")),
-                    arena.const_(arena.name("/bar")),
-                ],
+                &[arena.const_(arena.name("/foo")), arena.const_(arena.name("/bar"))],
             ),
             arena.apply_fn(
                 fn_list_type_sym(&arena),
                 &[
-                    arena.apply_fn(
-                        fn_option_type_sym(&arena),
-                        &[arena.const_(arena.name("/name"))],
-                    ),
+                    arena
+                        .apply_fn(fn_option_type_sym(&arena), &[arena.const_(arena.name("/name"))]),
                     arena.const_(arena.name("/string")),
                 ],
             ),
@@ -922,16 +814,12 @@ mod test {
 
     #[test]
     fn test_clause() -> Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut p = make_parser(&arena, "foo(X).");
         let clause = p.parse_clause()?;
         match clause {
             ast::Clause {
-                head:
-                    ast::Atom {
-                        args: &[ast::BaseTerm::Variable(x_sym)],
-                        ..
-                    },
+                head: ast::Atom { args: &[ast::BaseTerm::Variable(x_sym)], .. },
                 premises: &[],
                 transform: &[],
             } => {
@@ -944,16 +832,8 @@ mod test {
         let clause = p.parse_clause()?;
         match clause {
             ast::Clause {
-                head:
-                    ast::Atom {
-                        sym: foo_sym,
-                        args: _,
-                    },
-                premises:
-                    &[&ast::Term::NegAtom(ast::Atom {
-                        sym: bar_sym,
-                        args: _,
-                    })],
+                head: ast::Atom { sym: foo_sym, args: _ },
+                premises: &[&ast::Term::NegAtom(ast::Atom { sym: bar_sym, args: _ })],
                 transform: &[],
             } => {
                 assert_eq!(*foo_sym, arena.predicate_sym("foo", None));
@@ -961,10 +841,8 @@ mod test {
             }
             _ => panic!("unexpected: {:?}", clause),
         };
-        let mut p = make_parser(
-            &arena,
-            "foo(Z) ⟸ bar(Y) |> do fn:group_by(); let X = fn:count(Y).",
-        );
+        let mut p =
+            make_parser(&arena, "foo(Z) ⟸ bar(Y) |> do fn:group_by(); let X = fn:count(Y).");
 
         let clause = p.parse_clause()?;
         match clause {
@@ -972,13 +850,7 @@ mod test {
                 head: ast::Atom { .. },
                 premises: &[&ast::Term::Atom(ast::Atom { .. })],
                 transform:
-                    &[&ast::TransformStmt {
-                        var: None,
-                        app: ast::BaseTerm::ApplyFn(first_sym, _),
-                    }, &ast::TransformStmt {
-                        var: Some("X"),
-                        app: ast::BaseTerm::ApplyFn(second_sym, _),
-                    }],
+                    &[&ast::TransformStmt { var: None, app: ast::BaseTerm::ApplyFn(first_sym, _) }, &ast::TransformStmt { var: Some("X"), app: ast::BaseTerm::ApplyFn(second_sym, _) }],
             } => {
                 assert_eq!(clause.head.sym, arena.predicate_sym("foo", None));
                 assert_eq!(clause.transform.len(), 2);

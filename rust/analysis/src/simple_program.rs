@@ -410,7 +410,7 @@ mod test {
 
     #[test]
     fn try_eval() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let foo = arena.predicate_sym("foo", Some(2));
         let bar = arena.predicate_sym("bar", Some(1));
         let mut simple =
@@ -440,7 +440,7 @@ mod test {
 
     #[test]
     fn test_stratification_neg_direct_negation() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![], rules: FxHashMap::default() };
 
@@ -459,7 +459,7 @@ mod test {
 
     #[test]
     fn test_stratification_neg_mutual_negation() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let bar = arena.predicate_sym("bar", Some(1));
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![bar], rules: FxHashMap::default() };
@@ -493,7 +493,7 @@ mod test {
 
     #[test]
     fn test_stratification_pos() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![], rules: FxHashMap::default() };
 
@@ -540,7 +540,7 @@ mod test {
 
     #[test]
     fn test_stratification_negation_lower_strata() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![], rules: FxHashMap::default() };
 
@@ -575,7 +575,7 @@ mod test {
 
     #[test]
     fn test_stratification_mutual_recursion_no_negation() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![], rules: FxHashMap::default() };
 
@@ -613,7 +613,7 @@ mod test {
 
     #[test]
     fn test_stratification_multiple_strata_dependency() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let c = arena.predicate_sym("c", Some(0));
         let d = arena.predicate_sym("d", Some(0));
         let mut simple =
@@ -656,7 +656,7 @@ mod test {
 
     #[test]
     fn test_stratification_scc_internal_negation() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![], rules: FxHashMap::default() };
 
@@ -698,7 +698,7 @@ mod test {
 
     #[test]
     fn test_stratification_negation_from_higher() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![], rules: FxHashMap::default() };
 
@@ -730,7 +730,7 @@ mod test {
 
     #[test]
     fn test_stratification_extensional_deps() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let ext = arena.predicate_sym("ext", Some(0));
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![ext], rules: FxHashMap::default() };
@@ -754,7 +754,7 @@ mod test {
 
     #[test]
     fn test_stratification_empty() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let simple =
             SimpleProgram { arena: &arena, ext_preds: vec![], rules: FxHashMap::default() };
         let result = simple.stratify();
@@ -764,7 +764,7 @@ mod test {
 
     #[test]
     fn test_stratification_unused_preds() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         // B is never a head
         let b = arena.predicate_sym("b", Some(0));
         let mut simple =
@@ -792,7 +792,7 @@ mod test {
 
     #[test]
     fn test_stratification_negation_across_strata() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![], rules: FxHashMap::default() };
 
@@ -853,7 +853,7 @@ mod test {
 
     #[test]
     fn test_stratification_negation_precedence() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![], rules: FxHashMap::default() };
 
@@ -899,7 +899,7 @@ mod test {
 
     #[test]
     fn test_sort_result_multiple_strata() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![], rules: FxHashMap::default() };
 
@@ -946,7 +946,7 @@ mod test {
 
     #[test]
     fn test_stratification_initial_queue_order() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![], rules: FxHashMap::default() };
 
@@ -1027,7 +1027,7 @@ mod test {
 
     #[test]
     fn test_make_dep_graph_simple() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![], rules: FxHashMap::default() };
 
@@ -1055,7 +1055,7 @@ mod test {
 
     #[test]
     fn test_make_dep_graph_negation() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![], rules: FxHashMap::default() };
 
@@ -1079,7 +1079,7 @@ mod test {
 
     #[test]
     fn test_make_dep_graph_negation_precedence() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![], rules: FxHashMap::default() };
 
@@ -1113,7 +1113,7 @@ mod test {
 
     #[test]
     fn test_make_dep_graph_ignore_extensional() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let ext = arena.predicate_sym("ext", Some(0));
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![ext], rules: FxHashMap::default() };
@@ -1136,7 +1136,7 @@ mod test {
 
     #[test]
     fn test_make_dep_graph_do_transform() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![], rules: FxHashMap::default() };
 
@@ -1164,7 +1164,7 @@ mod test {
 
     #[test]
     fn test_sccs_dfs_order() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let mut simple =
             SimpleProgram { arena: &arena, ext_preds: vec![], rules: FxHashMap::default() };
 
@@ -1220,7 +1220,7 @@ mod test {
 
     #[test]
     fn test_sccs_visit_order() -> googletest::Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let a = arena.predicate_sym("a", Some(0));
         let b = arena.predicate_sym("b", Some(0));
         let c = arena.predicate_sym("c", Some(0));

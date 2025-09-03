@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::ast::{Arena, BaseTerm, Term};
+use crate::ast::{Arena, Atom, BaseTerm, Term};
 use crate::Engine;
 use crate::Result;
 use anyhow::anyhow;
@@ -41,21 +41,24 @@ impl<'e> Engine<'e> for Naive {
                     if rule.premises.is_empty() {
                         continue; // initial facts added previously
                     }
-                    let arena = Arena::new_global();
-                    let mut subst: FxHashMap<u32, &crate::ast::BaseTerm> = FxHashMap::default();
+                    let arena = Arena::new_with_global_interner();
+                    let subst: FxHashMap<u32, &BaseTerm> = FxHashMap::default();
                     let mut all_ok = true;
+                    let subst = std::cell::RefCell::new(subst);
                     for premise in rule.premises.iter() {
-                        let ok = match premise {
+                        let ok: bool = match premise {
                             Term::Atom(query) => {
                                 // TODO: eval ApplyFn terms.
-                                let query = query.apply_subst(&arena, &subst);
-                                let mut found = false;
-                                let _ = store.get(query, |atom| {
+                                let query = query.apply_subst(&arena, &subst.borrow());
+                                let found = std::cell::RefCell::new(false);
+                                let _ = store.get(query.sym, query.args, &|atom: &'_ Atom<'_>| {
                                     let mut mismatch = false;
                                     for (i, arg) in query.args.iter().enumerate() {
                                         match arg {
                                             BaseTerm::Variable(v) => {
-                                                subst.insert(v.0, atom.args[i]);
+                                                let own_atom_ref = arena
+                                                    .copy_base_term(store.arena(), atom.args[i]);
+                                                subst.borrow_mut().insert(v.0, own_atom_ref);
                                             }
                                             c @ BaseTerm::Const(_) => {
                                                 if *c == atom.args[i] {
@@ -71,29 +74,31 @@ impl<'e> Engine<'e> for Naive {
                                             }
                                         }
                                     }
-                                    found = !mismatch;
+                                    *found.borrow_mut() = !mismatch;
                                     Ok(())
                                 });
-                                found
+                                let x = !*found.borrow();
+                                x
                             }
                             Term::NegAtom(query) => {
-                                let query = query.apply_subst(&arena, &subst);
+                                let query = query.apply_subst(&arena, &subst.borrow());
 
-                                let mut found = false;
-                                let _ = store.get(query, |_| {
-                                    found = true;
+                                let found = std::cell::RefCell::new(false);
+                                let _ = store.get(query.sym, query.args, &|_| {
+                                    *found.borrow_mut() = true;
                                     Ok(())
                                 });
-                                !found
+                                let x = !*found.borrow();
+                                x
                             }
                             Term::Eq(left, right) => {
-                                let left = left.apply_subst(&arena, &subst);
-                                let right = right.apply_subst(&arena, &subst);
+                                let left = left.apply_subst(&arena, &subst.borrow());
+                                let right = right.apply_subst(&arena, &subst.borrow());
                                 left == right
                             }
                             Term::Ineq(left, right) => {
-                                let left = left.apply_subst(&arena, &subst);
-                                let right = right.apply_subst(&arena, &subst);
+                                let left = left.apply_subst(&arena, &subst.borrow());
+                                let right = right.apply_subst(&arena, &subst.borrow());
                                 left != right
                             }
                         };
@@ -103,7 +108,7 @@ impl<'e> Engine<'e> for Naive {
                         }
                     }
                     if all_ok {
-                        let head = rule.head.apply_subst(&arena, &subst);
+                        let head = rule.head.apply_subst(&arena, &subst.borrow());
                         fact_added = store.add(program.arena(), head)?;
                     }
                 }
@@ -126,13 +131,13 @@ mod test {
 
     #[test]
     pub fn test_naive() -> Result<()> {
-        let arena = Arena::new_global();
+        let arena = Arena::new_with_global_interner();
         let edge = arena.predicate_sym("edge", Some(2));
         let reachable = arena.predicate_sym("reachable", Some(2));
         let mut schema: TableStoreSchema = FxHashMap::default();
         schema.insert(edge, TableConfig::InMemory);
         schema.insert(reachable, TableConfig::InMemory);
-        let store = TableStoreImpl::new(&schema);
+        let store = TableStoreImpl::new(&arena, &schema);
 
         use crate::factstore::FactStore;
         store.add(

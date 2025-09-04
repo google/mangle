@@ -353,7 +353,12 @@ func (i *Interpreter) Loop() error {
 				if err != nil {
 					return err
 				}
-				clauseText = clauseText + nextLine
+				// Add appropriate spacing between lines to avoid parsing issues
+				if nextLine != "" && !strings.HasSuffix(clauseText, " ") && !strings.HasPrefix(nextLine, " ") {
+					clauseText = clauseText + " " + nextLine
+				} else {
+					clauseText = clauseText + nextLine
+				}
 			}
 
 			if err := i.Define(clauseText); err != nil {

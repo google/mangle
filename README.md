@@ -155,4 +155,8 @@ The Mangle maintainers welcome external contributions to spec, documentation
 and this implementation (see [CONTRIBUTING.md](CONTRIBUTING.md)) and also other
 implementations. Pull requests will be handled
 [like for tensorflow](https://github.com/tensorflow/tensorflow/blob/master/CONTRIBUTING.md),
-to ensure our internal usage and tests will pass. 
+to ensure our internal usage and tests will pass.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=google/mangle&type=Date)](https://www.star-history.com/#google/mangle&Date)

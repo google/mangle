@@ -19,7 +19,7 @@ work, some *skills* they have and some skills they are *interested* in
 developing.
 
 ```
-# We shall use constant symbols like /v/{number} as identifers.
+# We shall use constant symbols like /v/{number} as identifiers.
 volunteer(/v/1).
 
 # Volunteer has a name, some timeslots where they might be available for

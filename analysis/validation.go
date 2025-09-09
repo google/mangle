@@ -166,6 +166,9 @@ func New(extraPredicates map[ast.PredicateSym]ast.Decl, decls []ast.Decl, bounds
 		if pred == symbols.Package || pred == symbols.Use {
 			continue
 		}
+		if existing, ok := declMap[pred]; ok {
+			return nil, fmt.Errorf("predicate %v declared more than once, previous was %v", pred, existing)
+		}
 		declMap[pred] = decl
 
 		if extraDecl, ok := extraByName[pred.Symbol]; ok {

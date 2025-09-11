@@ -134,6 +134,7 @@ func TestCheckRulePositive(t *testing.T) {
 		clause("foo(Y) :- bar(X) |> do fn:group_by(X), let Y = fn:sum(X)."),
 		clause("c(R,S,T) :- bar(R), bar(S), bar(T), fn:plus(fn:mult(R, R), fn:mult(S,S)) = fn:mult(T,T)."),
 		clause("foo(X) :- bar(Y), bar(Z) |> do fn:group_by(Y), let X = fn:collect(Z)."),
+		clause("foo(A) :- bar(Y), bar(Z) |> do fn:group_by(Y), let X = fn:sum(Z), let A = fn:plus(X, 1)."),
 	}
 	for _, clause := range tests {
 		analyzer, _ := New(map[ast.PredicateSym]ast.Decl{
@@ -228,6 +229,7 @@ func TestCheckRuleNegative(t *testing.T) {
 		clause("foo(X) :- X = fn:struct(1,2,3)."),
 		clause("foo(X) :- X = fn:map(1)."),
 		clause("foo(X) :- X = fn:map(1,2,3)."),
+		clause("foo(A) :- bar(Y), bar(Z) |> do fn:group_by(Y), let A = fn:plus(Z, 1)."),
 	}
 	for _, clause := range tests {
 		analyzer, _ := New(map[ast.PredicateSym]ast.Decl{

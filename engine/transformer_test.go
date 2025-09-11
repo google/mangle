@@ -92,6 +92,12 @@ func TestReduce(t *testing.T) {
 			clause:        clause("foo(Min, Max) :- bar(Y) |> do fn:group_by(), let Min = fn:min(Y), let Max = fn:max(Y)."),
 			expectedFacts: []ast.Atom{atom("foo(0, 1)")},
 		},
+		// An alternative way to fn:count()
+		{
+			initialFacts:  []ast.Atom{atom("bar(0)"), atom("bar(1)")},
+			clause:        clause("foo(Num) :- bar(Y) |> do fn:group_by(), let L = fn:collect(Y), let Num = fn:list:len(L)."),
+			expectedFacts: []ast.Atom{atom("foo(2)")},
+		},
 	}
 
 	for _, test := range tests {

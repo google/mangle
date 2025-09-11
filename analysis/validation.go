@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strings"
 
+	"go.uber.org/multierr"
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/builtin"
 	"github.com/google/mangle/functional"
@@ -28,7 +29,6 @@ import (
 	"github.com/google/mangle/parse"
 	"github.com/google/mangle/symbols"
 	"github.com/google/mangle/unionfind"
-	"go.uber.org/multierr"
 )
 
 // BoundsCheckingMode represents a mode for bounds checking.
@@ -563,7 +563,7 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 	// Every variable use that we saw in transform has to be bound somewhere.
 	for v := range transformVarUses {
 		// In a transform, we can refer to any variable that appears in the rule.
-		if seenVars[v] {
+		if seenVars[v] || transformVarDefs[v] {
 			continue
 		}
 		return fmt.Errorf("variable %v used in transform %v does not appear in clause %v", v, *clause.Transform, clause)
@@ -577,14 +577,24 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 		if groupByStmt.Var != nil {
 			return fmt.Errorf("do-transforms cannot have a variable %v", clause)
 		}
+		// All variables defined within the transform so far.
+		transformDefs := make(map[ast.Variable]bool)
 		for _, stmt := range clause.Transform.Statements[1:] {
 			if stmt.Var == nil {
 				return fmt.Errorf("all statements following group by have to be let-statements %v", clause)
 			}
 			if !builtin.IsReducerFunction(stmt.Fn.Function) {
-				// We could actually permit non-reducer applications if they only involve variables from the group_by key. Left for later.
-				return fmt.Errorf("for now, every statement following group has to be a reducer application, found %v in %v", stmt.Fn, clause)
+				uses := make(map[ast.Variable]bool)
+				ast.AddVars(stmt.Fn, uses)
+				for v := range uses {
+					if !groupByVars[v] && !transformDefs[v] {
+						return fmt.Errorf("in %v, variable %v in function %v must be either part of group_by or defined in the transform", clause, v, stmt.Fn)
+					}
+					// TODO: We could expose the rest of the bound variables as list values.
+					// This is left for later, after type-checking transforms.
+				}
 			}
+			transformDefs[*stmt.Var] = true
 		}
 		if len(groupByVars) != len(groupByStmt.Fn.Args) {
 			return fmt.Errorf("each argument of group_by must be a distinct variable, got: %v", groupByStmt)

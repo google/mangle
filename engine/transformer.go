@@ -18,6 +18,7 @@ import (
 	"encoding/binary"
 
 	"github.com/google/mangle/ast"
+	"github.com/google/mangle/builtin"
 	"github.com/google/mangle/functional"
 	"github.com/google/mangle/symbols"
 
@@ -102,11 +103,21 @@ func evalDo(
 				subst = subst.Extend(doStmt.Fn.Args[i].(ast.Variable), v)
 			}
 			for _, stmt := range transform.Statements[1:] {
-				con, err := functional.EvalReduceFn(stmt.Fn, group.values)
-				if err != nil {
-					return err
+				if builtin.IsReducerFunction(stmt.Fn.Function) {
+					con, err := functional.EvalReduceFn(stmt.Fn, group.values)
+					if err != nil {
+						return err
+					}
+					subst = subst.Extend(*stmt.Var, con)
+				} else {
+					// Do a "map" of rows (substitutions set).
+					// First, copy over bindings from subst
+					con, err := functional.EvalApplyFn(stmt.Fn, subst)
+					if err != nil {
+						return err
+					}
+					subst = subst.Extend(*stmt.Var, con)
 				}
-				subst = subst.Extend(*stmt.Var, con)
 			}
 			emit(head.ApplySubst(subst).(ast.Atom))
 		}

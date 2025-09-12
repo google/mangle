@@ -1,11 +1,11 @@
 # Getting to know Datalog
 
 Mangle is based on Datalog. Datalog is a minimal formal language
-that lets us talk about databases and queries. In order
-to learn Mangle, one has to learn Datalog first.
+that lets us talk about databases and queries. In order to learn Mangle,
+it's helpful to learn Datalog first.
 
 Fortunately, Datalog is easy to learn and has very few concepts.
-In this section, we introduce these concepts in passing through an example:
+In this section, we introduce these concepts using an example:
 a database of volunteers and their skills.
 Take a look at this table:
 
@@ -18,7 +18,7 @@ Take a look at this table:
 The Datalog view of a table is that it is an enumeration of
 facts. A fact is an expression like
 `volunteer(1, "Aisha Salehi", /teaching)` which describes
-all data that is found in a row. The name of the table
+the data in a row. The name of the table
 becomes a predicate, and the data in every column becomes an
 argument. As we will see, formal notation (syntax) enables us to
 do precise reasoning with rules. This approach has its roots in
@@ -32,9 +32,8 @@ volunteer(2, "Xin Watson", /workshop_facilitation).
 volunteer(3, "Alyssa P. Hacker", /software_development).
 ```
 
-The above program contains rules. They are special cases of rules,
-since they just state facts, without any premises.
-
+The statements above are the simplest form of Datalog rules. They are called
+facts, as they don't have any premises and just state what is true.
 Normally, a database is not defined within a program, but exists outside
 the program. This is just an example to get familiar.
 
@@ -43,18 +42,26 @@ the program. This is just an example to get familiar.
 A rule describes how to obtain new facts from existing ones. Before we look
 at rules that have premises, we need to understand matching.
 
-Predicates can also be applied to variables like `X`. Variables act
-as placeholders for data. A predicate expression that contains variables is
-called an atom. A known fact *matches* an atom when there is a way to assign 
-values to the atom's variables that make the atom and the fact equal.
+Predicates can also be applied to variables like `X` or `Name`. Variables act
+as placeholders for data. When the arguments of a predicate can contain
+variables in addition to constants, we call the expression an *atom*.
+Every fact is an atom, but there are atoms that are not facts (because they
+contain at least one variable).
+
+A fact *matches* an atom when there is a way to assign values to the
+atom's variables that make the atom and the fact equal.
 
 For example, the fact `volunteer(3, "Alyssa P. Hacker", /software_development)`
-matches the atom `volunteer(1, "Aisha Salehi", X)` because we can set
-`X` to `/software_development`. The other facts above do not match, since the
-ID and Name arguments are different.
+matches the atom `volunteer(3, Name, Skill)` because we can set
+`Name` to `"Alyssa P. Hacker"` and `Skill` to `/software_development` to
+make the fact and atom equal.
+The other facts above do not match, since the first position (which
+would be the ID column in the table) has a different value. It is often useful
+to pick descriptive variables names and use them like column names. When
+the name is not needed (we want to match any value), we can use `_`.
 
-Now we can define a proper rule. Let's define one that picks
-everyone who has the `/teaching` skill:
+Now we can define a proper rule. Let's find everyone who has the `/teaching`
+skill:
 
 ```
 teacher(ID, Name) ⟸ volunteer(ID, Name, /teaching).
@@ -62,25 +69,34 @@ teacher(ID, Name) ⟸ volunteer(ID, Name, /teaching).
 
 (Mangle Datalog also supports the older notation `:-` instead of `⟸`.)
 
-This rule involves variables `ID` and `Name`. When we use variables, there
-is a condition that needs to be met, which we describe below.
+This rule involves variables `ID` and `Name`. Note that they appear both
+on the left-hand side (the *head*) as well as the right-hand side (the *body*)
+of the `⟸`.
 
 Conceptually, we can imagine that a Datalog engine will try out all
-possible combination of values that could lead to a match for each atom in the
+possible combinations of values that produce a match for all atoms in the
 body. When this is successful, the engine uses the variable assignment to
-create a new fact.
+create a new fact from the head. In reality, there are faster ways to find
+all matches.
 
-Rules are connected to databases in more than one way:
+Rules are connected to databases in several ways:
 
-- a rule mentions atom, which match rows in tables - a simple query
-- we can think of rules as a database queries
-- we can also think of rules as defining a new table `teacher` and
-populating it with a subset of the rows from table `volunteer`.
+- each atom in a rule body is like a simple database query
+- the rule as a whole is also a (more complex) database query
+- since rules come with predicate names, they also *define* a new
+table of results (say, a new `teacher` table in the example above)
+which can be queried again.
+
+Using rules to infer new facts from existing ones is called deduction in
+logic. For this reason, Datalog systems are often called deductive database
+systems.
+
 
 ## Multiple atoms and multiple rules
 
-Our example is not very realistic, as every volunteer has exactly
-one skill. Let's fix this:
+We will now briefly see how to combine queries.
+Iit is likely that a volunteer has more than one skill. Let's expand the
+example:
 
 | ID | Name | Skills |
 |----|------|-------|
@@ -88,7 +104,7 @@ one skill. Let's fix this:
 | 2 | Xin Watson  | Workshop Facilitation |
 | 3 | Alyssa P. Hacker  | Software Development, Workshop Facilitation |
 
-One way to turn this into facts it to duplicate values (denormalization):
+We could turn each row into multiple facts by duplicating values:
 
 ```
 volunteer(1, "Aisha Salehi", /teaching).
@@ -98,22 +114,21 @@ volunteer(3, "Alyssa P. Hacker", /software_development).
 volunteer(3, "Alyssa P. Hacker", /workshop_facilitation).
 ```
 
-Suppose we want to organize a coding workshop. There is already a workshop
-facilitator but our volunteer organization was asked to supply a teacher and a
-software developer.
+Now, suppose we are organizing a coding workshop. We already have a
+facilitator but are looking for a teachers and software developers.
 
 We can simply write two rules, and the resulting table will be the union
 of all facts that are generated by each one.
 
 ```
-coding_workshop(ID, Name, /teaching) ⟸
+coding_workshop_candidate(ID, Name, /teaching) ⟸
     volunteer(ID, Name, /teaching).
-coding_workshop(ID, Name, /software_development) ⟸
+coding_workshop_candidate(ID, Name, /software_development) ⟸
     volunteer(ID, Name, /software_development).
 ```
 
-If instead, we wanted to find all people who know both, teaching and
-software development, then we'd use multiple atoms in the body, separated
+If instead, we want a single person who knows both, teaching and
+software development, we use multiple atoms in the body, separated
 by a comma:
 
 ```
@@ -122,7 +137,7 @@ teacher_and_coder(ID, Name) ⟸
     volunteer(ID, Name, /software_development).
 ```
 
-In our current data set, the result will be empty. This rules is an
+In our current data set, the result will be empty. This rule is an
 example of a database join: the body states that two rows have the
 same ID and Name fields.
 
@@ -147,11 +162,10 @@ reachable(X, Z) ⟸ knows(X, Y), reachable(Y, Z).
 ```
 
 The first rule says that `reachable` contains all rows of `knows` table.
-Conceptually, the second rule says that whenever an entry in the `reachable`
-table can be connected further, then a new entry should be added.
-
-Real datalog engines do not need to try out all possible values. They
-use more efficient operations such as joins and incremental computation.
+Conceptually, the second rule says that whenever an entry in the
+`knows` table can be connected to one in the `reachable` table, then we
+should add add a new entry. When all such entries are added, we know
+who can reach whom. This is called a fixed point.
 
 ## The Safety Condition
 
@@ -192,6 +206,7 @@ prove termination here but only mention that due to the safety condition
 every rule is constrained in what new facts it can produce.
 
 Naive evaluation is very inefficient because it computes the same information
-over and over again. It can be used to specify what the meaning of a Datalog
-program is, and with this specification, it is possible to build Datalog
-engines that compute the result in a more efficient manner.
+over and over again. It is useful to specify what the meaning of a Datalog
+program is, even in the presence of recursive rules. No matter how
+sophisticated a Datalog implementation may be, it has to produce the same
+result.

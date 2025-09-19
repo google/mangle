@@ -19,6 +19,7 @@ import (
 	"hash/fnv"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -41,6 +42,9 @@ var (
 	fooFooList               = List([]Constant{fooName, fooName})
 	fooPair                  = Pair(&fooName, nil)
 	fooList                  = List([]Constant{fooName})
+	fooDate                  = MustParseDate("2023-10-06")
+	fooDateSame              = MustParseDate("2023-10-06")
+	barDate                  = MustParseDate("2023-11-01")
 	fooBarMap                = Map(map[*Constant]*Constant{&fooName: &barString})
 	fooBarStruct             = Struct(map[*Constant]*Constant{&fooName: &barString})
 	mapExample               = Map(map[*Constant]*Constant{
@@ -94,6 +98,7 @@ func TestSelfEquals(t *testing.T) {
 		String("foo"),
 		Number(-123),
 		floatNumConstant,
+		fooDate,
 		fooBarPair,
 		fooBarList,
 		NewAtom("foo", Variable{"X"}),
@@ -107,6 +112,50 @@ func TestSelfEquals(t *testing.T) {
 		if !testcase.Equals(testcase) {
 			t.Errorf("(%v).Equals(%v) expected true got false", testcase, testcase)
 		}
+	}
+}
+
+func TestDateHelpers(t *testing.T) {
+	got, err := ParseDate("2023-10-06")
+	if err != nil {
+		t.Fatalf("ParseDate returned error: %v", err)
+	}
+	if !got.Equals(fooDate) {
+		t.Fatalf("ParseDate returned %v, want %v", got, fooDate)
+	}
+	if got.String() != "@2023-10-06" {
+		t.Fatalf("String() = %q, want %q", got.String(), "@2023-10-06")
+	}
+
+	parts, err := DateFromParts(2023, 10, 6)
+	if err != nil {
+		t.Fatalf("DateFromParts returned error: %v", err)
+	}
+	if !parts.Equals(fooDate) {
+		t.Fatalf("DateFromParts returned %v, want %v", parts, fooDate)
+	}
+
+	if _, err := DateFromParts(2023, 2, 30); err == nil {
+		t.Fatalf("DateFromParts accepted invalid date")
+	}
+	if _, err := ParseDate("2023-13-01"); err == nil {
+		t.Fatalf("ParseDate accepted invalid date")
+	}
+
+	timeValue, err := fooDate.DateValue()
+	if err != nil {
+		t.Fatalf("DateValue returned error: %v", err)
+	}
+	wantTime := time.Date(2023, 10, 6, 0, 0, 0, 0, time.UTC)
+	if !timeValue.Equal(wantTime) {
+		t.Fatalf("DateValue = %v, want %v", timeValue, wantTime)
+	}
+
+	if !fooDate.Equals(fooDateSame) {
+		t.Fatalf("expected dates to be equal")
+	}
+	if fooDate.Equals(barDate) {
+		t.Fatalf("expected different dates to differ")
 	}
 }
 

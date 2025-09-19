@@ -22,6 +22,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/symbols"
@@ -334,6 +335,112 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		}
 
 		return ast.String(val.Symbol), nil
+
+	case symbols.DateFromString.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 argument, got %d argument(s)", l)
+		}
+		val := evaluatedArgs[0]
+		if val.Type != ast.StringType {
+			return ast.Constant{}, fmt.Errorf("cannot convert to date: fn:date:from_string() expects ast.StringType type")
+		}
+		parsed, err := ast.ParseDate(val.Symbol)
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return parsed, nil
+
+	case symbols.DateToString.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 argument, got %d argument(s)", l)
+		}
+		val := evaluatedArgs[0]
+		if val.Type != ast.DateType {
+			return ast.Constant{}, fmt.Errorf("cannot convert to string: fn:date:to_string() expects ast.DateType type")
+		}
+		t, err := val.DateValue()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return ast.String(ast.FormatDate(t)), nil
+
+	case symbols.DateFromParts.Symbol:
+		if l := len(evaluatedArgs); l != 3 {
+			return ast.Constant{}, fmt.Errorf("expected 3 arguments, got %d argument(s)", l)
+		}
+		year, err := evaluatedArgs[0].NumberValue()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		month, err := evaluatedArgs[1].NumberValue()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		day, err := evaluatedArgs[2].NumberValue()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		date, err := ast.DateFromParts(int(year), int(month), int(day))
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return date, nil
+
+	case symbols.DateAddDays.Symbol:
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("expected 2 arguments, got %d argument(s)", l)
+		}
+		dateVal := evaluatedArgs[0]
+		if dateVal.Type != ast.DateType {
+			return ast.Constant{}, fmt.Errorf("cannot add days: fn:date:add_days() expects ast.DateType type for 1st argument")
+		}
+		days, err := evaluatedArgs[1].NumberValue()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		base, err := dateVal.DateValue()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return ast.DateFromTime(base.Add(time.Hour * 24 * time.Duration(days))), nil
+
+	case symbols.DateSubDays.Symbol:
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("expected 2 arguments, got %d argument(s)", l)
+		}
+		dateVal := evaluatedArgs[0]
+		if dateVal.Type != ast.DateType {
+			return ast.Constant{}, fmt.Errorf("cannot subtract days: fn:date:sub_days() expects ast.DateType type for 1st argument")
+		}
+		days, err := evaluatedArgs[1].NumberValue()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		base, err := dateVal.DateValue()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return ast.DateFromTime(base.Add(-time.Hour * 24 * time.Duration(days))), nil
+
+	case symbols.DateDiffDays.Symbol:
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("expected 2 arguments, got %d argument(s)", l)
+		}
+		left := evaluatedArgs[0]
+		right := evaluatedArgs[1]
+		if left.Type != ast.DateType || right.Type != ast.DateType {
+			return ast.Constant{}, fmt.Errorf("cannot diff days: fn:date:diff_days() expects ast.DateType arguments")
+		}
+		leftTime, err := left.DateValue()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		rightTime, err := right.DateValue()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		diff := leftTime.Sub(rightTime) / (24 * time.Hour)
+		return ast.Number(int64(diff)), nil
 
 	case symbols.StringConcatenate.Symbol:
 		var values []string

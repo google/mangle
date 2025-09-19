@@ -18,6 +18,10 @@ func name(n string) ast.Constant {
 	return c
 }
 
+func dateConst(iso string) ast.Constant {
+	return ast.MustParseDate(iso)
+}
+
 func TestEvalFloatPlus(t *testing.T) {
 	tests := []struct {
 		args []ast.BaseTerm
@@ -39,6 +43,52 @@ func TestEvalFloatPlus(t *testing.T) {
 		if !got.Equals(test.want) {
 			t.Errorf("EvalExpr(%v) = %v, want %v", expr, got, test.want)
 		}
+	}
+}
+
+func TestDateFunctions(t *testing.T) {
+	tests := []struct {
+		expr ast.ApplyFn
+		want ast.Constant
+	}{
+		{ast.ApplyFn{symbols.DateFromString, []ast.BaseTerm{ast.String("2023-10-06")}}, dateConst("2023-10-06")},
+		{ast.ApplyFn{symbols.DateToString, []ast.BaseTerm{dateConst("2023-10-06")}}, ast.String("2023-10-06")},
+		{
+			ast.ApplyFn{symbols.DateFromParts, []ast.BaseTerm{ast.Number(2023), ast.Number(10), ast.Number(6)}},
+			dateConst("2023-10-06"),
+		},
+		{
+			ast.ApplyFn{symbols.DateAddDays, []ast.BaseTerm{dateConst("2023-10-06"), ast.Number(5)}},
+			dateConst("2023-10-11"),
+		},
+		{
+			ast.ApplyFn{symbols.DateSubDays, []ast.BaseTerm{dateConst("2023-10-06"), ast.Number(7)}},
+			dateConst("2023-09-29"),
+		},
+		{
+			ast.ApplyFn{symbols.DateDiffDays, []ast.BaseTerm{dateConst("2023-10-06"), dateConst("2023-10-01")}},
+			ast.Number(5),
+		},
+	}
+
+	for _, test := range tests {
+		got, err := EvalExpr(test.expr, ast.ConstSubstMap{})
+		if err != nil {
+			t.Fatalf("EvalExpr(%v) returned error: %v", test.expr, err)
+		}
+		if !got.Equals(test.want) {
+			t.Fatalf("EvalExpr(%v) = %v, want %v", test.expr, got, test.want)
+		}
+	}
+
+	if _, err := EvalExpr(ast.ApplyFn{symbols.DateFromString, []ast.BaseTerm{ast.String("bad")}}, ast.ConstSubstMap{}); err == nil {
+		t.Fatalf("EvalExpr date from string accepted invalid input")
+	}
+	if _, err := EvalExpr(ast.ApplyFn{symbols.DateFromParts, []ast.BaseTerm{ast.Number(2023), ast.Number(2), ast.Number(30)}}, ast.ConstSubstMap{}); err == nil {
+		t.Fatalf("EvalExpr date from parts accepted invalid input")
+	}
+	if _, err := EvalExpr(ast.ApplyFn{symbols.DateAddDays, []ast.BaseTerm{ast.String("not-a-date"), ast.Number(1)}}, ast.ConstSubstMap{}); err == nil {
+		t.Fatalf("EvalExpr date add days accepted invalid input")
 	}
 }
 

@@ -58,6 +58,25 @@ constant symbols and can be part of facts.
 
 `question_answer("what is the meaning of life?", 42).`
 
+## Dates
+
+Calendar dates are represented as first-class constants using the `/date`
+type bound.  A date constant renders as an ISO-8601 string prefixed by `@`, for
+example `@2023-10-06`.  The representation tracks only the calendar day (no
+time of day), and uses the UTC calendar to ensure arithmetic is stable across
+time zones.
+
+Dates are commonly constructed with the built-ins described in
+[`spec_builtin_operations.md`](spec_builtin_operations.md):
+
+- `fn:date:from_string("2023-10-06")` parses ISO-8601 strings.
+- `fn:date:from_parts(2023, 10, 6)` creates a date from its numeric
+  year/month/day components.
+- `fn:date:to_string(@2023-10-06)` returns the ISO representation as a string.
+
+The resulting constants can be stored in facts, compared for equality, and used
+anywhere a `/date` value is permitted by a predicate declaration.
+
 ## Structured data: pairs, lists, maps, structs
 
 Structured data is constructed with function symbols. Any program that

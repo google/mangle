@@ -25,6 +25,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // AnyBound is a type expression that has all values as elements.
@@ -48,6 +49,9 @@ var BytesBound Constant
 // NumberBound is a type expression that has all numbers as elements.
 var NumberBound Constant
 
+// DateBound is a type expression that has all dates as elements.
+var DateBound Constant
+
 // TruePredicate is a predicate symbol to represent an
 // "unconditionally true" proposition.
 var TruePredicate = PredicateSym{"true", 0}
@@ -70,6 +74,7 @@ func init() {
 	NumberBound, _ = Name("/number")
 	StringBound, _ = Name("/string")
 	BytesBound, _ = Name("/bytes")
+	DateBound, _ = Name("/date")
 	TrueConstant, _ = Name("/true")
 	FalseConstant, _ = Name("/false")
 }
@@ -82,6 +87,55 @@ func FormatNumber(num int64) string {
 // FormatFloat64 turns a float64 constant into a string.
 func FormatFloat64(floatNum float64) string {
 	return strconv.FormatFloat(floatNum, 'f', -1, 64)
+}
+
+const isoDateLayout = "2006-01-02"
+
+// FormatDate turns a time.Time into an ISO-8601 date string.
+func FormatDate(t time.Time) string {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC).Format(isoDateLayout)
+}
+
+// DateFromTime constructs a date constant from a time.Time.
+func DateFromTime(t time.Time) Constant {
+	iso := FormatDate(t)
+	return Constant{DateType, iso, int64(hashBytes([]byte(iso))), nil, nil}
+}
+
+// DateFromParts constructs a date constant for the given year, month and day.
+func DateFromParts(year int, month int, day int) (Constant, error) {
+	t := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+	if t.Year() != year || int(t.Month()) != month || t.Day() != day {
+		return Constant{}, fmt.Errorf("invalid date %04d-%02d-%02d", year, month, day)
+	}
+	return DateFromTime(t), nil
+}
+
+// MustDateFromParts is equivalent to DateFromParts but panics on error.
+func MustDateFromParts(year int, month int, day int) Constant {
+	c, err := DateFromParts(year, month, day)
+	if err != nil {
+		panic(err)
+	}
+	return c
+}
+
+// ParseDate constructs a date constant from an ISO-8601 string (YYYY-MM-DD).
+func ParseDate(iso string) (Constant, error) {
+	t, err := time.Parse(isoDateLayout, iso)
+	if err != nil {
+		return Constant{}, err
+	}
+	return DateFromTime(t), nil
+}
+
+// MustParseDate is equivalent to ParseDate but panics on error.
+func MustParseDate(iso string) Constant {
+	c, err := ParseDate(iso)
+	if err != nil {
+		panic(err)
+	}
+	return c
 }
 
 // Term represents the building blocks of datalog programs, namely constants, variables, atoms,
@@ -222,6 +276,8 @@ const (
 	// StructShape indicates that the constant is a struct.
 	// Internally, we just represent this as a list of (/field/$name, $value) pairs.
 	StructShape
+	// DateType is the type of date constants.
+	DateType
 )
 
 var number = regexp.MustCompile(`-?\d+`)
@@ -420,6 +476,18 @@ func (c Constant) Float64Value() (float64, error) {
 	return math.Float64frombits(uint64(c.NumValue)), nil
 }
 
+// DateValue returns the date value of this constant, if it is of type date.
+func (c Constant) DateValue() (time.Time, error) {
+	if c.Type != DateType {
+		return time.Time{}, fmt.Errorf("not a date constant %v", c)
+	}
+	t, err := time.Parse(isoDateLayout, c.Symbol)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return t, nil
+}
+
 // PairValue returns the two constants that make up this pair.
 func (c Constant) PairValue() (Constant, Constant, error) {
 	if c.Type != PairShape {
@@ -524,6 +592,8 @@ func (c Constant) String() string {
 		return FormatNumber(c.NumValue)
 	case Float64Type:
 		return FormatFloat64(math.Float64frombits(uint64(c.NumValue)))
+	case DateType:
+		return fmt.Sprintf("@%s", c.Symbol)
 	case PairShape:
 		fst := *c.fst
 		snd := *c.snd
@@ -619,6 +689,8 @@ func (c Constant) Equals(u Term) bool {
 	case NameType:
 		fallthrough
 	case StringType:
+		fallthrough
+	case DateType:
 		return c.Symbol == uconst.Symbol
 	case BytesType:
 		return c.Symbol == uconst.Symbol

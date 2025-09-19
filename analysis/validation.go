@@ -21,7 +21,6 @@ import (
 	"sort"
 	"strings"
 
-	"go.uber.org/multierr"
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/builtin"
 	"github.com/google/mangle/functional"
@@ -29,6 +28,7 @@ import (
 	"github.com/google/mangle/parse"
 	"github.com/google/mangle/symbols"
 	"github.com/google/mangle/unionfind"
+	"go.uber.org/multierr"
 )
 
 // BoundsCheckingMode represents a mode for bounds checking.
@@ -1272,6 +1272,8 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 			return ast.NumberBound
 		case ast.StringType:
 			return ast.StringBound
+		case ast.DateType:
+			return ast.DateBound
 		case ast.NameType:
 			// Find a name prefix type, or fall back to /name.
 			return nameTrie.PrefixName(z.Symbol)

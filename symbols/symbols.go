@@ -163,6 +163,18 @@ var (
 	Float64ToString = ast.FunctionSym{"fn:float64:to_string", 1}
 	// NameToString converts from ast.NameType to ast.StringType
 	NameToString = ast.FunctionSym{"fn:name:to_string", 1}
+	// DateFromString converts from string to date.
+	DateFromString = ast.FunctionSym{"fn:date:from_string", 1}
+	// DateToString converts a date into its ISO-8601 representation.
+	DateToString = ast.FunctionSym{"fn:date:to_string", 1}
+	// DateFromParts constructs a date from its components.
+	DateFromParts = ast.FunctionSym{"fn:date:from_parts", 3}
+	// DateAddDays adds a number of days to a date.
+	DateAddDays = ast.FunctionSym{"fn:date:add_days", 2}
+	// DateSubDays subtracts a number of days from a date.
+	DateSubDays = ast.FunctionSym{"fn:date:sub_days", 2}
+	// DateDiffDays returns the difference in days between two dates.
+	DateDiffDays = ast.FunctionSym{"fn:date:diff_days", 2}
 	// NameRoot returns the first name part of a name.
 	NameRoot = ast.FunctionSym{"fn:name:root", 1}
 	// NameTip returns the last name part of a name.
@@ -399,6 +411,8 @@ func hasBaseType(typeExpr ast.Constant, c ast.Constant) bool {
 		return c.Type == ast.NumberType
 	case ast.StringBound:
 		return c.Type == ast.StringType
+	case ast.DateBound:
+		return c.Type == ast.DateType
 	default:
 		return typeExpr.Type == ast.NameType && c.Type == ast.NameType && strings.HasPrefix(c.Symbol, typeExpr.Symbol+"/")
 	}

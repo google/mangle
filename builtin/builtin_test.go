@@ -36,6 +36,10 @@ func name(n string) ast.Constant {
 	return c
 }
 
+func dateConst(iso string) ast.Constant {
+	return ast.MustParseDate(iso)
+}
+
 func evalExpr(e ast.BaseTerm) ast.Constant {
 	c, err := functional.EvalExpr(e, nil)
 	if err != nil {
@@ -71,6 +75,8 @@ func TestLessThan(t *testing.T) {
 		{ast.Number(1), ast.Number(2), true},
 		{ast.Number(1), ast.Number(1), false},
 		{ast.Number(2), ast.Number(1), false},
+		{dateConst("2023-10-05"), dateConst("2023-10-06"), true},
+		{dateConst("2023-10-06"), dateConst("2023-10-06"), false},
 	}
 	for _, test := range tests {
 		atom := ast.NewAtom(":lt", test.left, test.right)
@@ -93,6 +99,11 @@ func TestLessThanError(t *testing.T) {
 		t.Errorf("Decide(%v) = %v want error", atom, got)
 	}
 
+	dateMix := ast.NewAtom(":lt", dateConst("2023-10-06"), ast.Number(2))
+	if got, _, err := Decide(dateMix, &emptySubst); err == nil {
+		t.Errorf("Decide(%v) = %v want error", dateMix, got)
+	}
+
 	invalid := ast.NewAtom(":lt", ast.Number(2), ast.Number(2), ast.Number(2))
 	if got, _, err := Decide(invalid, &emptySubst); err == nil { // if no error
 		t.Errorf("Decide(%v) = %v want error", invalid, got)
@@ -108,6 +119,9 @@ func TestLessThanOrEqual(t *testing.T) {
 		{ast.Number(1), ast.Number(2), true},
 		{ast.Number(1), ast.Number(1), true},
 		{ast.Number(2), ast.Number(1), false},
+		{dateConst("2023-10-05"), dateConst("2023-10-06"), true},
+		{dateConst("2023-10-06"), dateConst("2023-10-06"), true},
+		{dateConst("2023-10-07"), dateConst("2023-10-06"), false},
 	}
 	for _, test := range tests {
 		atom := ast.NewAtom(":le", test.left, test.right)
@@ -130,6 +144,11 @@ func TestLessThanOrEqualError(t *testing.T) {
 		t.Errorf("Decide(%v) = %v want error", atom, got)
 	}
 
+	dateMix := ast.NewAtom(":le", dateConst("2023-10-06"), ast.Number(2))
+	if got, _, err := Decide(dateMix, &emptySubst); err == nil {
+		t.Errorf("Decide(%v) = %v want error", dateMix, got)
+	}
+
 	invalid := ast.NewAtom(":le", ast.Number(2), ast.Number(2), ast.Number(2))
 	if got, _, err := Decide(invalid, &emptySubst); err == nil { // if no error
 		t.Errorf("Decide(%v) = %v want error", invalid, got)
@@ -145,6 +164,8 @@ func TestGreaterThan(t *testing.T) {
 		{ast.Number(2), ast.Number(1), true},
 		{ast.Number(1), ast.Number(1), false},
 		{ast.Number(1), ast.Number(2), false},
+		{dateConst("2023-10-07"), dateConst("2023-10-06"), true},
+		{dateConst("2023-10-06"), dateConst("2023-10-06"), false},
 	}
 	for _, test := range tests {
 		atom := ast.NewAtom(":gt", test.left, test.right)
@@ -167,6 +188,11 @@ func TestGreaterThanError(t *testing.T) {
 		t.Errorf("Decide(%v) = %v want error", atom, got)
 	}
 
+	dateMix := ast.NewAtom(":gt", dateConst("2023-10-06"), ast.Number(2))
+	if got, _, err := Decide(dateMix, &emptySubst); err == nil {
+		t.Errorf("Decide(%v) = %v want error", dateMix, got)
+	}
+
 	invalid := ast.NewAtom(":gt", ast.Number(2), ast.Number(2), ast.Number(2))
 	if got, _, err := Decide(invalid, &emptySubst); err == nil { // if no error
 		t.Errorf("Decide(%v) = %v want error", invalid, got)
@@ -182,6 +208,9 @@ func TestGreaterThanOrEqual(t *testing.T) {
 		{ast.Number(2), ast.Number(1), true},
 		{ast.Number(1), ast.Number(1), true},
 		{ast.Number(1), ast.Number(2), false},
+		{dateConst("2023-10-07"), dateConst("2023-10-06"), true},
+		{dateConst("2023-10-06"), dateConst("2023-10-06"), true},
+		{dateConst("2023-10-05"), dateConst("2023-10-06"), false},
 	}
 	for _, test := range tests {
 		atom := ast.NewAtom(":ge", test.left, test.right)
@@ -202,6 +231,11 @@ func TestGreaterThanOrEqualError(t *testing.T) {
 	atom := ast.NewAtom(":ge", ast.String("hello"), ast.Number(2))
 	if got, _, err := Decide(atom, &emptySubst); err == nil { // if no error
 		t.Errorf("Decide(%v) = %v want error", atom, got)
+	}
+
+	dateMix := ast.NewAtom(":ge", dateConst("2023-10-06"), ast.Number(2))
+	if got, _, err := Decide(dateMix, &emptySubst); err == nil {
+		t.Errorf("Decide(%v) = %v want error", dateMix, got)
 	}
 
 	invalid := ast.NewAtom(":ge", ast.Number(2), ast.Number(2), ast.Number(2))

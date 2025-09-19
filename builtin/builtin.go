@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/functional"
@@ -208,39 +209,39 @@ func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, []*unionfind.Union
 		if len(atom.Args) != 2 {
 			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate '<': %v", atom.Args)
 		}
-		nums, err := getNumberValues(atom.Args)
+		result, err := compareOrderedArgs(atom.Args, orderRelationLess)
 		if err != nil {
 			return false, nil, err
 		}
-		return nums[0] < nums[1], []*unionfind.UnionFind{subst}, nil
+		return result, []*unionfind.UnionFind{subst}, nil
 	case symbols.Le.Symbol:
 		if len(atom.Args) != 2 {
 			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate '<=': %v", atom.Args)
 		}
-		nums, err := getNumberValues(atom.Args)
+		result, err := compareOrderedArgs(atom.Args, orderRelationLessEqual)
 		if err != nil {
 			return false, nil, err
 		}
-		return nums[0] <= nums[1], []*unionfind.UnionFind{subst}, nil
+		return result, []*unionfind.UnionFind{subst}, nil
 
 	case symbols.Gt.Symbol:
 		if len(atom.Args) != 2 {
 			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate '>': %v", atom.Args)
 		}
-		nums, err := getNumberValues(atom.Args)
+		result, err := compareOrderedArgs(atom.Args, orderRelationGreater)
 		if err != nil {
 			return false, nil, err
 		}
-		return nums[0] > nums[1], []*unionfind.UnionFind{subst}, nil
+		return result, []*unionfind.UnionFind{subst}, nil
 	case symbols.Ge.Symbol:
 		if len(atom.Args) != 2 {
 			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate '>=': %v", atom.Args)
 		}
-		nums, err := getNumberValues(atom.Args)
+		result, err := compareOrderedArgs(atom.Args, orderRelationGreaterEqual)
 		if err != nil {
 			return false, nil, err
 		}
-		return nums[0] >= nums[1], []*unionfind.UnionFind{subst}, nil
+		return result, []*unionfind.UnionFind{subst}, nil
 
 	case symbols.ListMember.Symbol: // :list:member(Member, List)
 		evaluatedArg, err := functional.EvalExpr(atom.Args[1], subst)
@@ -530,6 +531,95 @@ func getStructValue(c ast.Constant) (ast.Constant, error) {
 		return ast.Constant{}, fmt.Errorf("value %v (%v) is not a struct", c, c.Type)
 	}
 	return c, nil
+}
+
+type orderKind int
+
+const (
+	orderKindNumber orderKind = iota
+	orderKindDate
+)
+
+type orderRelation int
+
+const (
+	orderRelationLess orderRelation = iota
+	orderRelationLessEqual
+	orderRelationGreater
+	orderRelationGreaterEqual
+)
+
+type orderValue struct {
+	kind     orderKind
+	number   int64
+	date     time.Time
+	constant ast.Constant
+}
+
+func getOrderValue(term ast.BaseTerm) (orderValue, error) {
+	c, ok := term.(ast.Constant)
+	if !ok {
+		return orderValue{}, fmt.Errorf("not a value %v (%T)", term, term)
+	}
+	switch c.Type {
+	case ast.NumberType:
+		number, err := c.NumberValue()
+		if err != nil {
+			return orderValue{}, err
+		}
+		return orderValue{kind: orderKindNumber, number: number, constant: c}, nil
+	case ast.DateType:
+		t, err := c.DateValue()
+		if err != nil {
+			return orderValue{}, err
+		}
+		return orderValue{kind: orderKindDate, date: t, constant: c}, nil
+	default:
+		return orderValue{}, fmt.Errorf("value %v (%v) is not orderable", c, c.Type)
+	}
+}
+
+func compareOrderedArgs(args []ast.BaseTerm, relation orderRelation) (bool, error) {
+	left, err := getOrderValue(args[0])
+	if err != nil {
+		return false, err
+	}
+	right, err := getOrderValue(args[1])
+	if err != nil {
+		return false, err
+	}
+	return compareOrderValues(left, right, relation)
+}
+
+func compareOrderValues(left, right orderValue, relation orderRelation) (bool, error) {
+	if left.kind != right.kind {
+		return false, fmt.Errorf("cannot compare %v (%v) with %v (%v)", left.constant, left.constant.Type, right.constant, right.constant.Type)
+	}
+	switch left.kind {
+	case orderKindNumber:
+		switch relation {
+		case orderRelationLess:
+			return left.number < right.number, nil
+		case orderRelationLessEqual:
+			return left.number <= right.number, nil
+		case orderRelationGreater:
+			return left.number > right.number, nil
+		case orderRelationGreaterEqual:
+			return left.number >= right.number, nil
+		}
+	case orderKindDate:
+		switch relation {
+		case orderRelationLess:
+			return left.date.Before(right.date), nil
+		case orderRelationLessEqual:
+			return !left.date.After(right.date), nil
+		case orderRelationGreater:
+			return left.date.After(right.date), nil
+		case orderRelationGreaterEqual:
+			return !left.date.Before(right.date), nil
+		}
+	}
+	return false, fmt.Errorf("unsupported order relation %v", relation)
 }
 
 func getNumberValues[T ast.BaseTerm](cs []T) ([]int64, error) {

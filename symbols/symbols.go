@@ -161,6 +161,18 @@ var (
 	NumberToString = ast.FunctionSym{"fn:number:to_string", 1}
 	// Float64ToString converts from ast.Float64Type to ast.StringType
 	Float64ToString = ast.FunctionSym{"fn:float64:to_string", 1}
+	// DecimalFromString converts from ast.StringType to ast.DecimalType
+	DecimalFromString = ast.FunctionSym{"fn:decimal:from_string", 1}
+	// DecimalFromNumber converts from ast.NumberType to ast.DecimalType
+	DecimalFromNumber = ast.FunctionSym{"fn:decimal:from_number", 1}
+	// DecimalFromFloat64 converts from ast.Float64Type to ast.DecimalType
+	DecimalFromFloat64 = ast.FunctionSym{"fn:decimal:from_float64", 1}
+	// DecimalToString converts from ast.DecimalType to ast.StringType
+	DecimalToString = ast.FunctionSym{"fn:decimal:to_string", 1}
+	// DecimalToNumber converts from ast.DecimalType to ast.NumberType
+	DecimalToNumber = ast.FunctionSym{"fn:decimal:to_number", 1}
+	// DecimalToFloat64 converts from ast.DecimalType to ast.Float64Type
+	DecimalToFloat64 = ast.FunctionSym{"fn:decimal:to_float64", 1}
 	// NameToString converts from ast.NameType to ast.StringType
 	NameToString = ast.FunctionSym{"fn:name:to_string", 1}
 	// DateFromString converts from string to date.
@@ -238,19 +250,31 @@ var (
 		Filter:      NewRelType(BoolType()),
 		// TODO: support float64
 		Lt: NewUnionType(
-			NewRelType(ast.NumberBound, ast.NumberBound),
+			NewRelType(
+				NewUnionType(ast.NumberBound, ast.DecimalBound),
+				NewUnionType(ast.NumberBound, ast.DecimalBound),
+			),
 			NewRelType(ast.DateBound, ast.DateBound),
 		),
 		Le: NewUnionType(
-			NewRelType(ast.NumberBound, ast.NumberBound),
+			NewRelType(
+				NewUnionType(ast.NumberBound, ast.DecimalBound),
+				NewUnionType(ast.NumberBound, ast.DecimalBound),
+			),
 			NewRelType(ast.DateBound, ast.DateBound),
 		),
 		Gt: NewUnionType(
-			NewRelType(ast.NumberBound, ast.NumberBound),
+			NewRelType(
+				NewUnionType(ast.NumberBound, ast.DecimalBound),
+				NewUnionType(ast.NumberBound, ast.DecimalBound),
+			),
 			NewRelType(ast.DateBound, ast.DateBound),
 		),
 		Ge: NewUnionType(
-			NewRelType(ast.NumberBound, ast.NumberBound),
+			NewRelType(
+				NewUnionType(ast.NumberBound, ast.DecimalBound),
+				NewUnionType(ast.NumberBound, ast.DecimalBound),
+			),
 			NewRelType(ast.DateBound, ast.DateBound),
 		),
 		MatchNil: NewRelType(NewListType(ast.Variable{"X"})),
@@ -417,6 +441,8 @@ func hasBaseType(typeExpr ast.Constant, c ast.Constant) bool {
 		return true
 	case ast.Float64Bound:
 		return c.Type == ast.Float64Type
+	case ast.DecimalBound:
+		return c.Type == ast.DecimalType
 	case ast.NameBound:
 		return c.Type == ast.NameType
 	case ast.NumberBound:

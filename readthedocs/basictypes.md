@@ -75,6 +75,24 @@ A *floating-point number datum* (float) is a 64-bit floating point number.
 -10.5
 ```
 
+## Decimals
+
+A *decimal datum* (decimal) represents a base-10 rational number with
+arbitrary precision.  Decimals are stored using exact rational arithmetic and
+are formatted with up to 34 fractional digits.
+
+**Type**. A decimal has type `/decimal`.
+
+Decimals are constructed via conversion helpers such as
+`fn:decimal:from_string(String)` or `fn:decimal:from_number(Number)`.
+
+**Examples**.
+
+```
+fn:decimal:from_string("1.25")
+fn:decimal:from_number(3)
+```
+
 ## Strings
 
 A *string datum* (string) is a sequence of Unicode characters

@@ -18,6 +18,7 @@ package builtin
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -48,13 +49,16 @@ var (
 		symbols.MatchEntry:     {ast.ArgModeInput, ast.ArgModeInput, ast.ArgModeOutput},
 	}
 
-	varX              = ast.Variable{"X"}
-	varY              = ast.Variable{"Y"}
-	listOfX           = symbols.NewListType(varX)
-	listOfNum         = symbols.NewListType(ast.NumberBound)
-	listOfFloats      = symbols.NewListType(ast.Float64Bound)
-	listOfNumOrFloats = symbols.NewListType(symbols.NewUnionType(ast.NumberBound, ast.Float64Bound))
-	emptyType         = symbols.NewUnionType()
+	varX                  = ast.Variable{"X"}
+	varY                  = ast.Variable{"Y"}
+	listOfX               = symbols.NewListType(varX)
+	listOfNum             = symbols.NewListType(ast.NumberBound)
+	listOfFloats          = symbols.NewListType(ast.Float64Bound)
+	numberOrDecimal       = symbols.NewUnionType(ast.NumberBound, ast.DecimalBound)
+	numberDecimalOrFloat  = symbols.NewUnionType(ast.NumberBound, ast.DecimalBound, ast.Float64Bound)
+	listOfNumberOrDecimal = symbols.NewListType(numberOrDecimal)
+	listOfNumOrFloats     = symbols.NewListType(numberDecimalOrFloat)
+	emptyType             = symbols.NewUnionType()
 
 	// Functions has all built-in functions.
 	Functions = map[ast.FunctionSym]ast.BaseTerm{
@@ -81,19 +85,25 @@ var (
 			ast.StringBound /* <= */, ast.AnyBound),
 		symbols.StringReplace: symbols.NewFunType(
 			ast.StringBound /* <= */, ast.StringBound),
-		symbols.StructGet:       symbols.NewFunType(ast.AnyBound /* <= */, ast.AnyBound, ast.NameBound),
-		symbols.NumberToString:  symbols.NewFunType(ast.StringBound /* <= */, ast.NumberBound),
-		symbols.Float64ToString: symbols.NewFunType(ast.StringBound /* <= */, ast.Float64Bound),
-		symbols.NameToString:    symbols.NewFunType(ast.StringBound /* <= */, ast.NameBound),
-		symbols.DateFromString:  symbols.NewFunType(ast.DateBound /* <= */, ast.StringBound),
-		symbols.DateToString:    symbols.NewFunType(ast.StringBound /* <= */, ast.DateBound),
-		symbols.DateFromParts:   symbols.NewFunType(ast.DateBound /* <= */, ast.NumberBound, ast.NumberBound, ast.NumberBound),
-		symbols.DateAddDays:     symbols.NewFunType(ast.DateBound /* <= */, ast.DateBound, ast.NumberBound),
-		symbols.DateSubDays:     symbols.NewFunType(ast.DateBound /* <= */, ast.DateBound, ast.NumberBound),
-		symbols.DateDiffDays:    symbols.NewFunType(ast.NumberBound /* <= */, ast.DateBound, ast.DateBound),
-		symbols.NameRoot:        symbols.NewFunType(ast.NameBound /* <= */, ast.NameBound),
-		symbols.NameTip:         symbols.NewFunType(ast.NameBound /* <= */, ast.NameBound),
-		symbols.NameList:        symbols.NewFunType(symbols.NewListType(ast.NameBound) /* <= */, ast.NameBound),
+		symbols.StructGet:          symbols.NewFunType(ast.AnyBound /* <= */, ast.AnyBound, ast.NameBound),
+		symbols.NumberToString:     symbols.NewFunType(ast.StringBound /* <= */, ast.NumberBound),
+		symbols.Float64ToString:    symbols.NewFunType(ast.StringBound /* <= */, ast.Float64Bound),
+		symbols.DecimalFromString:  symbols.NewFunType(ast.DecimalBound /* <= */, ast.StringBound),
+		symbols.DecimalFromNumber:  symbols.NewFunType(ast.DecimalBound /* <= */, ast.NumberBound),
+		symbols.DecimalFromFloat64: symbols.NewFunType(ast.DecimalBound /* <= */, ast.Float64Bound),
+		symbols.DecimalToString:    symbols.NewFunType(ast.StringBound /* <= */, ast.DecimalBound),
+		symbols.DecimalToNumber:    symbols.NewFunType(ast.NumberBound /* <= */, ast.DecimalBound),
+		symbols.DecimalToFloat64:   symbols.NewFunType(ast.Float64Bound /* <= */, ast.DecimalBound),
+		symbols.NameToString:       symbols.NewFunType(ast.StringBound /* <= */, ast.NameBound),
+		symbols.DateFromString:     symbols.NewFunType(ast.DateBound /* <= */, ast.StringBound),
+		symbols.DateToString:       symbols.NewFunType(ast.StringBound /* <= */, ast.DateBound),
+		symbols.DateFromParts:      symbols.NewFunType(ast.DateBound /* <= */, ast.NumberBound, ast.NumberBound, ast.NumberBound),
+		symbols.DateAddDays:        symbols.NewFunType(ast.DateBound /* <= */, ast.DateBound, ast.NumberBound),
+		symbols.DateSubDays:        symbols.NewFunType(ast.DateBound /* <= */, ast.DateBound, ast.NumberBound),
+		symbols.DateDiffDays:       symbols.NewFunType(ast.NumberBound /* <= */, ast.DateBound, ast.DateBound),
+		symbols.NameRoot:           symbols.NewFunType(ast.NameBound /* <= */, ast.NameBound),
+		symbols.NameTip:            symbols.NewFunType(ast.NameBound /* <= */, ast.NameBound),
+		symbols.NameList:           symbols.NewFunType(symbols.NewListType(ast.NameBound) /* <= */, ast.NameBound),
 
 		// These "functions" (constructors) need special handling due to varargs.
 		symbols.List:   symbols.NewFunType(symbols.NewListType(varX) /* <= */, varX),
@@ -107,9 +117,9 @@ var (
 		symbols.Collect:         symbols.NewFunType(listOfX /* <= */, listOfX),
 		symbols.CollectDistinct: symbols.NewFunType(listOfX /* <= */, listOfX),
 		symbols.PickAny:         symbols.NewFunType(varX /* <= */, listOfX),
-		symbols.Max:             symbols.NewFunType(ast.NumberBound /* <= */, listOfNum),
-		symbols.Min:             symbols.NewFunType(ast.NumberBound /* <= */, listOfNum),
-		symbols.Sum:             symbols.NewFunType(ast.NumberBound /* <= */, listOfNum),
+		symbols.Max:             symbols.NewFunType(numberOrDecimal /* <= */, listOfNumberOrDecimal),
+		symbols.Min:             symbols.NewFunType(numberOrDecimal /* <= */, listOfNumberOrDecimal),
+		symbols.Sum:             symbols.NewFunType(numberOrDecimal /* <= */, listOfNumberOrDecimal),
 		symbols.FloatMax:        symbols.NewFunType(ast.Float64Bound /* <= */, listOfFloats),
 		symbols.FloatMin:        symbols.NewFunType(ast.Float64Bound /* <= */, listOfFloats),
 		symbols.FloatSum:        symbols.NewFunType(ast.Float64Bound /* <= */, listOfNumOrFloats),
@@ -291,11 +301,12 @@ func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, []*unionfind.Union
 		if len(atom.Args) != 3 {
 			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate 'within_distance': %v", atom.Args)
 		}
-		nums, err := getNumberValues(atom.Args)
+		nums, err := getNumericRats(atom.Args)
 		if err != nil {
 			return false, nil, err
 		}
-		return abs(nums[0]-nums[1]) < nums[2], []*unionfind.UnionFind{subst}, nil
+		diff := new(big.Rat).Sub(nums[0], nums[1])
+		return absRat(diff).Cmp(nums[2]) < 0, []*unionfind.UnionFind{subst}, nil
 	default:
 		return false, nil, fmt.Errorf("not a builtin predicate: %s", atom.Predicate.Symbol)
 	}
@@ -501,6 +512,21 @@ func getNumberValue(b ast.BaseTerm) (int64, error) {
 	return c.NumberValue()
 }
 
+func getNumericRat(b ast.BaseTerm) (*big.Rat, error) {
+	c, ok := b.(ast.Constant)
+	if !ok {
+		return nil, fmt.Errorf("not a value %v (%T)", b, b)
+	}
+	switch c.Type {
+	case ast.NumberType:
+		return big.NewRat(c.NumValue, 1), nil
+	case ast.DecimalType:
+		return c.DecimalValue()
+	default:
+		return nil, fmt.Errorf("value %v (%v) is not a decimal or number", c, c.Type)
+	}
+}
+
 func getFloatValue(b ast.BaseTerm) (float64, error) {
 	c, ok := b.(ast.Constant)
 	if !ok {
@@ -536,7 +562,7 @@ func getStructValue(c ast.Constant) (ast.Constant, error) {
 type orderKind int
 
 const (
-	orderKindNumber orderKind = iota
+	orderKindNumeric orderKind = iota
 	orderKindDate
 )
 
@@ -551,7 +577,7 @@ const (
 
 type orderValue struct {
 	kind     orderKind
-	number   int64
+	numeric  *big.Rat
 	date     time.Time
 	constant ast.Constant
 }
@@ -567,7 +593,13 @@ func getOrderValue(term ast.BaseTerm) (orderValue, error) {
 		if err != nil {
 			return orderValue{}, err
 		}
-		return orderValue{kind: orderKindNumber, number: number, constant: c}, nil
+		return orderValue{kind: orderKindNumeric, numeric: big.NewRat(number, 1), constant: c}, nil
+	case ast.DecimalType:
+		rat, err := c.DecimalValue()
+		if err != nil {
+			return orderValue{}, err
+		}
+		return orderValue{kind: orderKindNumeric, numeric: rat, constant: c}, nil
 	case ast.DateType:
 		t, err := c.DateValue()
 		if err != nil {
@@ -596,16 +628,17 @@ func compareOrderValues(left, right orderValue, relation orderRelation) (bool, e
 		return false, fmt.Errorf("cannot compare %v (%v) with %v (%v)", left.constant, left.constant.Type, right.constant, right.constant.Type)
 	}
 	switch left.kind {
-	case orderKindNumber:
+	case orderKindNumeric:
+		cmp := left.numeric.Cmp(right.numeric)
 		switch relation {
 		case orderRelationLess:
-			return left.number < right.number, nil
+			return cmp < 0, nil
 		case orderRelationLessEqual:
-			return left.number <= right.number, nil
+			return cmp <= 0, nil
 		case orderRelationGreater:
-			return left.number > right.number, nil
+			return cmp > 0, nil
 		case orderRelationGreaterEqual:
-			return left.number >= right.number, nil
+			return cmp >= 0, nil
 		}
 	case orderKindDate:
 		switch relation {
@@ -634,12 +667,31 @@ func getNumberValues[T ast.BaseTerm](cs []T) ([]int64, error) {
 	return nums, nil
 }
 
+func getNumericRats[T ast.BaseTerm](cs []T) ([]*big.Rat, error) {
+	var nums []*big.Rat
+	for _, c := range cs {
+		num, err := getNumericRat(c)
+		if err != nil {
+			return nil, err
+		}
+		nums = append(nums, num)
+	}
+	return nums, nil
+}
+
 // Abs returns the absolute value of x.
 func abs(x int64) int64 {
 	if x < 0 {
 		return -x // This is wrong for math.MinInt
 	}
 	return x
+}
+
+func absRat(r *big.Rat) *big.Rat {
+	if r.Sign() >= 0 {
+		return new(big.Rat).Set(r)
+	}
+	return new(big.Rat).Neg(r)
 }
 
 // TypeChecker checks the type of constant (run-time type).

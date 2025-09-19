@@ -36,6 +36,10 @@ func name(n string) ast.Constant {
 	return c
 }
 
+func decimal(str string) ast.Constant {
+	return ast.MustDecimalFromString(str)
+}
+
 func dateConst(iso string) ast.Constant {
 	return ast.MustParseDate(iso)
 }
@@ -75,6 +79,11 @@ func TestLessThan(t *testing.T) {
 		{ast.Number(1), ast.Number(2), true},
 		{ast.Number(1), ast.Number(1), false},
 		{ast.Number(2), ast.Number(1), false},
+		{decimal("1.5"), decimal("2.0"), true},
+		{decimal("2.0"), decimal("1.5"), false},
+		{decimal("2.0"), ast.Number(2), false},
+		{decimal("1.5"), ast.Number(2), true},
+		{ast.Number(1), decimal("2.0"), true},
 		{dateConst("2023-10-05"), dateConst("2023-10-06"), true},
 		{dateConst("2023-10-06"), dateConst("2023-10-06"), false},
 	}
@@ -119,6 +128,11 @@ func TestLessThanOrEqual(t *testing.T) {
 		{ast.Number(1), ast.Number(2), true},
 		{ast.Number(1), ast.Number(1), true},
 		{ast.Number(2), ast.Number(1), false},
+		{decimal("1.5"), decimal("2.0"), true},
+		{decimal("2.0"), decimal("2.0"), true},
+		{decimal("2.0"), decimal("1.5"), false},
+		{decimal("2.0"), ast.Number(2), true},
+		{ast.Number(2), decimal("2.0"), true},
 		{dateConst("2023-10-05"), dateConst("2023-10-06"), true},
 		{dateConst("2023-10-06"), dateConst("2023-10-06"), true},
 		{dateConst("2023-10-07"), dateConst("2023-10-06"), false},
@@ -164,6 +178,11 @@ func TestGreaterThan(t *testing.T) {
 		{ast.Number(2), ast.Number(1), true},
 		{ast.Number(1), ast.Number(1), false},
 		{ast.Number(1), ast.Number(2), false},
+		{decimal("2.0"), decimal("1.5"), true},
+		{decimal("1.5"), decimal("2.0"), false},
+		{decimal("2.0"), ast.Number(2), false},
+		{decimal("2.0"), ast.Number(1), true},
+		{ast.Number(2), decimal("1.5"), true},
 		{dateConst("2023-10-07"), dateConst("2023-10-06"), true},
 		{dateConst("2023-10-06"), dateConst("2023-10-06"), false},
 	}
@@ -208,6 +227,11 @@ func TestGreaterThanOrEqual(t *testing.T) {
 		{ast.Number(2), ast.Number(1), true},
 		{ast.Number(1), ast.Number(1), true},
 		{ast.Number(1), ast.Number(2), false},
+		{decimal("2.0"), decimal("1.5"), true},
+		{decimal("2.0"), decimal("2.0"), true},
+		{decimal("1.5"), decimal("2.0"), false},
+		{decimal("2.0"), ast.Number(2), true},
+		{ast.Number(2), decimal("2.0"), true},
 		{dateConst("2023-10-07"), dateConst("2023-10-06"), true},
 		{dateConst("2023-10-06"), dateConst("2023-10-06"), true},
 		{dateConst("2023-10-05"), dateConst("2023-10-06"), false},
@@ -254,6 +278,9 @@ func TestWithinDistance(t *testing.T) {
 		{ast.Number(10), ast.Number(11), ast.Number(2), true},
 		{ast.Number(10), ast.Number(12), ast.Number(2), false},
 		{ast.Number(10), ast.Number(9), ast.Number(2), true},
+		{decimal("1.5"), decimal("2.0"), decimal("0.6"), true},
+		{decimal("1.5"), decimal("2.0"), decimal("0.4"), false},
+		{decimal("1.5"), ast.Number(1), decimal("0.6"), true},
 	}
 	for _, test := range tests {
 		atom := ast.NewAtom(":within_distance", test.left, test.right, test.distance)

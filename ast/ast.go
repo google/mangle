@@ -21,6 +21,7 @@ import (
 	"hash/fnv"
 	"iter"
 	"math"
+	"math/big"
 	"regexp"
 	"sort"
 	"strconv"
@@ -49,6 +50,9 @@ var BytesBound Constant
 // NumberBound is a type expression that has all numbers as elements.
 var NumberBound Constant
 
+// DecimalBound is a type expression that has all decimal numbers as elements.
+var DecimalBound Constant
+
 // DateBound is a type expression that has all dates as elements.
 var DateBound Constant
 
@@ -72,6 +76,7 @@ func init() {
 	Float64Bound, _ = Name("/float64")
 	NameBound, _ = Name("/name")
 	NumberBound, _ = Name("/number")
+	DecimalBound, _ = Name("/decimal")
 	StringBound, _ = Name("/string")
 	BytesBound, _ = Name("/bytes")
 	DateBound, _ = Name("/date")
@@ -90,6 +95,32 @@ func FormatFloat64(floatNum float64) string {
 }
 
 const isoDateLayout = "2006-01-02"
+
+const decimalDisplayPrecision = 34
+
+// FormatDecimal returns a string representation of the provided rational number.
+func FormatDecimal(r *big.Rat) string {
+	if r == nil {
+		return "0"
+	}
+	s := r.FloatString(decimalDisplayPrecision)
+	if strings.Contains(s, ".") {
+		s = strings.TrimRight(s, "0")
+		s = strings.TrimRight(s, ".")
+	}
+	if s == "" || s == "-" {
+		return "0"
+	}
+	return s
+}
+
+func formatDecimalSymbol(symbol string) string {
+	rat := new(big.Rat)
+	if _, ok := rat.SetString(symbol); !ok {
+		return "<bad>"
+	}
+	return FormatDecimal(rat)
+}
 
 // FormatDate turns a time.Time into an ISO-8601 date string.
 func FormatDate(t time.Time) string {
@@ -266,6 +297,8 @@ const (
 	NumberType
 	// Float64Type is the type of float64 constants.
 	Float64Type
+	// DecimalType is the type of decimal constants.
+	DecimalType
 	// PairShape indicates that the constant is a pair.
 	PairShape
 	// ListShape indicates that the constant is a list.
@@ -291,7 +324,9 @@ type Constant struct {
 	// Otherwise, a string representation.
 	Symbol string
 
-	// For NumberType, the number value (int64 or the bytes of a float64).
+	// For NumberType, the number value (int64).
+	// For Float64Type, the float64 value stored as bits.
+	// For DecimalType, a hash of the canonical decimal representation.
 	// For other types it contains a hash code of the value.
 	NumValue int64
 
@@ -346,6 +381,33 @@ func Number(num int64) Constant {
 // Float64 constructs a constant symbol that contains a float64.
 func Float64(floatNum float64) Constant {
 	return Constant{Float64Type, "", int64(math.Float64bits(floatNum)), nil, nil}
+}
+
+// DecimalFromRat constructs a decimal constant from a rational number.
+func DecimalFromRat(r *big.Rat) Constant {
+	if r == nil {
+		r = new(big.Rat)
+	}
+	canonical := r.RatString()
+	return Constant{DecimalType, canonical, int64(hashBytes([]byte(canonical))), nil, nil}
+}
+
+// DecimalFromString constructs a decimal constant from a textual representation.
+func DecimalFromString(text string) (Constant, error) {
+	rat := new(big.Rat)
+	if _, ok := rat.SetString(text); !ok {
+		return Constant{}, fmt.Errorf("invalid decimal literal %q", text)
+	}
+	return DecimalFromRat(rat), nil
+}
+
+// MustDecimalFromString constructs a decimal constant or panics on error.
+func MustDecimalFromString(text string) Constant {
+	c, err := DecimalFromString(text)
+	if err != nil {
+		panic(err)
+	}
+	return c
 }
 
 // Pair constructs a pair constant. Parts can only be accessed in transforms.
@@ -468,6 +530,18 @@ func (c Constant) NumberValue() (int64, error) {
 	return c.NumValue, nil
 }
 
+// DecimalValue returns the decimal value of this constant, if it is of type decimal.
+func (c Constant) DecimalValue() (*big.Rat, error) {
+	if c.Type != DecimalType {
+		return nil, fmt.Errorf("not a decimal constant %v", c)
+	}
+	rat := new(big.Rat)
+	if _, ok := rat.SetString(c.Symbol); !ok {
+		return nil, fmt.Errorf("invalid decimal encoding %q", c.Symbol)
+	}
+	return rat, nil
+}
+
 // Float64Value returns the float64 value of this constant, if it is of type float64.
 func (c Constant) Float64Value() (float64, error) {
 	if c.Type != Float64Type {
@@ -588,6 +662,8 @@ func (c Constant) String() string {
 			return "<bad>"
 		}
 		return fmt.Sprintf(`b"%s"`, s)
+	case DecimalType:
+		return formatDecimalSymbol(c.Symbol)
 	case NumberType:
 		return FormatNumber(c.NumValue)
 	case Float64Type:
@@ -693,6 +769,8 @@ func (c Constant) Equals(u Term) bool {
 	case DateType:
 		return c.Symbol == uconst.Symbol
 	case BytesType:
+		return c.Symbol == uconst.Symbol
+	case DecimalType:
 		return c.Symbol == uconst.Symbol
 	case NumberType:
 		fallthrough

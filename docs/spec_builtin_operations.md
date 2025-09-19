@@ -11,9 +11,10 @@ The value of two expressions `Left`, `Right` can be compared:
 - greater than `Left > Right`
 - greater than or equal `Left >= Right`
 
-Numeric comparisons accept integer constants.  The ordering predicates (`<`,
-`<=`, `>`, `>=`) also allow `/date` values; both operands must be of the same
-type when using these operators.
+Numeric comparisons accept `/number` and `/decimal` constants.  The ordering
+predicates (`<`, `<=`, `>`, `>=`) also allow `/date` values; operands must be
+either numeric (numbers and decimals can be mixed) or both `/date` values when
+using these operators.
 
 A pair can be matched using pattern `:match_pair(Pair, First, Second)`.
 
@@ -58,3 +59,19 @@ Date values support simple arithmetic helpers:
   clarity.
 - `fn:date:diff_days(Left, Right)` returns the number of whole days between two
   dates (`Left - Right`).  The result is a numeric constant.
+
+## Decimal conversions
+
+Decimals can be created and converted using helper functions:
+
+- `fn:decimal:from_string(String)` parses a decimal string and returns a
+  `/decimal` value.
+- `fn:decimal:from_number(Number)` and `fn:decimal:from_float64(Float)` convert
+  existing numeric types into decimals.
+- `fn:decimal:to_string(Decimal)` formats a decimal as a string.  Values with
+  non-terminating decimal expansions are rounded to 34 fractional digits.
+- `fn:decimal:to_number(Decimal)` converts decimals that represent integers
+  into `/number` values.  A runtime error is raised if the decimal has a
+  fractional component or does not fit into 64 bits.
+- `fn:decimal:to_float64(Decimal)` produces an IEEE-754 `float64` approximation
+  of the decimal value.

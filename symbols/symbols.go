@@ -249,10 +249,34 @@ var (
 		Contains:    NewRelType(ast.StringBound, ast.StringBound),
 		Filter:      NewRelType(BoolType()),
 		// TODO: support float64
-		Lt:       NewRelType(ast.NumberBound, ast.NumberBound),
-		Le:       NewRelType(ast.NumberBound, ast.NumberBound),
-		Gt:       NewRelType(ast.NumberBound, ast.NumberBound),
-		Ge:       NewRelType(ast.NumberBound, ast.NumberBound),
+		Lt: NewUnionType(
+			NewRelType(
+				NewUnionType(ast.NumberBound, ast.DecimalBound),
+				NewUnionType(ast.NumberBound, ast.DecimalBound),
+			),
+			NewRelType(ast.DateBound, ast.DateBound),
+		),
+		Le: NewUnionType(
+			NewRelType(
+				NewUnionType(ast.NumberBound, ast.DecimalBound),
+				NewUnionType(ast.NumberBound, ast.DecimalBound),
+			),
+			NewRelType(ast.DateBound, ast.DateBound),
+		),
+		Gt: NewUnionType(
+			NewRelType(
+				NewUnionType(ast.NumberBound, ast.DecimalBound),
+				NewUnionType(ast.NumberBound, ast.DecimalBound),
+			),
+			NewRelType(ast.DateBound, ast.DateBound),
+		),
+		Ge: NewUnionType(
+			NewRelType(
+				NewUnionType(ast.NumberBound, ast.DecimalBound),
+				NewUnionType(ast.NumberBound, ast.DecimalBound),
+			),
+			NewRelType(ast.DateBound, ast.DateBound),
+		),
 		MatchNil: NewRelType(NewListType(ast.Variable{"X"})),
 		MatchCons: NewRelType(
 			NewListType(ast.Variable{"X"}), ast.Variable{"X"}, NewListType(ast.Variable{"X"})),

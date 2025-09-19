@@ -6,8 +6,15 @@ The value of two expressions `Left`, `Right` can be compared:
 
 - equality `Left = Right`
 - inequality `Left != Right`.
-- less than `Left < Right` (numeric)
+- less than `Left < Right`
 - less than or equal `Left <= Right`
+- greater than `Left > Right`
+- greater than or equal `Left >= Right`
+
+Numeric comparisons accept `/number` and `/decimal` constants.  The ordering
+predicates (`<`, `<=`, `>`, `>=`) also allow `/date` values; operands must be
+either numeric (numbers and decimals can be mixed) or both `/date` values when
+using these operators.
 
 A pair can be matched using pattern `:match_pair(Pair, First, Second)`.
 

@@ -36,6 +36,10 @@ func name(n string) ast.Constant {
 	return c
 }
 
+func decimal(str string) ast.Constant {
+	return ast.MustDecimalFromString(str)
+}
+
 func evalExpr(e ast.BaseTerm) ast.Constant {
 	c, err := functional.EvalExpr(e, nil)
 	if err != nil {
@@ -71,6 +75,9 @@ func TestLessThan(t *testing.T) {
 		{ast.Number(1), ast.Number(2), true},
 		{ast.Number(1), ast.Number(1), false},
 		{ast.Number(2), ast.Number(1), false},
+		{decimal("1.5"), decimal("2.0"), true},
+		{decimal("2.0"), decimal("1.5"), false},
+		{decimal("2.0"), ast.Number(2), false},
 	}
 	for _, test := range tests {
 		atom := ast.NewAtom(":lt", test.left, test.right)
@@ -108,6 +115,9 @@ func TestLessThanOrEqual(t *testing.T) {
 		{ast.Number(1), ast.Number(2), true},
 		{ast.Number(1), ast.Number(1), true},
 		{ast.Number(2), ast.Number(1), false},
+		{decimal("1.5"), decimal("2.0"), true},
+		{decimal("2.0"), decimal("2.0"), true},
+		{decimal("2.0"), decimal("1.5"), false},
 	}
 	for _, test := range tests {
 		atom := ast.NewAtom(":le", test.left, test.right)
@@ -145,6 +155,9 @@ func TestGreaterThan(t *testing.T) {
 		{ast.Number(2), ast.Number(1), true},
 		{ast.Number(1), ast.Number(1), false},
 		{ast.Number(1), ast.Number(2), false},
+		{decimal("2.0"), decimal("1.5"), true},
+		{decimal("1.5"), decimal("2.0"), false},
+		{decimal("2.0"), ast.Number(2), false},
 	}
 	for _, test := range tests {
 		atom := ast.NewAtom(":gt", test.left, test.right)
@@ -182,6 +195,9 @@ func TestGreaterThanOrEqual(t *testing.T) {
 		{ast.Number(2), ast.Number(1), true},
 		{ast.Number(1), ast.Number(1), true},
 		{ast.Number(1), ast.Number(2), false},
+		{decimal("2.0"), decimal("1.5"), true},
+		{decimal("2.0"), decimal("2.0"), true},
+		{decimal("1.5"), decimal("2.0"), false},
 	}
 	for _, test := range tests {
 		atom := ast.NewAtom(":ge", test.left, test.right)
@@ -220,6 +236,9 @@ func TestWithinDistance(t *testing.T) {
 		{ast.Number(10), ast.Number(11), ast.Number(2), true},
 		{ast.Number(10), ast.Number(12), ast.Number(2), false},
 		{ast.Number(10), ast.Number(9), ast.Number(2), true},
+		{decimal("1.5"), decimal("2.0"), decimal("0.6"), true},
+		{decimal("1.5"), decimal("2.0"), decimal("0.4"), false},
+		{decimal("1.5"), ast.Number(1), decimal("0.6"), true},
 	}
 	for _, test := range tests {
 		atom := ast.NewAtom(":within_distance", test.left, test.right, test.distance)

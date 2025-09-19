@@ -18,6 +18,7 @@ import (
 	"encoding/binary"
 	"hash/fnv"
 	"math"
+	"math/big"
 	"testing"
 	"time"
 
@@ -34,6 +35,8 @@ var (
 	numConstant              = Number(num)
 	floatNum         float64 = 3.1415
 	floatNumConstant         = Float64(floatNum)
+	decimalString            = "3.75"
+	decimalConstant          = MustDecimalFromString(decimalString)
 	fooBarPair               = Pair(&fooName, &barString)
 	barFooPair               = Pair(&barString, &fooName)
 	fooFooPair               = Pair(&fooName, &fooName)
@@ -98,6 +101,7 @@ func TestSelfEquals(t *testing.T) {
 		String("foo"),
 		Number(-123),
 		floatNumConstant,
+		decimalConstant,
 		fooDate,
 		fooBarPair,
 		fooBarList,
@@ -156,6 +160,30 @@ func TestDateHelpers(t *testing.T) {
 	}
 	if fooDate.Equals(barDate) {
 		t.Fatalf("expected different dates to differ")
+	}
+}
+
+func TestDecimalHelpers(t *testing.T) {
+	c, err := DecimalFromString("1.500")
+	if err != nil {
+		t.Fatalf("DecimalFromString returned error: %v", err)
+	}
+	if got := c.String(); got != "1.5" {
+		t.Fatalf("String() = %q, want %q", got, "1.5")
+	}
+	other := MustDecimalFromString("3/2")
+	if !c.Equals(other) {
+		t.Fatalf("expected decimals %v and %v to be equal", c, other)
+	}
+	rat, err := c.DecimalValue()
+	if err != nil {
+		t.Fatalf("DecimalValue returned error: %v", err)
+	}
+	if rat.Cmp(big.NewRat(3, 2)) != 0 {
+		t.Fatalf("DecimalValue = %v, want %v", rat, big.NewRat(3, 2))
+	}
+	if got := FormatDecimal(big.NewRat(10, 4)); got != "2.5" {
+		t.Fatalf("FormatDecimal(10/4) = %q, want %q", got, "2.5")
 	}
 }
 

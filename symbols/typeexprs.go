@@ -32,6 +32,8 @@ func IsBaseTypeExpression(c ast.Constant) bool {
 		return true
 	case ast.Float64Bound:
 		return true
+	case ast.DecimalBound:
+		return true
 	case ast.NumberBound:
 		return true
 	case ast.StringBound:

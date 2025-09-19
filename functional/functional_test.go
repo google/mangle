@@ -18,6 +18,10 @@ func name(n string) ast.Constant {
 	return c
 }
 
+func decimal(str string) ast.Constant {
+	return ast.MustDecimalFromString(str)
+}
+
 func dateConst(iso string) ast.Constant {
 	return ast.MustParseDate(iso)
 }
@@ -42,6 +46,31 @@ func TestEvalFloatPlus(t *testing.T) {
 		}
 		if !got.Equals(test.want) {
 			t.Errorf("EvalExpr(%v) = %v, want %v", expr, got, test.want)
+		}
+	}
+}
+
+func TestEvalDecimalOperations(t *testing.T) {
+	tests := []struct {
+		expr ast.ApplyFn
+		want ast.Constant
+	}{
+		{ast.ApplyFn{symbols.Plus, []ast.BaseTerm{decimal("1.25"), decimal("2.5")}}, decimal("3.75")},
+		{ast.ApplyFn{symbols.Plus, []ast.BaseTerm{decimal("0.5"), ast.Number(2)}}, decimal("2.5")},
+		{ast.ApplyFn{symbols.Minus, []ast.BaseTerm{decimal("5.5"), decimal("2.5")}}, decimal("3.0")},
+		{ast.ApplyFn{symbols.Minus, []ast.BaseTerm{decimal("1.5")}}, decimal("-1.5")},
+		{ast.ApplyFn{symbols.Mult, []ast.BaseTerm{decimal("1.5"), ast.Number(2)}}, decimal("3")},
+		{ast.ApplyFn{symbols.Div, []ast.BaseTerm{decimal("3"), ast.Number(2)}}, decimal("1.5")},
+		{ast.ApplyFn{symbols.Div, []ast.BaseTerm{decimal("4")}}, decimal("0.25")},
+	}
+	for _, test := range tests {
+		got, err := EvalExpr(test.expr, ast.ConstSubstMap{})
+		if err != nil {
+			t.Errorf("EvalExpr(%v) error: %v", test.expr, err)
+			continue
+		}
+		if !got.Equals(test.want) {
+			t.Errorf("EvalExpr(%v) = %v, want %v", test.expr, got, test.want)
 		}
 	}
 }
@@ -345,6 +374,50 @@ func TestReducerMinMaxSum(t *testing.T) {
 		if test.wantAvg != gotAvg {
 			t.Errorf("EvalReduceFn(Avg, %v)=%v want %v", rows, gotAvg, test.wantAvg)
 		}
+	}
+}
+
+func TestReducerDecimalMinMaxSum(t *testing.T) {
+	rows := []ast.ConstSubstList{
+		makeConstSubstList([]ast.Variable{ast.Variable{"X"}}, []ast.Constant{decimal("1.5")}),
+		makeConstSubstList([]ast.Variable{ast.Variable{"X"}}, []ast.Constant{ast.Number(2)}),
+		makeConstSubstList([]ast.Variable{ast.Variable{"X"}}, []ast.Constant{decimal("0.5")}),
+	}
+	wantMin := decimal("0.5")
+	wantMax := decimal("2")
+	wantSum := decimal("4")
+	wantAvg := ast.Float64((1.5 + 2 + 0.5) / 3)
+
+	gotMax, err := EvalReduceFn(ast.ApplyFn{symbols.Max, []ast.BaseTerm{ast.Variable{"X"}}}, rows)
+	if err != nil {
+		t.Fatalf("EvalReduceFn(Max,%v) failed with %v", rows, err)
+	}
+	if !gotMax.Equals(wantMax) {
+		t.Errorf("EvalReduceFn(Max, %v)=%v want %v", rows, gotMax, wantMax)
+	}
+
+	gotMin, err := EvalReduceFn(ast.ApplyFn{symbols.Min, []ast.BaseTerm{ast.Variable{"X"}}}, rows)
+	if err != nil {
+		t.Fatalf("EvalReduceFn(Min,%v) failed with %v", rows, err)
+	}
+	if !gotMin.Equals(wantMin) {
+		t.Errorf("EvalReduceFn(Min, %v)=%v want %v", rows, gotMin, wantMin)
+	}
+
+	gotSum, err := EvalReduceFn(ast.ApplyFn{symbols.Sum, []ast.BaseTerm{ast.Variable{"X"}}}, rows)
+	if err != nil {
+		t.Fatalf("EvalReduceFn(Sum,%v) failed with %v", rows, err)
+	}
+	if !gotSum.Equals(wantSum) {
+		t.Errorf("EvalReduceFn(Sum, %v)=%v want %v", rows, gotSum, wantSum)
+	}
+
+	gotAvg, err := EvalReduceFn(ast.ApplyFn{symbols.Avg, []ast.BaseTerm{ast.Variable{"X"}}}, rows)
+	if err != nil {
+		t.Fatalf("EvalReduceFn(Avg,%v) failed with %v", rows, err)
+	}
+	if !gotAvg.Equals(wantAvg) {
+		t.Errorf("EvalReduceFn(Avg, %v)=%v want %v", rows, gotAvg, wantAvg)
 	}
 }
 
@@ -683,6 +756,37 @@ func TestNumberToStringFailure(t *testing.T) {
 		if err == nil {
 			t.Errorf("EvalExpr(%v)=%v want error.", term, got)
 		}
+	}
+}
+
+func TestDecimalConversions(t *testing.T) {
+	tests := []struct {
+		expr ast.ApplyFn
+		want ast.Constant
+	}{
+		{ast.ApplyFn{symbols.DecimalFromString, []ast.BaseTerm{ast.String("1.25")}}, decimal("1.25")},
+		{ast.ApplyFn{symbols.DecimalFromNumber, []ast.BaseTerm{ast.Number(2)}}, decimal("2")},
+		{ast.ApplyFn{symbols.DecimalFromFloat64, []ast.BaseTerm{ast.Float64(1.5)}}, decimal("1.5")},
+		{ast.ApplyFn{symbols.DecimalToString, []ast.BaseTerm{decimal("3.75")}}, ast.String("3.75")},
+		{ast.ApplyFn{symbols.DecimalToNumber, []ast.BaseTerm{decimal("4")}}, ast.Number(4)},
+		{ast.ApplyFn{symbols.DecimalToFloat64, []ast.BaseTerm{decimal("2.5")}}, ast.Float64(2.5)},
+	}
+	for _, test := range tests {
+		got, err := EvalApplyFn(test.expr, ast.ConstSubstMap{})
+		if err != nil {
+			t.Errorf("EvalApplyFn(%v) error: %v", test.expr, err)
+			continue
+		}
+		if !got.Equals(test.want) {
+			t.Errorf("EvalApplyFn(%v) = %v, want %v", test.expr, got, test.want)
+		}
+	}
+}
+
+func TestDecimalToNumberFailure(t *testing.T) {
+	expr := ast.ApplyFn{symbols.DecimalToNumber, []ast.BaseTerm{decimal("1.5")}}
+	if _, err := EvalApplyFn(expr, ast.ConstSubstMap{}); err == nil {
+		t.Fatalf("EvalApplyFn(%v) returned no error", expr)
 	}
 }
 

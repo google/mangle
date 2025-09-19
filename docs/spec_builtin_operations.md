@@ -52,3 +52,19 @@ Date values support simple arithmetic helpers:
   clarity.
 - `fn:date:diff_days(Left, Right)` returns the number of whole days between two
   dates (`Left - Right`).  The result is a numeric constant.
+
+## Decimal conversions
+
+Decimals can be created and converted using helper functions:
+
+- `fn:decimal:from_string(String)` parses a decimal string and returns a
+  `/decimal` value.
+- `fn:decimal:from_number(Number)` and `fn:decimal:from_float64(Float)` convert
+  existing numeric types into decimals.
+- `fn:decimal:to_string(Decimal)` formats a decimal as a string.  Values with
+  non-terminating decimal expansions are rounded to 34 fractional digits.
+- `fn:decimal:to_number(Decimal)` converts decimals that represent integers
+  into `/number` values.  A runtime error is raised if the decimal has a
+  fractional component or does not fit into 64 bits.
+- `fn:decimal:to_float64(Decimal)` produces an IEEE-754 `float64` approximation
+  of the decimal value.

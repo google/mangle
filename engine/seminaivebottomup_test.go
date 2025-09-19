@@ -942,7 +942,7 @@ func TestFunctionEval(t *testing.T) {
 		},
 		{
 			program: `e(fn:float:min([1.1, 2])).`,
-			wantErr: true,
+			want:    atom("e(1.1)"),
 		},
 		{
 			program: `e(fn:float:min([1.1, 2.2])).`,
@@ -962,7 +962,7 @@ func TestFunctionEval(t *testing.T) {
 		},
 		{
 			program: `e(fn:float:max([1.1, 2])).`,
-			wantErr: true,
+			want:    atom("e(2.0)"),
 		},
 		{
 			program: `e(fn:float:max([1.1, 2.2])).`,
@@ -1002,7 +1002,7 @@ func TestFunctionEval(t *testing.T) {
 		},
 		{
 			program: `e(fn:float:sum([1, 3.3])).`,
-			wantErr: true,
+			want:    atom("e(4.3)"),
 		},
 		{
 			program: `e(fn:float:sum([1.1, 3.3])).`,

@@ -1270,6 +1270,8 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 		switch z.Type {
 		case ast.NumberType:
 			return ast.NumberBound
+		case ast.DecimalType:
+			return ast.DecimalBound
 		case ast.StringType:
 			return ast.StringBound
 		case ast.DateType:
@@ -1370,22 +1372,33 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 		case symbols.StringConcatenate.Symbol:
 			return ast.StringBound
 
-		case symbols.Plus.Symbol:
-			fallthrough
-		case symbols.Minus.Symbol:
-			fallthrough
-		case symbols.Mult.Symbol:
-			fallthrough
-		case symbols.Div.Symbol:
+		case symbols.Plus.Symbol, symbols.Minus.Symbol, symbols.Mult.Symbol, symbols.Div.Symbol:
+			numericBound := symbols.NewUnionType(ast.NumberBound, ast.DecimalBound)
+			allNumbers := true
+			hasGuaranteedDecimal := false
 			for _, arg := range z.Args {
-				if ast.NumberBound != boundOfArg(arg, varRanges, nameTrie) {
+				argBound := boundOfArg(arg, varRanges, nameTrie)
+				if !symbols.SetConforms(nil, argBound, numericBound) {
 					return symbols.EmptyType
 				}
+				if !symbols.SetConforms(nil, argBound, ast.NumberBound) {
+					allNumbers = false
+				}
+				if symbols.SetConforms(nil, argBound, ast.DecimalBound) {
+					hasGuaranteedDecimal = true
+				}
 			}
-			return ast.NumberBound
+			if allNumbers {
+				return ast.NumberBound
+			}
+			if hasGuaranteedDecimal {
+				return ast.DecimalBound
+			}
+			return numericBound
 		case symbols.FloatDiv.Symbol:
+			floatArgs := symbols.NewUnionType(ast.Float64Bound, ast.DecimalBound)
 			for _, arg := range z.Args {
-				if ast.Float64Bound != boundOfArg(arg, varRanges, nameTrie) {
+				if !symbols.SetConforms(nil, boundOfArg(arg, varRanges, nameTrie), floatArgs) {
 					return symbols.EmptyType
 				}
 			}
@@ -1408,23 +1421,34 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 
 func typeOfFn(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie symbols.NameTrie) ast.BaseTerm {
 	switch x.Function.Symbol {
-	case symbols.Max.Symbol:
-		fallthrough
-	case symbols.Min.Symbol:
-		fallthrough
-	case symbols.Count.Symbol:
-		fallthrough
-	case symbols.Div.Symbol:
-		fallthrough
+	case symbols.Max.Symbol, symbols.Min.Symbol, symbols.Sum.Symbol:
+		return symbols.NewUnionType(ast.NumberBound, ast.DecimalBound)
+	case symbols.Plus.Symbol, symbols.Minus.Symbol, symbols.Mult.Symbol, symbols.Div.Symbol:
+		numericBound := symbols.NewUnionType(ast.NumberBound, ast.DecimalBound)
+		allNumbers := true
+		hasGuaranteedDecimal := false
+		for _, arg := range x.Args {
+			argBound := boundOfArg(arg, varRanges, nameTrie)
+			if !symbols.SetConforms(nil, argBound, numericBound) {
+				return symbols.EmptyType
+			}
+			if !symbols.SetConforms(nil, argBound, ast.NumberBound) {
+				allNumbers = false
+			}
+			if symbols.SetConforms(nil, argBound, ast.DecimalBound) {
+				hasGuaranteedDecimal = true
+			}
+		}
+		if allNumbers {
+			return ast.NumberBound
+		}
+		if hasGuaranteedDecimal {
+			return ast.DecimalBound
+		}
+		return numericBound
 	case symbols.FloatDiv.Symbol:
-		fallthrough
-	case symbols.Sum.Symbol:
-		fallthrough
-	case symbols.Plus.Symbol:
-		fallthrough
-	case symbols.Minus.Symbol:
-		fallthrough
-	case symbols.Mult.Symbol:
+		return ast.Float64Bound
+	case symbols.Count.Symbol, symbols.CountDistinct.Symbol:
 		return ast.NumberBound
 	case symbols.Collect.Symbol:
 		fallthrough

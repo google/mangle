@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"iter"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
@@ -268,6 +269,98 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		}
 
 		return ast.String(strconv.FormatFloat(f, 'f', -1, 64)), nil
+
+	case symbols.DecimalFromString.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 argument, got %d argument(s)", l)
+		}
+		val := evaluatedArgs[0]
+		if val.Type != ast.StringType {
+			return ast.Constant{}, fmt.Errorf("cannot convert to decimal: fn:decimal:from_string() expects ast.StringType type")
+		}
+		parsed, err := ast.DecimalFromString(val.Symbol)
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return parsed, nil
+
+	case symbols.DecimalFromNumber.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 argument, got %d argument(s)", l)
+		}
+		val := evaluatedArgs[0]
+		if val.Type != ast.NumberType {
+			return ast.Constant{}, fmt.Errorf("cannot convert to decimal: fn:decimal:from_number() expects ast.NumberType type")
+		}
+		return ast.DecimalFromRat(big.NewRat(val.NumValue, 1)), nil
+
+	case symbols.DecimalFromFloat64.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 argument, got %d argument(s)", l)
+		}
+		val := evaluatedArgs[0]
+		if val.Type != ast.Float64Type {
+			return ast.Constant{}, fmt.Errorf("cannot convert to decimal: fn:decimal:from_float64() expects ast.Float64Type type")
+		}
+		f, err := val.Float64Value()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		if math.IsInf(f, 0) || math.IsNaN(f) {
+			return ast.Constant{}, fmt.Errorf("cannot convert float64 %v to decimal", f)
+		}
+		rat := new(big.Rat).SetFloat64(f)
+		return ast.DecimalFromRat(rat), nil
+
+	case symbols.DecimalToString.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 argument, got %d argument(s)", l)
+		}
+		val := evaluatedArgs[0]
+		if val.Type != ast.DecimalType {
+			return ast.Constant{}, fmt.Errorf("cannot convert to string: fn:decimal:to_string() expects ast.DecimalType type")
+		}
+		rat, err := val.DecimalValue()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return ast.String(ast.FormatDecimal(rat)), nil
+
+	case symbols.DecimalToNumber.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 argument, got %d argument(s)", l)
+		}
+		val := evaluatedArgs[0]
+		if val.Type != ast.DecimalType {
+			return ast.Constant{}, fmt.Errorf("cannot convert to number: fn:decimal:to_number() expects ast.DecimalType type")
+		}
+		rat, err := val.DecimalValue()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		if !rat.IsInt() {
+			return ast.Constant{}, fmt.Errorf("cannot convert non-integer decimal %v to number", val)
+		}
+		num := rat.Num()
+		if !num.IsInt64() {
+			return ast.Constant{}, fmt.Errorf("decimal %v does not fit into int64", val)
+		}
+		return ast.Number(num.Int64()), nil
+
+	case symbols.DecimalToFloat64.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 argument, got %d argument(s)", l)
+		}
+		val := evaluatedArgs[0]
+		if val.Type != ast.DecimalType {
+			return ast.Constant{}, fmt.Errorf("cannot convert to float64: fn:decimal:to_float64() expects ast.DecimalType type")
+		}
+		rat, err := val.DecimalValue()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		f, _ := rat.Float64()
+		return ast.Float64(f), nil
 
 	case symbols.NameRoot.Symbol:
 		if l := len(evaluatedArgs); l != 1 {
@@ -579,29 +672,13 @@ func EvalNumericApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, err
 
 	switch applyFn.Function.Symbol {
 	case symbols.Div.Symbol:
-		res, err := evalDiv(args)
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return ast.Number(res), nil
+		return evalDiv(args)
 	case symbols.Mult.Symbol:
-		res, err := evalMult(args)
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return ast.Number(res), nil
+		return evalMult(args)
 	case symbols.Plus.Symbol:
-		res, err := evalPlus(args)
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return ast.Number(res), nil
+		return evalPlus(args)
 	case symbols.Minus.Symbol:
-		res, err := evalMinus(args)
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return ast.Number(res), nil
+		return evalMinus(args)
 	case symbols.FloatDiv.Symbol:
 		res, err := evalFloatDiv(args)
 		if err != nil {
@@ -634,42 +711,63 @@ func EvalNumericApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, err
 	}
 }
 
-func evalDiv(args []ast.Constant) (int64, error) {
+func evalDiv(args []ast.Constant) (ast.Constant, error) {
 	if len(args) == 0 {
-		return 0, fmt.Errorf("empty argument list")
+		return ast.Constant{}, fmt.Errorf("empty argument list")
+	}
+	if hasDecimal(args) {
+		first, err := ratFromConstant(args[0])
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		res := new(big.Rat).Set(first)
+		if len(args) == 1 {
+			if res.Sign() == 0 {
+				return ast.Constant{}, ErrDivisionByZero
+			}
+			return ast.DecimalFromRat(res.Inv(res)), nil
+		}
+		for _, divisorConst := range args[1:] {
+			divisor, err := ratFromConstant(divisorConst)
+			if err != nil {
+				return ast.Constant{}, err
+			}
+			if divisor.Sign() == 0 {
+				return ast.Constant{}, ErrDivisionByZero
+			}
+			res.Quo(res, divisor)
+		}
+		return ast.DecimalFromRat(res), nil
 	}
 	if len(args) == 1 {
 		v, err := args[0].NumberValue()
 		if err != nil {
-			return 0, err
+			return ast.Constant{}, err
 		}
 		switch v {
 		case 0:
-			return 0, ErrDivisionByZero
+			return ast.Constant{}, ErrDivisionByZero
 		case 1:
-			return 1, nil
+			return ast.Number(1), nil
 		default:
-			return 0, nil // integer division 1 / arg[0]
+			return ast.Number(0), nil // integer division 1 / arg[0]
 		}
 	}
 	res, err := args[0].NumberValue()
 	if err != nil {
-		return 0, err
+		return ast.Constant{}, err
 	}
 	for _, divisorConst := range args[1:] {
 		divisor, err := divisorConst.NumberValue()
 		if err != nil {
-			return 0, err
+			return ast.Constant{}, err
 		}
 		if divisor == 0 {
-			return 0, ErrDivisionByZero
+			return ast.Constant{}, ErrDivisionByZero
 		}
 		res = res / divisor
-		if res == 0 {
-			return 0, nil
-		}
 	}
-	return res, nil
+	return ast.Number(res), nil
 }
 
 func valueAsFloat(a ast.Constant) (float64, error) {
@@ -686,8 +784,35 @@ func valueAsFloat(a ast.Constant) (float64, error) {
 			return 0, err
 		}
 		return float64(v), nil
+	case ast.DecimalType:
+		rat, err := a.DecimalValue()
+		if err != nil {
+			return 0, err
+		}
+		f, _ := rat.Float64()
+		return f, nil
 	default:
 		return 0, fmt.Errorf("unsupported non numeric type %v", a.Type)
+	}
+}
+
+func hasDecimal(args []ast.Constant) bool {
+	for _, c := range args {
+		if c.Type == ast.DecimalType {
+			return true
+		}
+	}
+	return false
+}
+
+func ratFromConstant(c ast.Constant) (*big.Rat, error) {
+	switch c.Type {
+	case ast.DecimalType:
+		return c.DecimalValue()
+	case ast.NumberType:
+		return big.NewRat(c.NumValue, 1), nil
+	default:
+		return nil, fmt.Errorf("value %v (%v) is not a decimal or number", c, c.Type)
 	}
 }
 
@@ -746,49 +871,92 @@ func evalFloatPlus(args []ast.Constant) (float64, error) {
 	return sum, nil
 }
 
-func evalMult(args []ast.Constant) (int64, error) {
+func evalMult(args []ast.Constant) (ast.Constant, error) {
+	if hasDecimal(args) {
+		product := big.NewRat(1, 1)
+		for _, factor := range args {
+			rat, err := ratFromConstant(factor)
+			if err != nil {
+				return ast.Constant{}, err
+			}
+			product.Mul(product, rat)
+		}
+		return ast.DecimalFromRat(product), nil
+	}
 	var product int64 = 1
 	for _, factor := range args {
 		v, err := factor.NumberValue()
 		if err != nil {
-			return 0, err
+			return ast.Constant{}, err
 		}
-		product = product * v
+		product *= v
 	}
-	return product, nil
+	return ast.Number(product), nil
 }
 
-func evalPlus(args []ast.Constant) (int64, error) {
-	var sum int64 = 0
+func evalPlus(args []ast.Constant) (ast.Constant, error) {
+	if len(args) == 0 {
+		return ast.Number(0), nil
+	}
+	if hasDecimal(args) {
+		sum := new(big.Rat)
+		for _, num := range args {
+			rat, err := ratFromConstant(num)
+			if err != nil {
+				return ast.Constant{}, err
+			}
+			sum.Add(sum, rat)
+		}
+		return ast.DecimalFromRat(sum), nil
+	}
+	var sum int64
 	for _, num := range args {
 		v, err := num.NumberValue()
 		if err != nil {
-			return 0, err
+			return ast.Constant{}, err
 		}
 		sum += v
 	}
-	return sum, nil
+	return ast.Number(sum), nil
 }
 
-func evalMinus(args []ast.Constant) (int64, error) {
+func evalMinus(args []ast.Constant) (ast.Constant, error) {
 	if len(args) == 0 {
-		return 0, fmt.Errorf("empty argument list")
+		return ast.Constant{}, fmt.Errorf("empty argument list")
+	}
+	if hasDecimal(args) {
+		first, err := ratFromConstant(args[0])
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		res := new(big.Rat).Set(first)
+		if len(args) == 1 {
+			return ast.DecimalFromRat(res.Neg(res)), nil
+		}
+		for _, num := range args[1:] {
+			rat, err := ratFromConstant(num)
+			if err != nil {
+				return ast.Constant{}, err
+			}
+			res.Sub(res, rat)
+		}
+		return ast.DecimalFromRat(res), nil
 	}
 	diff, err := args[0].NumberValue()
 	if err != nil {
-		return 0, err
+		return ast.Constant{}, err
 	}
 	if len(args) == 1 {
-		return -diff, nil // "unary minus"
+		return ast.Number(-diff), nil // "unary minus"
 	}
 	for _, num := range args[1:] {
 		v, err := num.NumberValue()
 		if err != nil {
-			return 0, err
+			return ast.Constant{}, err
 		}
 		diff -= v
 	}
-	return diff, nil
+	return ast.Number(diff), nil
 }
 
 // EvalReduceFn evaluates a combiner (reduce) function.
@@ -945,6 +1113,8 @@ func evalToString(val ast.Constant) (ast.Constant, error) {
 		toStringFun = symbols.NumberToString
 	case ast.Float64Type:
 		toStringFun = symbols.Float64ToString
+	case ast.DecimalType:
+		toStringFun = symbols.DecimalToString
 	default:
 		return ast.Constant{}, fmt.Errorf("cannot convert constant to string constant: no conversion for value %v defined", val)
 	}
@@ -962,23 +1132,59 @@ func evalToString(val ast.Constant) (ast.Constant, error) {
 }
 
 func evalMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	max := int64(math.MinInt64)
+	var (
+		useDecimal bool
+		maxInt     int64 = math.MinInt64
+		maxRat     *big.Rat
+		seen       bool
+	)
 	for c := range it {
-		num, err := c.NumberValue()
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		if num > max {
-			max = num
+		seen = true
+		switch c.Type {
+		case ast.DecimalType:
+			val, err := c.DecimalValue()
+			if err != nil {
+				return ast.Constant{}, err
+			}
+			if !useDecimal {
+				useDecimal = true
+				if maxInt != math.MinInt64 {
+					maxRat = big.NewRat(maxInt, 1)
+				}
+			}
+			if maxRat == nil || maxRat.Cmp(val) < 0 {
+				maxRat = new(big.Rat).Set(val)
+			}
+		case ast.NumberType:
+			v := c.NumValue
+			if useDecimal {
+				val := big.NewRat(v, 1)
+				if maxRat == nil || maxRat.Cmp(val) < 0 {
+					maxRat = val
+				}
+			} else if v > maxInt {
+				maxInt = v
+			}
+		default:
+			return ast.Constant{}, fmt.Errorf("non numeric value %v", c)
 		}
 	}
-	return ast.Number(max), nil
+	if useDecimal {
+		if maxRat == nil {
+			maxRat = big.NewRat(maxInt, 1)
+		}
+		return ast.DecimalFromRat(maxRat), nil
+	}
+	if !seen {
+		return ast.Number(math.MinInt64), nil
+	}
+	return ast.Number(maxInt), nil
 }
 
 func evalFloatMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 	max := -1 * math.MaxFloat64
 	for c := range it {
-		num, err := c.Float64Value()
+		num, err := valueAsFloat(c)
 		if err != nil {
 			return ast.Constant{}, err
 		}
@@ -990,23 +1196,59 @@ func evalFloatMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 }
 
 func evalMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	min := int64(math.MaxInt64)
+	var (
+		useDecimal bool
+		minInt     int64 = math.MaxInt64
+		minRat     *big.Rat
+		seen       bool
+	)
 	for c := range it {
-		num, err := c.NumberValue()
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		if num < min {
-			min = num
+		seen = true
+		switch c.Type {
+		case ast.DecimalType:
+			val, err := c.DecimalValue()
+			if err != nil {
+				return ast.Constant{}, err
+			}
+			if !useDecimal {
+				useDecimal = true
+				if minInt != math.MaxInt64 {
+					minRat = big.NewRat(minInt, 1)
+				}
+			}
+			if minRat == nil || minRat.Cmp(val) > 0 {
+				minRat = new(big.Rat).Set(val)
+			}
+		case ast.NumberType:
+			v := c.NumValue
+			if useDecimal {
+				val := big.NewRat(v, 1)
+				if minRat == nil || minRat.Cmp(val) > 0 {
+					minRat = val
+				}
+			} else if v < minInt {
+				minInt = v
+			}
+		default:
+			return ast.Constant{}, fmt.Errorf("non numeric value %v", c)
 		}
 	}
-	return ast.Number(min), nil
+	if useDecimal {
+		if minRat == nil {
+			minRat = big.NewRat(minInt, 1)
+		}
+		return ast.DecimalFromRat(minRat), nil
+	}
+	if !seen {
+		return ast.Number(math.MaxInt64), nil
+	}
+	return ast.Number(minInt), nil
 }
 
 func evalFloatMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 	min := math.MaxFloat64
 	for c := range it {
-		floatNum, err := c.Float64Value()
+		floatNum, err := valueAsFloat(c)
 		if err != nil {
 			return ast.Constant{}, err
 		}
@@ -1018,21 +1260,41 @@ func evalFloatMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 }
 
 func evalSum(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	var sum int64
+	sumRat := new(big.Rat)
+	var sumInt int64
+	useDecimal := false
 	for c := range it {
-		num, err := c.NumberValue()
-		if err != nil {
-			return ast.Constant{}, err
+		switch c.Type {
+		case ast.DecimalType:
+			val, err := c.DecimalValue()
+			if err != nil {
+				return ast.Constant{}, err
+			}
+			if !useDecimal {
+				useDecimal = true
+				sumRat.SetInt64(sumInt)
+			}
+			sumRat.Add(sumRat, val)
+		case ast.NumberType:
+			if useDecimal {
+				sumRat.Add(sumRat, big.NewRat(c.NumValue, 1))
+			} else {
+				sumInt += c.NumValue
+			}
+		default:
+			return ast.Constant{}, fmt.Errorf("non numeric value %v", c)
 		}
-		sum += num
 	}
-	return ast.Number(sum), nil
+	if useDecimal {
+		return ast.DecimalFromRat(sumRat), nil
+	}
+	return ast.Number(sumInt), nil
 }
 
 func evalFloatSum(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 	var sum float64
 	for c := range it {
-		num, err := c.Float64Value()
+		num, err := valueAsFloat(c)
 		if err != nil {
 			return ast.Constant{}, err
 		}
@@ -1046,13 +1308,9 @@ func evalAvg(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 	var n int
 	for c := range it {
 		n++
-		num, err := c.Float64Value()
+		num, err := valueAsFloat(c)
 		if err != nil {
-			fnum, err := c.NumberValue()
-			if err != nil {
-				return ast.Constant{}, err
-			}
-			num = float64(fnum)
+			return ast.Constant{}, err
 		}
 		sum += num
 	}

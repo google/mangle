@@ -54,6 +54,7 @@ maxdepth: 2
 ---
 Installing <installing.md>
 Getting to know Datalog <datalog.md>
+Aggregation <aggregation.md>
 Basic Types <basictypes.md>
 Constructed Types <constructedtypes.md>
 Type Expressions <typeexpressions.md>

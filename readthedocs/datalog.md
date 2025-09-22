@@ -79,6 +79,17 @@ body. When this is successful, the engine uses the variable assignment to
 create a new fact from the head. In reality, there are faster ways to find
 all matches.
 
+:::{admonition} Click to see SQL translation
+:class: dropdown
+Here is how the `teacher` rule looks like in SQL:
+```sql
+CREATE TABLE teacher AS
+SELECT ID, Name
+FROM volunteer
+WHERE Role = '/teaching';
+```
+:::
+
 Rules are connected to databases in several ways:
 
 - each atom in a rule body is like a simple database query
@@ -90,7 +101,6 @@ which can be queried again.
 Using rules to infer new facts from existing ones is called deduction in
 logic. For this reason, Datalog systems are often called deductive database
 systems.
-
 
 ## Multiple atoms and multiple rules
 
@@ -127,6 +137,21 @@ coding_workshop_candidate(ID, Name, /software_development) ⟸
     volunteer(ID, Name, /software_development).
 ```
 
+:::{admonition} Click to see SQL translation
+:class: dropdown
+Here is how the `coding_workshop_candidate` rules look like in SQL:
+```sql
+CREATE TABLE coding_workshop_candidate AS
+SELECT ID, Name, Role
+FROM volunteer
+WHERE Role = '/teaching'
+UNION
+SELECT ID, Name, Role
+FROM volunteer
+WHERE Role = '/software_development';
+```
+:::
+
 If instead, we want a single person who knows both, teaching and
 software development, we use multiple atoms in the body, separated
 by a comma:
@@ -140,6 +165,20 @@ teacher_and_coder(ID, Name) ⟸
 In our current data set, the result will be empty. This rule is an
 example of a database join: the body states that two rows have the
 same ID and Name fields.
+
+:::{admonition} Click to see SQL translation
+:class: dropdown
+Here is how the `teacher_and_coder` rule looks like in SQL:
+```sql
+CREATE TABLE teacher_and_coder AS
+SELECT DISTINCT v1.ID, v1.Name
+FROM volunteer AS v1
+JOIN volunteer AS v2 ON v1.ID = v2.ID AND v1.Name = v2.Name
+WHERE
+    v1.Role = '/teaching'
+    AND v2.Role = '/software_development';
+```
+:::
 
 ## Recursive rules
 
@@ -166,6 +205,32 @@ Conceptually, the second rule says that whenever an entry in the
 `knows` table can be connected to one in the `reachable` table, then we
 should add add a new entry. When all such entries are added, we know
 who can reach whom. This is called a fixed point.
+
+:::{admonition} Click to see SQL translation
+:class: dropdown
+Here is how the `reachable` rules look like in SQL:
+```sql
+CREATE TABLE reachable AS
+WITH RECURSIVE reachable_cte (StartPerson, EndPerson) AS (
+    -- Base Case
+    SELECT Person1, Person2
+    FROM knows
+
+    UNION ALL
+
+    -- Recursive Step
+    SELECT
+        r.StartPerson,
+        k.Person2
+    FROM
+        reachable_cte AS r
+    JOIN
+        knows AS k ON r.EndPerson = k.Person1
+)
+SELECT DISTINCT StartPerson, EndPerson
+FROM reachable_cte;
+```
+:::
 
 ## The Safety Condition
 

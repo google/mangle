@@ -14,8 +14,13 @@ author = 'The Mangle Authors'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 source_suffix = ['.md']
-extensions = ['myst_parser']
+extensions = ['myst_parser', 'sphinx_togglebutton']
 
 html_theme = 'bizstyle'
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'README.md']
+
+myst_enable_extensions = [
+    'colon_fence',
+    'html_admonition',
+]

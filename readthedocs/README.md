@@ -41,3 +41,9 @@ installation.
 ```
 
 The output can be found in the `output/html` directory.
+
+You can then run a local http server to view the results:
+
+```
+(manglereadthedocs) > python3 -m http.server 8080
+```

@@ -20,6 +20,8 @@ import (
 )
 
 const (
+	// DescrExternal is a descriptor for external predicates.
+	DescrExternal = "external"
 	// DescrExtensional is a descriptor for extensional predicates.
 	DescrExtensional = "extensional"
 	// DescrMode is a descriptor for a supported mode of a predicate.
@@ -221,6 +223,11 @@ func (d Decl) Visible() bool {
 // IsSynthetic returns true if this Decl is synthetic (generated).
 func (d Decl) IsSynthetic() bool {
 	return d.findDescr(DescrSynthetic, nil)
+}
+
+// IsExternal returns true if this Decl is external predicate.
+func (d Decl) IsExternal() bool {
+	return d.findDescr(DescrExternal, nil)
 }
 
 // Reflects returns (true, prefix) if this predicate covers ("reflects") a name prefix type.

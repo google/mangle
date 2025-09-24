@@ -15,17 +15,22 @@
 package engine
 
 import (
+	"errors"
+
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/factstore"
 	"github.com/google/mangle/functional"
 	"github.com/google/mangle/unionfind"
 )
 
+var errFound = errors.New("found")
+
 // QueryContext groups data needed for evaluating a query top-down (backward chaining).
 type QueryContext struct {
-	PredToRules map[ast.PredicateSym][]ast.Clause
-	PredToDecl  map[ast.PredicateSym]*ast.Decl
-	Store       factstore.ReadOnlyFactStore
+	PredToRules        map[ast.PredicateSym][]ast.Clause
+	PredToDecl         map[ast.PredicateSym]*ast.Decl
+	Store              factstore.ReadOnlyFactStore
+	ExternalPredicates map[ast.PredicateSym]ExternalPredicateCallback
 }
 
 // EvalQuery evaluates a query top-down, according to mode and union-find-subst.
@@ -70,6 +75,64 @@ func (q QueryContext) EvalQuery(query ast.Atom, mode []ast.ArgMode, uf unionfind
 		}
 	}
 	return nil
+}
+
+// EvalExternalQuery evaluates an external query.
+// See ExternalPredicateCallback for more details.
+func (q QueryContext) EvalExternalQuery(query ast.Atom, mode []ast.ArgMode, ext ExternalPredicateCallback, cb func(fact ast.Atom) error) error {
+	// Step 1. Check if we already have the facts.
+	err := q.Store.GetFacts(query, func(fact ast.Atom) error {
+		return errFound
+	})
+	if err != nil {
+		if errors.Is(err, errFound) {
+			return nil
+		}
+		return err
+	}
+	// Step 2. Check if we need to query.
+	var inputs []ast.Constant
+	var filters []ast.BaseTerm
+	for i, arg := range query.Args {
+		if mode[i] == ast.ArgModeInput {
+			inputs = append(inputs, arg.(ast.Constant))
+		} else {
+			filters = append(filters, arg)
+		}
+	}
+	if !ext.ShouldQuery(inputs) {
+		return nil
+	}
+	// Step 3. Query and add facts.
+	var hasFilters bool
+	for _, filter := range filters {
+		if _, ok := filter.(ast.Variable); !ok {
+			hasFilters = true
+			break
+		}
+	}
+	return ext.ExecuteQuery(inputs, filters, func(output []ast.BaseTerm) {
+		j := 0
+		args := make([]ast.BaseTerm, query.Predicate.Arity)
+		for i, arg := range query.Args {
+			if mode[i] == ast.ArgModeInput {
+				args[i] = arg
+			} else if !hasFilters {
+				args[i] = output[j]
+				j++
+			} else { // check if filters match
+				res := output[j]
+				c, ok := arg.(ast.Constant)
+				if !ok || c.Equals(res) {
+					args[i] = res
+					j++
+				} else {
+					return // skip this output
+				}
+			}
+		}
+		cb(ast.Atom{query.Predicate, args})
+	})
 }
 
 // EvalPremise evaluates a single premise top-down.

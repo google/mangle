@@ -1294,6 +1294,103 @@ func TestFunctionEval(t *testing.T) {
 	}
 }
 
+type ExtImpl struct {
+	called1 int
+	called2 int
+	called3 int
+}
+
+func (e *ExtImpl) ShouldQuery(inputs []ast.Constant) bool {
+	if inputs[0].Equals(ast.Number(1)) {
+		e.called1++
+		return true
+	}
+	if inputs[0].Equals(ast.Number(2)) {
+		e.called2++
+	}
+	if inputs[0].Equals(ast.Number(3)) {
+		e.called3++
+		return true
+	}
+	return false
+}
+
+func (e *ExtImpl) ExecuteQuery(inputs []ast.Constant, filters []ast.BaseTerm, cb func(output []ast.BaseTerm)) error {
+	if inputs[0].Equals(ast.Number(1)) {
+		s := ast.String("ExecuteQuery(1)")
+		cb([]ast.BaseTerm{s})
+	}
+	if inputs[0].Equals(ast.Number(3)) && len(filters) == 1 && filters[0].Equals(ast.String("MatchMe")) {
+		s := filters[0]
+		cb([]ast.BaseTerm{s})
+	}
+	return nil
+}
+
+func TestEvalExternal(t *testing.T) {
+	u := unit(`
+	Decl testExt(X, Y)
+	  descr [
+		  external(),
+		  mode('+', '-'),
+		]
+		bound [ /number, /string ]
+	.
+
+	foo(Z) :- testExt(1, Y), Z = Y.
+	bar() :- testExt(2, _).
+	notexist() :- testExt(1, _), testExt(2, _).
+	withfilter() :- testExt(3, 'MatchMe').
+	`)
+	store := factstore.NewSimpleInMemoryStore()
+	programInfo, err := analysis.AnalyzeOneUnit(
+		parse.SourceUnit{Clauses: u.Clauses, Decls: u.Decls}, asMap(store.ListPredicates()))
+	if err != nil {
+		t.Fatalf("analysis: %v", err)
+	}
+	strata, predToStratum, err := analysis.Stratify(analysis.Program{
+		EdbPredicates: programInfo.EdbPredicates,
+		IdbPredicates: programInfo.IdbPredicates,
+		Rules:         programInfo.Rules,
+	})
+	if err != nil {
+		t.Fatalf("stratification: %v", err)
+	}
+	extImpl := &ExtImpl{}
+	opt := WithExternalPredicates(map[ast.PredicateSym]ExternalPredicateCallback{
+		ast.PredicateSym{"testExt", 2}: extImpl,
+	})
+	_, err = EvalStratifiedProgramWithStats(programInfo, strata, predToStratum, store, opt)
+	if err != nil {
+		t.Fatalf("eval: %v", err)
+	}
+
+	if extImpl.called1 != 1 {
+		t.Errorf("expected ShouldQuery(testExt(1)) to be called once, was %d times", extImpl.called1)
+	}
+	if extImpl.called2 != 2 {
+		t.Errorf("expected ShouldQuery(testExt(2)) to be called twice, was %d times", extImpl.called2)
+	}
+	if extImpl.called3 != 1 {
+		t.Errorf("expected ShouldQuery(testExt(3)) to be called once, was %d times", extImpl.called3)
+	}
+	if !store.Contains(atom("foo('ExecuteQuery(1)')")) {
+		t.Errorf("expected fact foo('ExecuteQuery(1)') in store %v", store)
+	}
+	if !store.Contains(atom("testExt(3, 'MatchMe')")) {
+		t.Errorf("expected fact testExt(3, 'MatchMe') in store %v", store)
+	}
+	if !store.Contains(atom("testExt(1, 'ExecuteQuery(1)')")) {
+		t.Errorf("expected fact testExt(1, 'ExecuteQuery(1)') in store %v", store)
+	}
+	if !store.Contains(atom("withfilter()")) {
+		t.Errorf("expected fact withfilter() in store %v", store)
+	}
+	if store.EstimateFactCount() != 4 {
+		t.Errorf("did not expect other facts in store %v", store)
+	}
+}
+
 func TestFunctions(t *testing.T) {
 	numbers := []ast.Clause{
 		clause(`zero(0).`),

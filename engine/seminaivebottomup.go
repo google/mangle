@@ -56,12 +56,41 @@ type engine struct {
 	options       EvalOptions
 }
 
+// ExternalPredicateCallback is used to query external data sources.
+//
+// An atom `mydb(input1, ..., inputN, OutputVar1, ..., OutputVarN)` is evaluated
+// as follows:
+//   - the engine checks whether the fact store contains any facts
+//     of the shape `mydb(input1, ..., inputN, _, ..., _)`. If so, we
+//     use those for evaluation.
+//   - if no facts were found, the engine calls `ShouldQuery(input1, ..., inputN)`
+//     if false, evaluation continues.
+//   - if true, the engine calls `Query(input1, ..., inputN, filter1, ..., filterM)`
+//     and expects outputs callback. Every output tuple gets added
+//     as `mydb(input1, ..., inputN, output1, ..., outputN)`
+//     fact to the store, and continues evaluation.
+//     if ExecuteQuery returns an error, evaluation fails with that error.
+//
+// If tuples (input1, ..., inputN) are known to yield empty results, the
+// implementation can keep track of that and prevent an unnecessary
+// call to `ExecuteQuery`.
+// filters contains the arguments that are output positions which are either
+// variables or constants that are used to match the position (filters proper).
+// The implementation may use the constant filter arguments for filter-pushdown,
+// but is also free to ignore them. In any case, when constant filter arguments
+// are present, only matching facts will be added to the store.
+type ExternalPredicateCallback interface {
+	ShouldQuery(inputs []ast.Constant) bool
+	ExecuteQuery(inputs []ast.Constant, filters []ast.BaseTerm, cb func([]ast.BaseTerm)) error
+}
+
 // EvalOptions are used to configure the evaluation.
 type EvalOptions struct {
 	createdFactLimit int
 	totalFactLimit   int
 	// if non-nil, only predicates in this allowlist get evaluated.
 	predicateAllowList *func(ast.PredicateSym) bool
+	externalPredicates map[ast.PredicateSym]ExternalPredicateCallback
 }
 
 // EvalOption affects the way the evaluation is performed.
@@ -70,6 +99,12 @@ type EvalOption func(*EvalOptions)
 // WithCreatedFactLimit is an evaluation option that limits the maximum number of facts created during evaluation.
 func WithCreatedFactLimit(limit int) EvalOption {
 	return func(o *EvalOptions) { o.createdFactLimit = limit }
+}
+
+// WithExternalPredicates allows the user to provide callbacks for external predicates.
+func WithExternalPredicates(
+	callbacks map[ast.PredicateSym]ExternalPredicateCallback) EvalOption {
+	return func(o *EvalOptions) { o.externalPredicates = callbacks }
 }
 
 // EvalProgram evaluates a given program on the given facts, modifying the fact store in the process.
@@ -85,6 +120,7 @@ func newEvalOptions(options ...EvalOption) EvalOptions {
 		return true
 	}
 	ops.predicateAllowList = &allPredicates
+	ops.externalPredicates = make(map[ast.PredicateSym]ExternalPredicateCallback)
 	for _, o := range options {
 		o(&ops)
 	}
@@ -113,10 +149,12 @@ func EvalStratifiedProgramWithStats(programInfo *analysis.ProgramInfo,
 
 	predToRules := make(map[ast.PredicateSym][]ast.Clause)
 	predToDecl := make(map[ast.PredicateSym]*ast.Decl)
+	for sym := range programInfo.Decls {
+		predToDecl[sym] = programInfo.Decls[sym]
+	}
 	for _, clause := range programInfo.Rules {
 		sym := clause.Head.Predicate
 		predToRules[sym] = append(predToRules[sym], clause)
-		predToDecl[sym] = programInfo.Decls[sym]
 	}
 	stats := Stats{
 		Strata:        make([][]ast.PredicateSym, len(strata), len(strata)),
@@ -127,6 +165,15 @@ func EvalStratifiedProgramWithStats(programInfo *analysis.ProgramInfo,
 		stats.Strata[stratum] = append(stats.Strata[stratum], sym)
 	}
 	opts := newEvalOptions(options...)
+	for sym := range opts.externalPredicates {
+		decl := predToDecl[sym]
+		if decl == nil {
+			return Stats{}, fmt.Errorf("ext callback for a predicate %v without decl", sym)
+		}
+		if !decl.IsExternal() {
+			return Stats{}, fmt.Errorf("ext callback for predicate %v that is not marked as external()", sym)
+		}
+	}
 	if opts.createdFactLimit > 0 {
 		opts.totalFactLimit = store.EstimateFactCount() + opts.createdFactLimit
 	}
@@ -501,6 +548,24 @@ func (e *engine) oneStepEvalClause(clause ast.Clause) ([]ast.Atom, error) {
 func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind) ([]unionfind.UnionFind, error) {
 	switch p := premise.(type) {
 	case ast.Atom:
+		if ext, ok := e.options.externalPredicates[p.Predicate]; ok {
+			// We may make an external call and add a whole bunch of facts as side-effect.
+			// This will be transparent to the rest of evaluation.
+			decl := e.predToDecl[p.Predicate]
+			if decl == nil {
+				return nil, fmt.Errorf("no decl for predicate %v", p.Predicate)
+			}
+			mode := decl.Modes()[0]
+			err := e.newContext().EvalExternalQuery(
+				p, mode, ext, func(fact ast.Atom) error {
+					e.store.Add(fact)
+					return nil
+				})
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		var lookupFn func(p ast.Atom, cb func(ast.Atom) error) error
 		if isDeltaPredicate(p.Predicate) {
 			lookupFn = func(p ast.Atom, cb func(ast.Atom) error) error {
@@ -529,5 +594,6 @@ func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind)
 }
 
 func (e *engine) newContext() QueryContext {
-	return QueryContext{PredToRules: e.predToRules, PredToDecl: e.predToDecl, Store: e.store}
+	return QueryContext{PredToRules: e.predToRules, PredToDecl: e.predToDecl, Store: e.store,
+		ExternalPredicates: e.options.externalPredicates}
 }

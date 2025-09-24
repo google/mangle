@@ -16,9 +16,11 @@ package analysis
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/google/mangle/ast"
+	"github.com/google/mangle/parse"
 	"github.com/google/mangle/symbols"
 )
 
@@ -69,6 +71,68 @@ func TestBoundsCheckingPositive(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			if errs := checkBoundDecl(test.boundDecl); errs != nil {
 				t.Error(errs[0])
+			}
+		})
+	}
+}
+
+func TestCheckDeclExternal(t *testing.T) {
+	testCases := []struct {
+		desc    string
+		source  string
+		wantErr bool
+	}{
+		{
+			desc: "valid external decl",
+			source: `
+                Decl testExt(X, Y)
+                  descr [
+                      external(),
+                      mode('+', '-'),
+                    ]
+                    bound [ /number, /string ]
+                .`,
+			wantErr: false,
+		},
+		{
+			desc: "external decl with no modes",
+			source: `
+                Decl testExt(X, Y)
+                  descr [
+                      external()
+                    ]
+                    bound [ /number, /string ]
+                .`,
+			wantErr: true,
+		},
+		{
+			desc: "external decl with two modes",
+			source: `
+                Decl testExt(X, Y)
+                  descr [
+                      external(),
+                      mode('+', '-'),
+                      mode('-', '+')
+                    ]
+                    bound [ /number, /string ]
+                .`,
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			unit, err := parse.Unit(strings.NewReader(tc.source))
+			if err != nil {
+				t.Fatalf("parse.Unit(%q) failed: %v", tc.source, err)
+			}
+			if len(unit.Decls) != 2 { // package decl + test decl
+				t.Fatalf("expected 1 decl, got %d", len(unit.Decls))
+			}
+			decl := unit.Decls[1]
+			errs := CheckDecl(decl)
+			if (len(errs) > 0) != tc.wantErr {
+				t.Errorf("CheckDecl() returned errors %v, wantErr=%v", errs, tc.wantErr)
 			}
 		})
 	}

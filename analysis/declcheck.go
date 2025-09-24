@@ -88,6 +88,9 @@ func (c *declChecker) check() []error {
 			// We ignore unknown descr atoms.
 		}
 	}
+	if c.decl.IsExternal() && len(c.decl.Modes()) != 1 {
+		c.errs = append(c.errs, fmt.Errorf("external predicate must have exactly one mode"))
+	}
 	if !c.decl.IsSynthetic() && len(expectedArgs) > 0 && len(expectedArgs) != len(p.Args) {
 		c.errs = append(c.errs, fmt.Errorf("missing arg atoms for arguments %v", expectedArgs))
 	}

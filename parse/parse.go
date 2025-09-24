@@ -706,10 +706,10 @@ func Atom(s string) (ast.Atom, error) {
 		return ast.Atom{}, err
 	}
 	atom, ok := term.(ast.Atom)
-	if ok {
-		return atom, nil
+	if !ok {
+		return ast.Atom{}, fmt.Errorf("not an atom: %v %T", term, term)
 	}
-	return ast.Atom{}, nil // TODO
+	return atom, nil
 }
 
 func nameAtom(name string) ast.Atom {

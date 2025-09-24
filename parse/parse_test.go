@@ -1101,3 +1101,26 @@ func TestPredicateNameNegative(t *testing.T) {
 		})
 	}
 }
+
+func TestParseNotAtom(t *testing.T) {
+	tests := []struct {
+		name string
+		str  string
+	}{
+		{name: "constant", str: "/foo"},
+		{name: "number", str: "42"},
+		{name: "variable", str: "X"},
+		{name: "list", str: "[1, 2]"},
+		{name: "empty list", str: "[]"},
+		{name: "map", str: "[/a : /b]"},
+		{name: "struct", str: "{ /a : /b }"},
+		{name: "fn application (not predicate atom)", str: "fn:list(1, 2)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got, err := Atom(tt.str); err == nil {
+				t.Errorf("Atom(%q) = %v; want error", tt.str, got)
+			}
+		})
+	}
+}

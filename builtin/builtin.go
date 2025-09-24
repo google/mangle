@@ -114,6 +114,10 @@ var (
 	errFound = errors.New("found")
 )
 
+const (
+	MinInt64 int64 = -1 << 63
+)
+
 func init() {
 	for fn, tpe := range ReducerFunctions {
 		Functions[fn] = tpe
@@ -540,8 +544,12 @@ func getNumberValues[T ast.BaseTerm](cs []T) ([]int64, error) {
 
 // Abs returns the absolute value of x.
 func abs(x int64) int64 {
+
+	if x == int64(MinInt64) {
+		return 1<<63 - 1 // returns maxInt64
+	}
 	if x < 0 {
-		return -x // This is wrong for math.MinInt
+		return -x
 	}
 	return x
 }

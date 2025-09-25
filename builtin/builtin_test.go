@@ -16,6 +16,7 @@ package builtin
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -59,6 +60,9 @@ func extend(u unionfind.UnionFind, left ast.BaseTerm, right ast.BaseTerm) unionf
 func TestAbs(t *testing.T) {
 	if abs(-1) != 1 || abs(1) != 1 {
 		t.Error("abs: unexpected result.")
+	}
+	if abs(math.MinInt64) != math.MaxInt64 {
+		t.Errorf("abs: abs(MinInt64) != MaxInt64")
 	}
 }
 

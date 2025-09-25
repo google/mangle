@@ -18,6 +18,7 @@ package builtin
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/google/mangle/ast"
@@ -539,9 +540,14 @@ func getNumberValues[T ast.BaseTerm](cs []T) ([]int64, error) {
 }
 
 // Abs returns the absolute value of x.
+// Note that Abs(math.MinInt64) is math.MaxInt64.
 func abs(x int64) int64 {
+
+	if x == math.MinInt64 {
+		return math.MaxInt64
+	}
 	if x < 0 {
-		return -x // This is wrong for math.MinInt
+		return -x
 	}
 	return x
 }

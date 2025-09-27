@@ -19,6 +19,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -241,7 +242,7 @@ func (i *Interpreter) QueryInteractive(queryString string) error {
 	}
 	var results []string
 	for _, fact := range facts {
-		results = append(results, fact.String())
+		results = append(results, formatAtomWithUnescape(fact))
 	}
 	sort.Strings(results)
 	fmt.Fprintf(i.out, "%s\n", strings.Join(results, "\n"))
@@ -434,4 +435,86 @@ func (i *Interpreter) resetInteractiveDefs(buffer string) {
 		i.popSourceFragment()
 	}
 	i.buffer = buffer
+}
+
+func formatAtomWithUnescape(a ast.Atom) string {
+	var sb strings.Builder
+	sb.WriteString(a.Predicate.Symbol)
+	sb.WriteString("(")
+	for i, arg := range a.Args {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		sb.WriteString(formatBaseTermRaw(arg))
+	}
+	sb.WriteString(")")
+	return sb.String()
+}
+
+func formatBaseTermRaw(t ast.BaseTerm) string {
+	switch v := t.(type) {
+	case ast.Variable:
+		return v.Symbol
+	case ast.Constant:
+		return formatConstRaw(v)
+	default:
+		return t.String()
+	}
+}
+
+func formatConstRaw(c ast.Constant) string {
+	switch c.Type {
+	case ast.NameType:
+		return c.Symbol
+	case ast.StringType:
+		return `"` + c.Symbol + `"`
+	case ast.BytesType:
+		return `b"` + c.Symbol + `"`
+	case ast.NumberType:
+		return ast.FormatNumber(c.NumValue)
+	case ast.Float64Type:
+		return ast.FormatFloat64(math.Float64frombits(uint64(c.NumValue)))
+	case ast.ListShape:
+		if c.IsListNil() {
+			return "[]"
+		}
+		seq, err := c.ListSeq()
+		if err != nil {
+			return c.String()
+		}
+		var sb strings.Builder
+		sb.WriteString("[")
+		first := true
+		for v := range seq {
+			if !first {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(formatConstRaw(v))
+			first = false
+		}
+		sb.WriteString("]")
+		return sb.String()
+	case ast.MapShape:
+		if c.IsMapNil() {
+			return "fn:map()"
+		}
+		var entries []string
+		_, _ = c.MapValues(func(k, v ast.Constant) error {
+			entries = append(entries, formatConstRaw(k)+" : "+formatConstRaw(v))
+			return nil
+		}, func() error { return nil })
+		return "[" + strings.Join(entries, ", ") + "]"
+	case ast.StructShape:
+		if c.IsStructNil() {
+			return "{}"
+		}
+		var fields []string
+		_, _ = c.StructValues(func(label, val ast.Constant) error {
+			fields = append(fields, formatConstRaw(label)+" : "+formatConstRaw(val))
+			return nil
+		}, func() error { return nil })
+		return "{" + strings.Join(fields, ", ") + "}"
+	default:
+		return c.String()
+	}
 }

@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-// TestUnescapedString tests the UnescapedString() method of ast.Constant.
+// TestDisplayString tests the DisplayString() method of ast.Constant.
 // This method returns a string representation without escaping Unicode characters
-func TestUnescapedString(t *testing.T) {
+func TestDisplayString(t *testing.T) {
 	tests := []struct {
 		name     string
 		constant ast.Constant
@@ -135,10 +135,10 @@ func TestUnescapedString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.constant.UnescapedString()
-			fmt.Println("UnescapedString:", got)
+			got := tt.constant.DisplayString()
+			fmt.Println("DisplayString:", got)
 			if got != tt.want {
-				t.Errorf("UnescapedString() = %q, want %q", got, tt.want)
+				t.Errorf("DisplayString() = %q, want %q", got, tt.want)
 			}
 		})
 	}

@@ -107,7 +107,7 @@ func nextLineWithPrompt(prompt string) (string, error) {
 func (i *Interpreter) showPredicate(p ast.PredicateSym) {
 	const docStringMargin = 50
 	decl := i.knownPredicates[p]
-	atomText := decl.DeclaredAtom.UnescapedString()
+	atomText := decl.DeclaredAtom.DisplayString()
 	if docLines := decl.Doc(); len(docLines) != 0 && docLines[0] != "" {
 		prefixLen := 0
 		if len(atomText) < docStringMargin {
@@ -241,7 +241,7 @@ func (i *Interpreter) QueryInteractive(queryString string) error {
 	}
 	var results []string
 	for _, fact := range facts {
-		results = append(results, fact.UnescapedString())
+		results = append(results, fact.DisplayString())
 	}
 	sort.Strings(results)
 	fmt.Fprintf(i.out, "%s\n", strings.Join(results, "\n"))

@@ -588,8 +588,9 @@ func (c Constant) String() string {
 	}
 }
 
-// UnescapedString returns a string representation of the constant without escaping Unicode characters.
-func (c Constant) UnescapedString() string {
+// DisplayString returns a string representation of the constant without escaping Unicode characters.
+// Note: If the string contains quote characters ("), the display string won't look like a source string anymore.
+func (c Constant) DisplayString() string {
 	switch c.Type {
 	case NameType:
 		return string(c.Symbol)
@@ -604,18 +605,18 @@ func (c Constant) UnescapedString() string {
 	case PairShape:
 		fst := *c.fst
 		snd := *c.snd
-		return fmt.Sprintf("fn:pair(%s, %s)", fst.UnescapedString(), snd.UnescapedString())
+		return fmt.Sprintf("fn:pair(%s, %s)", fst.DisplayString(), snd.DisplayString())
 	case ListShape:
 		if c.IsListNil() {
 			return "[]"
 		}
 		var s strings.Builder
 		s.WriteRune('[')
-		s.WriteString((*c.fst).UnescapedString())
+		s.WriteString((*c.fst).DisplayString())
 		c2 := *c.snd
 		for !c2.IsListNil() {
 			s.WriteString(", ")
-			s.WriteString((*c2.fst).UnescapedString())
+			s.WriteString((*c2.fst).DisplayString())
 			c2 = *c2.snd
 		}
 		s.WriteRune(']')
@@ -626,15 +627,15 @@ func (c Constant) UnescapedString() string {
 		}
 		var s strings.Builder
 		s.WriteRune('[')
-		s.WriteString((*c.fst.fst).UnescapedString())
+		s.WriteString((*c.fst.fst).DisplayString())
 		s.WriteString(" : ")
-		s.WriteString((*c.fst.snd).UnescapedString())
+		s.WriteString((*c.fst.snd).DisplayString())
 		c2 := *c.snd
 		for !c2.IsMapNil() {
 			s.WriteString(", ")
-			s.WriteString((*c2.fst.fst).UnescapedString())
+			s.WriteString((*c2.fst.fst).DisplayString())
 			s.WriteString(" : ")
-			s.WriteString((*c2.fst.snd).UnescapedString())
+			s.WriteString((*c2.fst.snd).DisplayString())
 			c2 = *c2.snd
 		}
 		s.WriteRune(']')
@@ -645,15 +646,15 @@ func (c Constant) UnescapedString() string {
 		}
 		var s strings.Builder
 		s.WriteRune('{')
-		s.WriteString((*c.fst.fst).UnescapedString())
+		s.WriteString((*c.fst.fst).DisplayString())
 		s.WriteString(" : ")
-		s.WriteString((*c.fst.snd).UnescapedString())
+		s.WriteString((*c.fst.snd).DisplayString())
 		c2 := *c.snd
 		for !c2.IsStructNil() {
 			s.WriteString(", ")
-			s.WriteString((*c2.fst.fst).UnescapedString())
+			s.WriteString((*c2.fst.fst).DisplayString())
 			s.WriteString(" : ")
-			s.WriteString((*c2.fst.snd).UnescapedString())
+			s.WriteString((*c2.fst.snd).DisplayString())
 			c2 = *c2.snd
 		}
 		s.WriteRune('}')
@@ -906,8 +907,8 @@ func (a Atom) String() string {
 	return sb.String()
 }
 
-// UnescapedString returns a string representation for this atom using unescaped constants.
-func (a Atom) UnescapedString() string {
+// DisplayString returns a string representation for this atom using unescaped constants.
+func (a Atom) DisplayString() string {
 	var sb strings.Builder
 	sb.WriteString(a.Predicate.Symbol)
 	sb.WriteString("(")
@@ -915,9 +916,9 @@ func (a Atom) UnescapedString() string {
 		if i > 0 {
 			sb.WriteString(",")
 		}
-		// Use UnescapedString for Constant, fallback to String otherwise
+		// Use DisplayString for Constant, fallback to String otherwise
 		if c, ok := arg.(Constant); ok {
-			sb.WriteString(c.UnescapedString())
+			sb.WriteString(c.DisplayString())
 		} else {
 			sb.WriteString(arg.String())
 		}

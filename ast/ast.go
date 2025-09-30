@@ -588,6 +588,82 @@ func (c Constant) String() string {
 	}
 }
 
+// DisplayString returns a string representation of the constant without escaping Unicode characters.
+// Note: If the string contains quote characters ("), the display string won't look like a source string anymore.
+func (c Constant) DisplayString() string {
+	switch c.Type {
+	case NameType:
+		return string(c.Symbol)
+	case StringType:
+		return fmt.Sprintf("\"%s\"", c.Symbol)
+	case BytesType:
+		return fmt.Sprintf("b\"%s\"", c.Symbol)
+	case NumberType:
+		return FormatNumber(c.NumValue)
+	case Float64Type:
+		return FormatFloat64(math.Float64frombits(uint64(c.NumValue)))
+	case PairShape:
+		fst := *c.fst
+		snd := *c.snd
+		return fmt.Sprintf("fn:pair(%s, %s)", fst.DisplayString(), snd.DisplayString())
+	case ListShape:
+		if c.IsListNil() {
+			return "[]"
+		}
+		var s strings.Builder
+		s.WriteRune('[')
+		s.WriteString((*c.fst).DisplayString())
+		c2 := *c.snd
+		for !c2.IsListNil() {
+			s.WriteString(", ")
+			s.WriteString((*c2.fst).DisplayString())
+			c2 = *c2.snd
+		}
+		s.WriteRune(']')
+		return s.String()
+	case MapShape:
+		if c.IsMapNil() {
+			return "fn:map()"
+		}
+		var s strings.Builder
+		s.WriteRune('[')
+		s.WriteString((*c.fst.fst).DisplayString())
+		s.WriteString(" : ")
+		s.WriteString((*c.fst.snd).DisplayString())
+		c2 := *c.snd
+		for !c2.IsMapNil() {
+			s.WriteString(", ")
+			s.WriteString((*c2.fst.fst).DisplayString())
+			s.WriteString(" : ")
+			s.WriteString((*c2.fst.snd).DisplayString())
+			c2 = *c2.snd
+		}
+		s.WriteRune(']')
+		return s.String()
+	case StructShape:
+		if c.IsStructNil() {
+			return "{}"
+		}
+		var s strings.Builder
+		s.WriteRune('{')
+		s.WriteString((*c.fst.fst).DisplayString())
+		s.WriteString(" : ")
+		s.WriteString((*c.fst.snd).DisplayString())
+		c2 := *c.snd
+		for !c2.IsStructNil() {
+			s.WriteString(", ")
+			s.WriteString((*c2.fst.fst).DisplayString())
+			s.WriteString(" : ")
+			s.WriteString((*c2.fst.snd).DisplayString())
+			c2 = *c2.snd
+		}
+		s.WriteRune('}')
+		return s.String()
+	default:
+		return "?" // cannot happen
+	}
+}
+
 // IsListNil returns true if this constant represents the empty list.
 func (c Constant) IsListNil() bool {
 	return c.Type == ListShape && c.fst == nil
@@ -826,6 +902,26 @@ func (a Atom) String() string {
 			sb.WriteString(",")
 		}
 		sb.WriteString(arg.String())
+	}
+	sb.WriteString(")")
+	return sb.String()
+}
+
+// DisplayString returns a string representation for this atom using unescaped constants.
+func (a Atom) DisplayString() string {
+	var sb strings.Builder
+	sb.WriteString(a.Predicate.Symbol)
+	sb.WriteString("(")
+	for i, arg := range a.Args {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		// Use DisplayString for Constant, fallback to String otherwise
+		if c, ok := arg.(Constant); ok {
+			sb.WriteString(c.DisplayString())
+		} else {
+			sb.WriteString(arg.String())
+		}
 	}
 	sb.WriteString(")")
 	return sb.String()

@@ -79,7 +79,8 @@ func (q QueryContext) EvalQuery(query ast.Atom, mode []ast.ArgMode, uf unionfind
 
 // EvalExternalQuery evaluates an external query.
 // See ExternalPredicateCallback for more details.
-func (q QueryContext) EvalExternalQuery(query ast.Atom, mode []ast.ArgMode, ext ExternalPredicateCallback, cb func(fact ast.Atom) error) error {
+func (q QueryContext) EvalExternalQuery(query ast.Atom, mode []ast.ArgMode,
+	ext ExternalPredicateCallback, pushdown []ast.Term, cb func(fact ast.Atom) error) error {
 	// Step 1. Check if we already have the facts.
 	err := q.Store.GetFacts(query, func(fact ast.Atom) error {
 		return errFound
@@ -100,7 +101,7 @@ func (q QueryContext) EvalExternalQuery(query ast.Atom, mode []ast.ArgMode, ext 
 			filters = append(filters, arg)
 		}
 	}
-	if !ext.ShouldQuery(inputs) {
+	if !ext.ShouldQuery(inputs, filters, pushdown) {
 		return nil
 	}
 	// Step 3. Query and add facts.
@@ -111,7 +112,7 @@ func (q QueryContext) EvalExternalQuery(query ast.Atom, mode []ast.ArgMode, ext 
 			break
 		}
 	}
-	return ext.ExecuteQuery(inputs, filters, func(output []ast.BaseTerm) {
+	return ext.ExecuteQuery(inputs, filters, pushdown, func(output []ast.BaseTerm) {
 		j := 0
 		args := make([]ast.BaseTerm, query.Predicate.Arity)
 		for i, arg := range query.Args {

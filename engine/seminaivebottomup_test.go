@@ -1295,27 +1295,36 @@ func TestFunctionEval(t *testing.T) {
 }
 
 type ExtImpl struct {
-	called1 int
-	called2 int
-	called3 int
+	called1  int
+	called2  int
+	pushdown []ast.Term
+	called3  int
+	filters  []ast.BaseTerm
 }
 
-func (e *ExtImpl) ShouldQuery(inputs []ast.Constant) bool {
+func (e *ExtImpl) ShouldPushdown() bool {
+	return true
+}
+
+func (e *ExtImpl) ShouldQuery(inputs []ast.Constant, filters []ast.BaseTerm, pushdown []ast.Term) bool {
 	if inputs[0].Equals(ast.Number(1)) {
 		e.called1++
 		return true
 	}
 	if inputs[0].Equals(ast.Number(2)) {
 		e.called2++
+		e.pushdown = pushdown
 	}
 	if inputs[0].Equals(ast.Number(3)) {
 		e.called3++
+		e.filters = filters
 		return true
 	}
 	return false
 }
 
-func (e *ExtImpl) ExecuteQuery(inputs []ast.Constant, filters []ast.BaseTerm, cb func(output []ast.BaseTerm)) error {
+func (e *ExtImpl) ExecuteQuery(inputs []ast.Constant, filters []ast.BaseTerm, pushdown []ast.Term,
+	cb func(output []ast.BaseTerm)) error {
 	if inputs[0].Equals(ast.Number(1)) {
 		s := ast.String("ExecuteQuery(1)")
 		cb([]ast.BaseTerm{s})
@@ -1338,10 +1347,12 @@ func TestEvalExternal(t *testing.T) {
 	.
 
 	foo(Z) :- testExt(1, Y), Z = Y.
-	bar() :- testExt(2, _).
+	bar() :- testExt(2, Filter), :string:contains(Filter, 'Filter').
 	notexist() :- testExt(1, _), testExt(2, _).
 	withfilter() :- testExt(3, 'MatchMe').
 	`)
+	stringContainsSubgoal := atom(":string:contains(Filter, 'Filter')")
+
 	store := factstore.NewSimpleInMemoryStore()
 	programInfo, err := analysis.AnalyzeOneUnit(
 		parse.SourceUnit{Clauses: u.Clauses, Decls: u.Decls}, asMap(store.ListPredicates()))
@@ -1371,8 +1382,15 @@ func TestEvalExternal(t *testing.T) {
 	if extImpl.called2 != 2 {
 		t.Errorf("expected ShouldQuery(testExt(2)) to be called twice, was %d times", extImpl.called2)
 	}
+	if len(extImpl.pushdown) != 1 || !extImpl.pushdown[0].Equals(stringContainsSubgoal) {
+		t.Errorf("expected ShouldQuery(testExt(2)) to be called with pushdown [%v], was %v",
+			stringContainsSubgoal, extImpl.pushdown)
+	}
 	if extImpl.called3 != 1 {
 		t.Errorf("expected ShouldQuery(testExt(3)) to be called once, was %d times", extImpl.called3)
+	}
+	if !extImpl.filters[0].Equals(ast.String("MatchMe")) {
+		t.Errorf("expected ShouldQuery(testExt(3)) to be called with filter 'MatchMe', was %v", extImpl.filters)
 	}
 	if !store.Contains(atom("foo('ExecuteQuery(1)')")) {
 		t.Errorf("expected fact foo('ExecuteQuery(1)') in store %v", store)

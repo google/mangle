@@ -80,8 +80,12 @@ type engine struct {
 // but is also free to ignore them. In any case, when constant filter arguments
 // are present, only matching facts will be added to the store.
 type ExternalPredicateCallback interface {
-	ShouldQuery(inputs []ast.Constant) bool
-	ExecuteQuery(inputs []ast.Constant, filters []ast.BaseTerm, cb func([]ast.BaseTerm)) error
+	// If true, the engine will pass any subgoals of the clause that mention output variables
+	// to ExecuteQuery. Otherwise, the pushdown argument will be empty.
+	ShouldPushdown() bool
+	ShouldQuery(inputs []ast.Constant, filters []ast.BaseTerm, pushdown []ast.Term) bool
+	ExecuteQuery(inputs []ast.Constant, filters []ast.BaseTerm, pushdown []ast.Term,
+		cb func([]ast.BaseTerm)) error
 }
 
 // EvalOptions are used to configure the evaluation.
@@ -507,7 +511,7 @@ func (e *engine) oneStepEvalClause(clause ast.Clause) ([]ast.Atom, error) {
 	for _, term := range clause.Premises {
 		var newsolutions []unionfind.UnionFind
 		for _, s := range solutions {
-			stepsolutions, err := e.oneStepEvalPremise(term, s)
+			stepsolutions, err := e.oneStepEvalPremise(term, s, clause)
 			if err != nil {
 				return nil, err
 			}
@@ -545,7 +549,7 @@ func (e *engine) oneStepEvalClause(clause ast.Clause) ([]ast.Atom, error) {
 }
 
 // Evaluates a single premise atom by scanning facts.
-func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind) ([]unionfind.UnionFind, error) {
+func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind, clause ast.Clause) ([]unionfind.UnionFind, error) {
 	switch p := premise.(type) {
 	case ast.Atom:
 		if ext, ok := e.options.externalPredicates[p.Predicate]; ok {
@@ -556,8 +560,12 @@ func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind)
 				return nil, fmt.Errorf("no decl for predicate %v", p.Predicate)
 			}
 			mode := decl.Modes()[0]
+			var pushdown []ast.Term
+			if ext.ShouldPushdown() {
+				pushdown = getPushdown(p, mode, clause, subst)
+			}
 			err := e.newContext().EvalExternalQuery(
-				p, mode, ext, func(fact ast.Atom) error {
+				p, mode, ext, pushdown, func(fact ast.Atom) error {
 					e.store.Add(fact)
 					return nil
 				})
@@ -596,4 +604,34 @@ func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind)
 func (e *engine) newContext() QueryContext {
 	return QueryContext{PredToRules: e.predToRules, PredToDecl: e.predToDecl, Store: e.store,
 		ExternalPredicates: e.options.externalPredicates}
+}
+
+func getPushdown(premise ast.Atom, mode []ast.ArgMode, clause ast.Clause, subst unionfind.UnionFind) []ast.Term {
+	// Find all output variables of the external predicate.
+	var outputVars []ast.Variable
+	for i, m := range mode {
+		if m == ast.ArgModeOutput {
+			if v, ok := premise.Args[i].(ast.Variable); ok && v.Symbol != "_" {
+				outputVars = append(outputVars, v)
+			}
+		}
+	}
+	// When a substituted subgoal mentions this variable, add it to pushdown.
+	var pushdown []ast.Term
+	for _, subgoal := range clause.Premises {
+		if subgoal.Equals(premise) {
+			continue
+		}
+		if _, ok := subgoal.(ast.Atom); ok {
+			subgoal = subgoal.ApplySubst(subst)
+			freeVars := make(map[ast.Variable]bool)
+			ast.AddVars(premise, freeVars)
+			for _, v := range outputVars {
+				if freeVars[v] {
+					pushdown = append(pushdown, subgoal)
+				}
+			}
+		}
+	}
+	return pushdown
 }

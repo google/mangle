@@ -120,6 +120,9 @@ var (
 	// An empty group_by() treats the whole relation as a group.
 	GroupBy = ast.FunctionSym{"fn:group_by", -1}
 
+	// CollectMap collects a set of keys and values into a map, e.g. 'collect_map(X, Y)'.
+	CollectMap = ast.FunctionSym{"fn:collect_map", 2}
+
 	// Append appends a element to a list.
 	Append = ast.FunctionSym{"fn:list:append", 2}
 

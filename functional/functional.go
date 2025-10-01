@@ -747,6 +747,53 @@ func EvalReduceFn(reduceFn ast.ApplyFn, rows []ast.ConstSubstList) (ast.Constant
 			tuples = &next
 		}
 		return *tuples, nil
+	case symbols.CollectMap.Symbol:
+		key := reduceFn.Args[0].(ast.Variable)
+		val := reduceFn.Args[1].(ast.Variable)
+		type pair struct {
+			k *ast.Constant
+			v *ast.Constant
+		}
+
+		seen := make(map[uint64][]pair)
+	rowMapLoop:
+		for _, row := range rows {
+			keyTerm, err := EvalExpr(key, row)
+			if err != nil {
+				continue rowMapLoop // or return error? return {}ast.Constant{}, err
+			}
+			KeyConstant, ok := keyTerm.(ast.Constant)
+			if !ok {
+				continue rowMapLoop // or return error? return {}ast.Constant{}, err // TODO: ASK IN PR
+			}
+
+			valTerm, err := EvalExpr(val, row)
+			if err != nil {
+				continue rowMapLoop
+			}
+			ValConstant, ok := valTerm.(ast.Constant)
+			if !ok {
+				continue rowMapLoop // or return error? return {}ast.Constant{}, err // TODO: ASK IN PR
+			}
+			h := KeyConstant.Hash()
+			pairs, ok := seen[h]
+			if ok {
+				for i, p := range pairs {
+					if p.k.Equals(KeyConstant) {
+						pairs[i].v = &ValConstant
+						continue rowMapLoop
+					}
+				}
+			}
+			seen[h] = append(pairs, pair{&KeyConstant, &ValConstant})
+		}
+		result := make(map[*ast.Constant]*ast.Constant)
+		for _, pairs := range seen {
+			for _, p := range pairs {
+				result[p.k] = p.v
+			}
+		}
+		return *ast.Map(result), nil
 	case symbols.Count.Symbol:
 		return ast.Number(int64(len(rows))), nil
 	case symbols.CountDistinct.Symbol:

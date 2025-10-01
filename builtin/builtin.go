@@ -100,6 +100,7 @@ var (
 	ReducerFunctions = map[ast.FunctionSym]ast.BaseTerm{
 		symbols.Collect:         symbols.NewFunType(listOfX /* <= */, listOfX),
 		symbols.CollectDistinct: symbols.NewFunType(listOfX /* <= */, listOfX),
+		symbols.CollectMap:      symbols.NewFunType(symbols.NewMapType(varX, varY) /* <= */, listOfX),
 		symbols.PickAny:         symbols.NewFunType(varX /* <= */, listOfX),
 		symbols.Max:             symbols.NewFunType(ast.NumberBound /* <= */, listOfNum),
 		symbols.Min:             symbols.NewFunType(ast.NumberBound /* <= */, listOfNum),

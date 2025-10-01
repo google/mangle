@@ -165,6 +165,34 @@ func TestReducerCollect(t *testing.T) {
 	}
 }
 
+func TestReducerCollectMap(t *testing.T) {
+	keyVar := ast.Variable{"Key"}
+	valVar := ast.Variable{"Val"}
+	rows := []ast.ConstSubstList{
+		makeConstSubstList([]ast.Variable{keyVar, valVar}, []ast.Constant{name("/color"), name("/blue")}),
+		makeConstSubstList([]ast.Variable{keyVar, valVar}, []ast.Constant{name("/size"), name("/M")}),
+		makeConstSubstList([]ast.Variable{keyVar, valVar}, []ast.Constant{name("/color"), name("/red")}), // This should overwrite blue.
+	}
+
+	expr := ast.ApplyFn{symbols.CollectMap, []ast.BaseTerm{keyVar, valVar}}
+	got, err := EvalReduceFn(expr, rows)
+	if err != nil {
+		t.Fatalf("EvalReduceFn(%v,%v) failed with %v", expr, rows, err)
+	}
+
+	wantMap := ast.Map(map[*ast.Constant]*ast.Constant{
+		ptr(name("/color")): ptr(name("/red")),
+		ptr(name("/size")):  ptr(name("/M")),
+	})
+	if err != nil {
+		t.Fatalf("Could not create map: %v", err)
+	}
+
+	if !got.Equals(*wantMap) {
+		t.Errorf("EvalReduceFn(%v,%v)=%v want %v", expr, rows, got, wantMap)
+	}
+}
+
 func TestReducerCollectCountDistinct(t *testing.T) {
 	tests := []struct {
 		rows [][]ast.Constant

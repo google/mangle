@@ -533,6 +533,18 @@ func TestAnalyzeNegative(t *testing.T) {
 			t.Errorf("%q: expected error for invalid program %v", test.descr, test.program)
 		}
 	}
+
+	// Test case for duplicate declarations across different source units.
+	fooDecl = makeSyntheticDecl(t, atom("foo(X,Y)"))
+	decls1 := []ast.Decl{fooDecl}
+	decls2 := []ast.Decl{fooDecl}
+	program := []parse.SourceUnit{
+		{Decls: decls1},
+		{Decls: decls2},
+	}
+	if _, err := Analyze(program, nil); err == nil {
+		t.Errorf("expected error for duplicate decls in different units but got none")
+	}
 }
 
 func makeRulesMap(clauses []ast.Clause) map[ast.PredicateSym][]ast.Clause {

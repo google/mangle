@@ -94,6 +94,10 @@ var (
 	Collect = ast.FunctionSym{"fn:collect", -1}
 	// CollectDistinct turns a collection { tuple_1,...tuple_n } into a list with distinct elements [tuple_1, ..., tuple_n].
 	CollectDistinct = ast.FunctionSym{"fn:collect_distinct", -1}
+	// CollectToMap turns a collection of key-value pairs into a map. Takes two arguments: the key variable and value variable.
+	// Example: project_languages(Project, Language) |> do fn:group_by(Project), let LanguageMap = fn:collect_to_map(Language, /true).
+	// If a keys is present multiple times, an arbitrary value will be picked.
+	CollectToMap = ast.FunctionSym{"fn:collect_to_map", 2}
 	// PickAny reduces a set { x_1,...x_n } to a single { x_i },
 	PickAny = ast.FunctionSym{"fn:pick_any", 1}
 	// Max reduces a set { x_1,...x_n } to { x_i } that is maximal.

@@ -54,6 +54,7 @@ var (
 	listOfNum         = symbols.NewListType(ast.NumberBound)
 	listOfFloats      = symbols.NewListType(ast.Float64Bound)
 	listOfNumOrFloats = symbols.NewListType(symbols.NewUnionType(ast.NumberBound, ast.Float64Bound))
+	mapOfXY           = symbols.NewMapType(varX, varY)
 	emptyType         = symbols.NewUnionType()
 
 	// Functions has all built-in functions.
@@ -100,6 +101,7 @@ var (
 	ReducerFunctions = map[ast.FunctionSym]ast.BaseTerm{
 		symbols.Collect:         symbols.NewFunType(listOfX /* <= */, listOfX),
 		symbols.CollectDistinct: symbols.NewFunType(listOfX /* <= */, listOfX),
+		symbols.CollectToMap:    symbols.NewFunType(mapOfXY /* <= */, varX, varY),
 		symbols.PickAny:         symbols.NewFunType(varX /* <= */, listOfX),
 		symbols.Max:             symbols.NewFunType(ast.NumberBound /* <= */, listOfNum),
 		symbols.Min:             symbols.NewFunType(ast.NumberBound /* <= */, listOfNum),

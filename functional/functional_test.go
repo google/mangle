@@ -885,3 +885,166 @@ func TestSqrtNegative(t *testing.T) {
 		t.Errorf("EvalExpr(%v) = %v want NaN", term, f)
 	}
 }
+
+func TestReducerCollectToMap(t *testing.T) {
+	tests := []struct {
+		name string
+		rows [][]ast.Constant
+	}{
+		{
+			name: "simple key-value pairs",
+			rows: [][]ast.Constant{
+				{name("/key1"), ast.Number(1)},
+				{name("/key2"), ast.Number(2)},
+				{name("/key3"), ast.Number(3)},
+			},
+		},
+		{
+			name: "duplicate keys (should use first occurrence)",
+			rows: [][]ast.Constant{
+				{name("/key1"), ast.Number(1)},
+				{name("/key2"), ast.Number(2)},
+				{name("/key1"), ast.Number(10)}, // duplicate key, should be ignored
+			},
+		},
+		{
+			name: "empty input",
+			rows: [][]ast.Constant{},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var rows []ast.ConstSubstList
+			for _, row := range test.rows {
+				if len(row) > 0 {
+					rows = append(rows, makeConstSubstList(makeVarList(len(row)), row))
+				}
+			}
+
+			// CollectToMap expects exactly 2 arguments (key variable, value variable)
+			args := []ast.BaseTerm{ast.Variable{"X0"}, ast.Variable{"X1"}}
+			expr := ast.ApplyFn{symbols.CollectToMap, args}
+			got, err := EvalReduceFn(expr, rows)
+			if err != nil {
+				t.Fatalf("EvalReduceFn(%v,%v) failed with %v", expr, rows, err)
+			}
+
+			// Validate that we got a map
+			if got.Type != ast.MapShape {
+				t.Errorf("EvalReduceFn(%v,%v) returned %v (type %v), expected map", expr, rows, got, got.Type)
+				return
+			}
+
+			// For empty input, expect empty map
+			if len(test.rows) == 0 {
+				if !got.IsMapNil() {
+					t.Errorf("EvalReduceFn with empty input should return empty map, got %v", got)
+				}
+				return
+			}
+
+			// Check that all expected keys are present and duplicate keys are handled correctly
+			expectedKeys := make(map[string]ast.Constant)
+			for _, row := range test.rows {
+				key := row[0]
+				value := row[1]
+				keyStr := key.String()
+				if _, exists := expectedKeys[keyStr]; !exists {
+					expectedKeys[keyStr] = value
+				}
+			}
+
+			actualEntries := make(map[string]ast.Constant)
+			_, _ = got.MapValues(func(key, val ast.Constant) error {
+				actualEntries[key.String()] = val
+				return nil
+			}, func() error { return nil })
+
+			// Check lengths match
+			if len(actualEntries) != len(expectedKeys) {
+				t.Errorf("Expected %d entries, got %d", len(expectedKeys), len(actualEntries))
+			}
+
+			// Check each expected key-value pair
+			for keyStr, expectedVal := range expectedKeys {
+				actualVal, exists := actualEntries[keyStr]
+				if !exists {
+					t.Errorf("Missing key %s", keyStr)
+				} else if !actualVal.Equals(expectedVal) {
+					t.Errorf("For key %s, expected %v, got %v", keyStr, expectedVal, actualVal)
+				}
+			}
+		})
+	}
+}
+
+func TestCollectToMapIntegration(t *testing.T) {
+	// Test that our new CollectToMap works with the broader function evaluation system
+
+	// Create some test data representing key-value pairs
+	keyVals := []ast.Constant{
+		name("/key1"), ast.Number(100),
+		name("/key2"), ast.Number(200),
+		name("/key3"), ast.Number(300),
+	}
+
+	// Create a map using the Map function
+	mapExpr := ast.ApplyFn{symbols.Map, []ast.BaseTerm{
+		keyVals[0], keyVals[1],
+		keyVals[2], keyVals[3],
+		keyVals[4], keyVals[5],
+	}}
+
+	result, err := EvalApplyFn(mapExpr, ast.ConstSubstMap{})
+	if err != nil {
+		t.Fatalf("Failed to create map: %v", err)
+	}
+
+	if result.Type != ast.MapShape {
+		t.Errorf("Expected map, got %v", result.Type)
+	}
+
+	// Test that we can look up values in the created map
+	lookup1 := ast.ApplyFn{symbols.MapGet, []ast.BaseTerm{result, keyVals[0]}}
+	val1, err := EvalApplyFn(lookup1, ast.ConstSubstMap{})
+	if err != nil {
+		t.Fatalf("Failed to lookup key: %v", err)
+	}
+
+	if !val1.Equals(keyVals[1]) {
+		t.Errorf("Expected %v, got %v", keyVals[1], val1)
+	}
+}
+
+func TestReducerCollectToMapErrors(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        []ast.BaseTerm
+		expectedErr string
+	}{
+		{
+			name:        "wrong number of arguments - too few",
+			args:        []ast.BaseTerm{ast.Variable{"X0"}},
+			expectedErr: "collect_to_map requires exactly 2 arguments (key, value), got 1",
+		},
+		{
+			name:        "wrong number of arguments - too many",
+			args:        []ast.BaseTerm{ast.Variable{"X0"}, ast.Variable{"X1"}, ast.Variable{"X2"}},
+			expectedErr: "collect_to_map requires exactly 2 arguments (key, value), got 3",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			expr := ast.ApplyFn{symbols.CollectToMap, test.args}
+			var rows []ast.ConstSubstList // empty rows
+			_, err := EvalReduceFn(expr, rows)
+			if err == nil {
+				t.Errorf("Expected error, but got none")
+			} else if err.Error() != test.expectedErr {
+				t.Errorf("Expected error %q, got %q", test.expectedErr, err.Error())
+			}
+		})
+	}
+}

@@ -747,6 +747,56 @@ func EvalReduceFn(reduceFn ast.ApplyFn, rows []ast.ConstSubstList) (ast.Constant
 			tuples = &next
 		}
 		return *tuples, nil
+	case symbols.CollectToMap.Symbol:
+		if len(reduceFn.Args) != 2 {
+			return ast.Constant{}, fmt.Errorf("collect_to_map requires exactly 2 arguments (key, value), got %d", len(reduceFn.Args))
+		}
+
+		kvMap := make(map[*ast.Constant]*ast.Constant)
+		seen := make(map[uint64][]ast.Constant)
+
+	mapRowLoop:
+		for _, subst := range rows {
+			keyTerm, err := EvalExpr(reduceFn.Args[0], subst)
+			if err != nil {
+				continue mapRowLoop
+			}
+			keyConstant, ok := keyTerm.(ast.Constant)
+			if !ok {
+				continue mapRowLoop
+			}
+
+			valueTerm, err := EvalExpr(reduceFn.Args[1], subst)
+			if err != nil {
+				continue mapRowLoop
+			}
+			valueConstant, ok := valueTerm.(ast.Constant)
+			if !ok {
+				continue mapRowLoop
+			}
+
+			// Check if we've seen this key before (for deduplication)
+			keyHash := keyConstant.Hash()
+			if existingKeys, exists := seen[keyHash]; exists {
+				shouldSkip := false
+				for _, existingKey := range existingKeys {
+					if existingKey.Equals(keyConstant) {
+						shouldSkip = true
+						break
+					}
+				}
+				if shouldSkip {
+					continue mapRowLoop
+				}
+				seen[keyHash] = append(existingKeys, keyConstant)
+			} else {
+				seen[keyHash] = []ast.Constant{keyConstant}
+			}
+
+			kvMap[&keyConstant] = &valueConstant
+		}
+
+		return *ast.Map(kvMap), nil
 	case symbols.Count.Symbol:
 		return ast.Number(int64(len(rows))), nil
 	case symbols.CountDistinct.Symbol:

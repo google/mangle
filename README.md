@@ -1,3 +1,7 @@
+<center>
+  <img src="mangle_logo.png" width="50%">
+</center>
+
 # Mangle
 
 Mangle is a programming language for deductive database programming. It
@@ -23,14 +27,14 @@ a way that is accessible to developers and lends itself to easy experimentation.
 This repository contains an implementation of Mangle as a go library that can be
 easily embedded into applications.
 
-Check out the [docs](docs/README.md) and the
-[GitHub discussions](https://github.com/google/mangle/discussions) for more
-information. There is also a Q&A section.
+Check out the [users documentation](https://mangle.readthedocs.io/en/latest/)
+and the [GitHub discussions](https://github.com/google/mangle/discussions)
+for more information. There is also a Q&A section.
 
 For an example how to use Mangle library in a database-like grpc service,
 see the separate [Mangle demo service repo](https://github.com/burakemir/mangle-service).
 
-This is not an officially supported Google product. 
+This is not an officially supported Google product.
 
 ## Table of Contents
 - [Examples](#examples)

@@ -797,7 +797,58 @@ func EvalReduceFn(reduceFn ast.ApplyFn, rows []ast.ConstSubstList) (ast.Constant
 		}
 
 		return *ast.Map(kvMap), nil
+	case symbols.GroupMap.Symbol:
+		if len(reduceFn.Args) != 2 {
+			return ast.Constant{}, fmt.Errorf("group_map requires exactly 2 arguments (key, value), got %d", len(reduceFn.Args))
+		}
+
+		groupMap := make(map[uint64][]ast.Constant)
+		keyMap := make(map[uint64]ast.Constant) // To keep track of actual keys
+
+	groupMapRowLoop:
+		for _, subst := range rows {
+			keyTerm, err := EvalExpr(reduceFn.Args[0], subst)
+			if err != nil {
+				continue groupMapRowLoop
+			}
+			keyConstant, ok := keyTerm.(ast.Constant)
+			if !ok {
+				continue groupMapRowLoop
+			}
+
+			valueTerm, err := EvalExpr(reduceFn.Args[1], subst)
+			if err != nil {
+				continue groupMapRowLoop
+			}
+			valueConstant, ok := valueTerm.(ast.Constant)
+			if !ok {
+				continue groupMapRowLoop
+			}
+
+			keyHash := keyConstant.Hash()
+			groupMap[keyHash] = append(groupMap[keyHash], valueConstant)
+			keyMap[keyHash] = keyConstant
+		}
+
+		// Convert to Mangle map: each key maps to a list of values
+		result := ast.MapNil
+		for keyHash, values := range groupMap {
+			actualKey := keyMap[keyHash]
+			
+			// Convert values slice to list (in reverse order for proper list construction)
+			valuesList := ast.ListNil
+			for i := len(values) - 1; i >= 0; i-- {
+				valuesList = ast.ListCons(&values[i], &valuesList)
+			}
+			
+			result = ast.MapCons(&actualKey, &valuesList, &result)
+		}
+		
+		return result, nil
 	case symbols.Count.Symbol:
+		return ast.Number(int64(len(rows))), nil
+	case symbols.GroupSize.Symbol:
+		// GroupSize is the same as Count but part of the new aggregation syntax
 		return ast.Number(int64(len(rows))), nil
 	case symbols.CountDistinct.Symbol:
 		domain := rows[0].Domain()

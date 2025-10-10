@@ -58,6 +58,11 @@ clauseBody
 transform
     : 'do' term (',' letStmt (',' letStmt)*)?
     | letStmt (',' letStmt)*
+    | scriptBlock
+    ;
+
+scriptBlock
+    : LBRACE SCRIPT_BODY RBRACE
     ;
 
 letStmt
@@ -124,6 +129,8 @@ GREATER : '>';
 GREATEREQ : '>=';
 COLONDASH : ':-';
 NEWLINE : '\n';
+LBRACE : '{';
+RBRACE : '}';
 PIPEGREATER : '|>';
 
 fragment LETTER : 'A'..'Z' | 'a'..'z' ;
@@ -191,6 +198,10 @@ fragment STRING_ESCAPE_SEQ
  ;
 
 fragment HEXDIGIT : 'a'..'f' | '0'..'9';
+
+mode SCRIPT_MODE;
+SCRIPT_BODY: ~[}]+;
+RBRACE_IN_SCRIPT: '}' -> popMode;
 
 
 

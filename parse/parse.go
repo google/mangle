@@ -360,7 +360,7 @@ func (p Parser) VisitTransform(ctx *gen.TransformContext) any {
 	for _, l := range ctx.AllLetStmt() {
 		stmts = append(stmts, p.Visit(l).(ast.TransformStmt))
 	}
-	return ast.Transform{stmts, nil}
+	return ast.Transform{Statements: stmts}
 }
 
 // VisitLetStmt visits a parse tree produced by MangleParser#letStmt.

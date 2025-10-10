@@ -1,0 +1,47 @@
+# Example demonstrating the new aggregation syntax
+# This addresses GitHub issue #52: "suggested syntax for aggregation"
+
+# Sample data representing vulnerable projects (from the original issue example)
+projects_with_vulnerable_log4j(/project1).
+projects_with_vulnerable_log4j(/project2).
+projects_with_vulnerable_log4j(/project3).
+
+# Original issue requested syntax like:
+# count_projects_with_vulnerable_log4j(Num) :-
+#   projects_with_vulnerable_log4j(P)
+#   |> { AllVulnProjects =>
+#     val groups = AllVulnProjects.groupBy { it.projectId }
+#     val Num = groups.values.sumOf { it.size }
+#   }
+
+# New implementation provides equivalent functionality:
+count_projects_with_vulnerable_log4j(Num) :-
+  projects_with_vulnerable_log4j(P)
+  |> do fn:aggregate_by(), let Num = fn:group_size().
+
+# Additional capabilities enabled by the new syntax:
+
+# 1. Group projects by type and count each group
+project_type(/project1, /web).
+project_type(/project2, /api).
+project_type(/project3, /web).
+
+projects_by_type(TypeMap) :-
+  project_type(Project, Type)
+  |> do fn:aggregate_by(), let TypeMap = fn:group_map(Type, Project).
+# Result: {/web: [/project1, /project3], /api: [/project2]}
+
+# 2. More complex aggregation - dependencies grouped by project
+has_dependency(/project1, /log4j).
+has_dependency(/project1, /junit).
+has_dependency(/project2, /log4j).
+has_dependency(/project3, /spring).
+
+project_dependencies(DepsMap) :-
+  has_dependency(Project, Dependency)
+  |> do fn:aggregate_by(), let DepsMap = fn:group_map(Project, Dependency).
+# Result: {/project1: [/log4j, /junit], /project2: [/log4j], /project3: [/spring]}
+
+# 3. Backward compatibility - existing syntax still works
+count_dependencies_old_syntax(N) :-
+  has_dependency(P, D) |> do fn:group_by(), let N = fn:count().

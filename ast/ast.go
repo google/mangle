@@ -944,13 +944,19 @@ func (f FunctionSym) String() string {
 // Transform represents a transformation of the relation of a clause. e.g. fn:max or fn:group_by
 type Transform struct {
 	Statements []TransformStmt
+	Script     string
 	Next       *Transform
 }
 
 // IsLetTransform returns true if transform is a let-transform.
 // The other case is a do-transform which starts with "do fn:group_by()".
 func (t Transform) IsLetTransform() bool {
-	return t.Statements[0].Var != nil
+	return len(t.Statements) > 0 && t.Statements[0].Var != nil
+}
+
+// IsScriptTransform returns true if transform is a script-transform.
+func (t Transform) IsScriptTransform() bool {
+	return t.Script != ""
 }
 
 // TransformStmt describes how to transform the relation of a rule.

@@ -119,9 +119,20 @@ var (
 	// Avg reduces a set { x_1,...x_n } to { fn:sum(x_1,...,x_n) /  n }.
 	Avg = ast.FunctionSym{"fn:avg", 1}
 
+	// GroupMap creates a map from key expressions to collections of values.
+	// Used with aggregate_by: fn:group_map(KeyVar, ValueVar)
+	GroupMap = ast.FunctionSym{"fn:group_map", 2}
+	// GroupSize returns the count of elements in each group after grouping.
+	// Usage: fn:group_size() after fn:group_by or fn:aggregate_by
+	GroupSize = ast.FunctionSym{"fn:group_size", 0}
+
 	// GroupBy groups all tuples by the values of key variables, e.g. 'group_by(X)'.
 	// An empty group_by() treats the whole relation as a group.
 	GroupBy = ast.FunctionSym{"fn:group_by", -1}
+
+	// AggregateBy provides advanced aggregation capabilities with a more expressive syntax.
+	// Usage: |> do fn:aggregate_by(...), let Var = fn:group_map(keyExpr, valueExpr)
+	AggregateBy = ast.FunctionSym{"fn:aggregate_by", -1}
 
 	// Append appends a element to a list.
 	Append = ast.FunctionSym{"fn:list:append", 2}

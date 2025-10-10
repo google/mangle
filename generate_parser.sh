@@ -4,5 +4,5 @@
 #wget http://www.antlr.org/download/antlr-4.13.1-complete.jar
 #
 # Or update path to antlr jar, if necessary.
-alias antlr4='java -jar antlr-4.13.1-complete.jar'
+alias antlr4='java -jar antlr-4.13.2-complete.jar'
 antlr4 -Dlanguage=Go -package gen -o ./ parse/gen/Mangle.g4 -visitor

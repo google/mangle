@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mangle Core Datalog Grammar - Railroad Diagrams</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #555;
+            margin-top: 30px;
+        }
+        .grammar-rule {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            margin: 15px 0;
+            padding: 15px;
+        }
+        .rule-name {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+        .rule-definition {
+            font-family: 'Courier New', monospace;
+            margin-top: 8px;
+            color: #34495e;
+            line-height: 1.4;
+        }
+        .note {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .ebnf-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            text-align: center;
+            color: #666;
+        }
+        .copy-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .copy-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mangle Core Datalog Grammar - Railroad Diagrams</h1>
+        
+        <div class="note">
+            <strong>🚂 Interactive Railroad Diagrams:</strong> Copy the EBNF grammar below and paste it into 
+            <a href="https://www.bottlecaps.de/rr/ui" target="_blank">https://www.bottlecaps.de/rr/ui</a>
+            on the "Edit Grammar" tab, then click "View Diagram" to see beautiful interactive railroad diagrams!
+        </div>
+
+        <h2>EBNF Grammar</h2>
+        <button class="copy-button" onclick="copyToClipboard('ebnf-content')">📋 Copy Grammar</button>
+        <div class="ebnf-box" id="ebnf-content">clause ::= atom ( &#x27;:-&#x27; clauseBody )? &#x27;.&#x27;
+clauseBody ::= literal ( &#x27;,&#x27; literal )*
+literal ::= atom | &#x27;!&#x27; atom  
+atom ::= predicateName &#x27;(&#x27; varOrConstant ( &#x27;,&#x27; varOrConstant )* &#x27;)&#x27;
+varOrConstant ::= variable | constant
+predicateName ::= NAME
+variable ::= VARIABLE
+constant ::= CONSTANT | NUMBER | STRING</div>
+
+        <h2>Individual Grammar Rules</h2>
+
+        <div class="grammar-rule">
+            <div class="rule-name">clause</div>
+            <div class="rule-definition">atom ( &#x27;:-&#x27; clauseBody )? &#x27;.&#x27;</div>
+        </div>
+
+        <div class="grammar-rule">
+            <div class="rule-name">clauseBody</div>
+            <div class="rule-definition">literal ( &#x27;,&#x27; literal )*</div>
+        </div>
+
+        <div class="grammar-rule">
+            <div class="rule-name">literal</div>
+            <div class="rule-definition">atom | &#x27;!&#x27; atom</div>
+        </div>
+
+        <div class="grammar-rule">
+            <div class="rule-name">atom</div>
+            <div class="rule-definition">predicateName &#x27;(&#x27; varOrConstant ( &#x27;,&#x27; varOrConstant )* &#x27;)&#x27;</div>
+        </div>
+
+        <div class="grammar-rule">
+            <div class="rule-name">varOrConstant</div>
+            <div class="rule-definition">variable | constant</div>
+        </div>
+
+        <div class="grammar-rule">
+            <div class="rule-name">predicateName</div>
+            <div class="rule-definition">NAME</div>
+        </div>
+
+        <div class="grammar-rule">
+            <div class="rule-name">variable</div>
+            <div class="rule-definition">VARIABLE</div>
+        </div>
+
+        <div class="grammar-rule">
+            <div class="rule-name">constant</div>
+            <div class="rule-definition">CONSTANT | NUMBER | STRING</div>
+        </div>
+
+        <div class="footer">
+            <p>Generated for <a href="https://github.com/google/mangle/issues/3" target="_blank">Mangle Issue #3: Grammar railroad diagram</a></p>
+            <h3>How to Generate Interactive Railroad Diagrams:</h3>
+            <ol>
+                <li>Click the "📋 Copy Grammar" button above</li>
+                <li>Go to <a href="https://www.bottlecaps.de/rr/ui" target="_blank">https://www.bottlecaps.de/rr/ui</a></li>
+                <li>Paste the grammar in the "Edit Grammar" tab</li>
+                <li>Click "View Diagram" to see the interactive railroad diagrams</li>
+                <li>Navigate through the grammar rules using the diagram interface</li>
+            </ol>
+            <p><em>Generated by scripts/generate_railroad_diagrams.py</em></p>
+        </div>
+    </div>
+
+    <script>
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+            
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(function() {
+                    alert('✅ Grammar copied to clipboard!');
+                });
+            } else {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('✅ Grammar copied to clipboard!');
+            }
+        }
+    </script>
+</body>
+</html>

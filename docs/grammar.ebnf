@@ -1,0 +1,69 @@
+// Mangle Core Datalog Grammar (EBNF)
+// Copy this to https://www.bottlecaps.de/rr/ui for interactive diagrams
+
+clause ::= atom ( ':-' clauseBody )? '.'
+clauseBody ::= literal ( ',' literal )*
+literal ::= atom | '!' atom  
+atom ::= predicateName '(' varOrConstant ( ',' varOrConstant )* ')'
+varOrConstant ::= variable | constant
+predicateName ::= NAME
+variable ::= VARIABLE
+constant ::= CONSTANT | NUMBER | STRING
+
+// Complete Mangle Grammar (EBNF)
+
+start ::= program EOF
+
+program ::= packageDecl? useDecl* ( decl | clause )*
+
+packageDecl ::= 'Package' NAME atoms? '!'
+
+useDecl ::= 'Use' NAME atoms? '!'
+
+decl ::= 'Decl' atom descrBlock? boundsBlock* constraintsBlock? '.'
+
+descrBlock ::= 'descr' atoms
+
+boundsBlock ::= 'bound' '[' ( term ',' )* term? ']'
+
+constraintsBlock ::= 'inclusion' atoms
+
+clause ::= atom ( ( ':-' | '⟸' ) clauseBody )? '.'
+
+clauseBody ::= literalOrFml ( ',' literalOrFml )* ','? ( '|>' transform )*
+
+transform ::= 'do' term ( ',' letStmt ( ',' letStmt )* )?
+            | letStmt ( ',' letStmt )*
+
+letStmt ::= 'let' VARIABLE '=' term
+
+literalOrFml ::= term ( ( '=' | '!=' | '<' | '<=' | '>' | '>=' ) term )?
+               | '!' term
+
+term ::= VARIABLE
+       | CONSTANT  
+       | NUMBER
+       | FLOAT
+       | STRING
+       | BYTESTRING
+       | '[' ( term ',' )* term? ']'
+       | '[' ( term ':' term ',' )* ( term ':' term )? ']'
+       | '{' ( term ':' term ',' )* ( term ':' term )? '}'
+       | DOT_TYPE '<' ( member ',' )* ( member ','? )? '>'
+       | NAME '(' ( term ',' )* term? ')'
+
+member ::= term ( ':' term )?
+         | 'opt' term ':' term
+
+atom ::= term
+
+atoms ::= '[' ( atom ',' )* atom? ']'
+
+VARIABLE ::= '_' | ( 'A'..'Z' ( 'A'..'Z' | 'a'..'z' | '0'..'9' )* )
+NAME ::= ':'? ( 'a'..'z' ) ( 'a'..'z' | 'A'..'Z' | '0'..'9' | ':' | '_' | '.' )*
+CONSTANT ::= '/' ( 'a'..'z' | 'A'..'Z' | '0'..'9' | '.' | '-' | '_' | '~' | '%' )+ ( '/' ( 'a'..'z' | 'A'..'Z' | '0'..'9' | '.' | '-' | '_' | '~' | '%' )+ )*
+NUMBER ::= '-'? ( '0'..'9' )+
+FLOAT ::= '-'? ( '0'..'9' )+ '.' ( '0'..'9' )+ ( ( 'e' | 'E' ) ( '+' | '-' )? ( '0'..'9' )+ )?
+STRING ::= '"' ( ~[\"] | '\' . )* '"' | "'" ( ~[\'] | '\' . )* "'" | '`' ( ~[\\] | '\' . )* '`'
+BYTESTRING ::= 'b' STRING
+DOT_TYPE ::= '.' ( 'A'..'Z' ) ( 'a'..'z' | 'A'..'Z' | '0'..'9' | ':' | '_' | '.' )*

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-Script to generate railroad diagrams for Mangle grammar.
+Script to generate grammar documentation for Mangle.
 This addresses GitHub issue #3: "Grammar railroad diagram"
+
+Generates MyST markdown documentation for the Sphinx-based readthedocs system.
 
 Usage:
     python3 scripts/generate_railroad_diagrams.py
@@ -12,7 +14,6 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-import html
 
 def create_simplified_core_grammar():
     """
@@ -88,193 +89,147 @@ STRING ::= '"' ( ~[\\"] | '\\' . )* '"' | "'" ( ~[\\'] | '\\' . )* "'" | '`' ( ~
 BYTESTRING ::= 'b' STRING
 DOT_TYPE ::= '.' ( 'A'..'Z' ) ( 'a'..'z' | 'A'..'Z' | '0'..'9' | ':' | '_' | '.' )*'''
 
-def generate_railroad_diagram_html(ebnf_grammar, title, output_file):
+def generate_grammar_documentation():
     """
-    Generate an HTML file with railroad diagrams using a JavaScript library.
-    This creates a self-contained HTML file that can be opened in a browser.
+    Generate the complete grammar documentation as MyST markdown.
     """
+    core_grammar = create_simplified_core_grammar()
+    full_grammar = create_full_ebnf_grammar()
     
-    # HTML template with railroad diagram generator
-    html_template = f'''<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title}</title>
-    <style>
-        body {{
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 20px;
-            background-color: #f5f5f5;
-        }}
-        .container {{
-            max-width: 1200px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }}
-        h1 {{
-            color: #333;
-            text-align: center;
-            border-bottom: 2px solid #4CAF50;
-            padding-bottom: 10px;
-        }}
-        h2 {{
-            color: #555;
-            margin-top: 30px;
-        }}
-        .grammar-rule {{
-            background-color: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 4px;
-            margin: 15px 0;
-            padding: 15px;
-        }}
-        .rule-name {{
-            font-weight: bold;
-            color: #2c3e50;
-            font-size: 16px;
-        }}
-        .rule-definition {{
-            font-family: 'Courier New', monospace;
-            margin-top: 8px;
-            color: #34495e;
-            line-height: 1.4;
-        }}
-        .note {{
-            background-color: #e3f2fd;
-            border-left: 4px solid #2196F3;
-            padding: 15px;
-            margin: 20px 0;
-        }}
-        .ebnf-box {{
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            padding: 20px;
-            margin: 20px 0;
-            font-family: 'Courier New', monospace;
-            white-space: pre-wrap;
-            overflow-x: auto;
-        }}
-        .footer {{
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            text-align: center;
-            color: #666;
-        }}
-        .copy-button {{
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-bottom: 10px;
-        }}
-        .copy-button:hover {{
-            background-color: #0056b3;
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>{title}</h1>
-        
-        <div class="note">
-            <strong>🚂 Interactive Railroad Diagrams:</strong> Copy the EBNF grammar below and paste it into 
-            <a href="https://www.bottlecaps.de/rr/ui" target="_blank">https://www.bottlecaps.de/rr/ui</a>
-            on the "Edit Grammar" tab, then click "View Diagram" to see beautiful interactive railroad diagrams!
-        </div>
+    return f"""# Grammar Reference
 
-        <h2>EBNF Grammar</h2>
-        <button class="copy-button" onclick="copyToClipboard('ebnf-content')">📋 Copy Grammar</button>
-        <div class="ebnf-box" id="ebnf-content">{html.escape(ebnf_grammar)}</div>
+This section provides a comprehensive reference for the Mangle language grammar, addressing [Issue #3](https://github.com/google/mangle/issues/3).
 
-        <h2>Individual Grammar Rules</h2>
-'''
+The Mangle language is built on Datalog with extensions for structured data, aggregation, and type declarations. This grammar reference is organized into two main sections:
 
-    # Parse and display individual rules
-    rules = []
-    for line in ebnf_grammar.strip().split('\n'):
-        line = line.strip()
-        if '::=' in line:
-            rule_parts = line.split('::=', 1)
-            if len(rule_parts) == 2:
-                rule_name = rule_parts[0].strip()
-                rule_def = rule_parts[1].strip()
-                rules.append((rule_name, rule_def))
-    
-    for rule_name, rule_def in rules:
-        html_template += f'''
-        <div class="grammar-rule">
-            <div class="rule-name">{html.escape(rule_name)}</div>
-            <div class="rule-definition">{html.escape(rule_def)}</div>
-        </div>
-'''
-    
-    html_template += f'''
-        <div class="footer">
-            <p>Generated for <a href="https://github.com/google/mangle/issues/3" target="_blank">Mangle Issue #3: Grammar railroad diagram</a></p>
-            <h3>How to Generate Interactive Railroad Diagrams:</h3>
-            <ol>
-                <li>Click the "📋 Copy Grammar" button above</li>
-                <li>Go to <a href="https://www.bottlecaps.de/rr/ui" target="_blank">https://www.bottlecaps.de/rr/ui</a></li>
-                <li>Paste the grammar in the "Edit Grammar" tab</li>
-                <li>Click "View Diagram" to see the interactive railroad diagrams</li>
-                <li>Navigate through the grammar rules using the diagram interface</li>
-            </ol>
-            <p><em>Generated by scripts/generate_railroad_diagrams.py</em></p>
-        </div>
-    </div>
+- **Core Datalog Grammar** - Essential constructs for facts, rules, and basic queries
+- **Extended Mangle Grammar** - Complete language including packages, types, and structured data
 
-    <script>
-        function copyToClipboard(elementId) {{
-            const element = document.getElementById(elementId);
-            const text = element.textContent;
-            
-            if (navigator.clipboard) {{
-                navigator.clipboard.writeText(text).then(function() {{
-                    alert('✅ Grammar copied to clipboard!');
-                }});
-            }} else {{
-                // Fallback for older browsers
-                const textArea = document.createElement('textarea');
-                textArea.value = text;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-                alert('✅ Grammar copied to clipboard!');
-            }}
-        }}
-    </script>
-</body>
-</html>
-'''
+## Core Datalog Grammar
 
-    # Write the HTML file
-    with open(output_file, 'w', encoding='utf-8') as f:
-        f.write(html_template)
+The core Datalog grammar covers the fundamental constructs that form the foundation of Mangle programs:
+
+### Basic Structure
+
+```ebnf
+{core_grammar}
+```
+
+### Examples
+
+Basic facts:
+```mangle
+parent(/john, /mary).
+age(/john, 35).
+```
+
+Rules with variables:
+```mangle
+grandparent(X, Z) :- parent(X, Y), parent(Y, Z).
+adult(Person) :- age(Person, Age), Age >= 18.
+```
+
+Negation:
+```mangle
+unmarried(Person) :- person(Person), !married(Person).
+```
+
+## Extended Mangle Grammar
+
+The complete Mangle grammar includes additional constructs for building larger, structured programs:
+
+```ebnf
+{full_grammar}
+```
+
+## Usage Examples
+
+### Simple Facts and Queries
+```mangle
+# Facts
+parent(/alice, /bob).
+parent(/bob, /charlie).
+age(/alice, 45).
+
+# Rules
+grandparent(X, Z) :- parent(X, Y), parent(Y, Z).
+older(X, Y) :- age(X, AgeX), age(Y, AgeY), AgeX > AgeY.
+```
+
+### Structured Data
+```mangle
+# Employee records
+employee(.Employee<
+  id: 1001,
+  name: /john_doe,
+  department: /engineering,
+  salary: 75000
+>).
+
+# Processing with aggregation
+dept_avg_salary(Dept, Avg) :-
+  employee(.Employee<department: Dept, salary: Salary>),
+  |> do fn:avg(Salary), let Avg = _.
+```
+
+### Type Declarations
+```mangle
+Decl employee(id:int, name:string, dept:string, salary:float)
+  descr ["Employee information"]
+  bound [1000..9999]
+  inclusion [engineering, marketing, sales]
+  .
+```
+
+## Grammar Rules Summary
+
+### Core Rules
+- **clause** - Facts and rules (with optional body)
+- **atom** - Predicate applications with arguments
+- **literal** - Positive or negative atoms
+- **variable** - Uppercase identifiers for unknowns
+- **constant** - Forward-slash prefixed identifiers
+
+### Extended Rules  
+- **program** - Complete Mangle programs with packages
+- **decl** - Type and schema declarations
+- **transform** - Aggregation and data processing pipelines
+- **term** - All value expressions (variables, constants, structured data)
+- **member** - Fields in structured types
+
+## Regenerating This Documentation
+
+This grammar reference is generated from the ANTLR grammar file. To regenerate after grammar changes:
+
+```bash
+cd /path/to/mangle
+python3 scripts/generate_railroad_diagrams.py
+```
+
+The generator script will update this file and maintain consistency with the actual parser grammar.
+
+---
+
+*This grammar reference addresses [Issue #3](https://github.com/google/mangle/issues/3) by providing comprehensive syntax documentation integrated into the main documentation system.*
+"""
 
 def main():
-    """Main function to generate railroad diagrams."""
+    """Main function to generate grammar documentation."""
     
     # Paths
     script_dir = Path(__file__).parent
     project_root = script_dir.parent
     grammar_file = project_root / 'parse' / 'gen' / 'Mangle.g4'
+    readthedocs_dir = project_root / 'readthedocs'
     docs_dir = project_root / 'docs'
     
-    # Ensure docs directory exists
+    # Ensure directories exist
+    readthedocs_dir.mkdir(exist_ok=True)
     docs_dir.mkdir(exist_ok=True)
     
-    print("🚂 Generating Railroad Diagrams for Mangle Grammar...")
+    print("📝 Generating Grammar Documentation for Mangle...")
     print(f"📁 Project root: {project_root}")
-    print(f"📁 Docs directory: {docs_dir}")
+    print(f"📁 Readthedocs directory: {readthedocs_dir}")
     
     if not grammar_file.exists():
         print(f"❌ Grammar file not found: {grammar_file}")
@@ -282,30 +237,21 @@ def main():
     else:
         print(f"✅ Found grammar file: {grammar_file}")
     
-    # Generate core simplified grammar
-    print("📝 Creating core Datalog grammar...")
-    core_grammar = create_simplified_core_grammar()
-    core_output = docs_dir / 'grammar_railroad_core.html'
-    generate_railroad_diagram_html(
-        core_grammar,
-        "Mangle Core Datalog Grammar - Railroad Diagrams",
-        core_output
-    )
-    print(f"✅ Core grammar diagram saved to: {core_output}")
+    # Generate MyST markdown documentation for Sphinx
+    print("📝 Creating grammar documentation for readthedocs...")
+    grammar_content = generate_grammar_documentation()
+    grammar_output = readthedocs_dir / 'grammar.md'
     
-    # Generate full grammar
-    print("📝 Creating complete grammar...")
-    full_grammar = create_full_ebnf_grammar()
-    full_output = docs_dir / 'grammar_railroad_full.html'
-    generate_railroad_diagram_html(
-        full_grammar,
-        "Mangle Complete Grammar - Railroad Diagrams", 
-        full_output
-    )
-    print(f"✅ Full grammar diagram saved to: {full_output}")
+    with open(grammar_output, 'w', encoding='utf-8') as f:
+        f.write(grammar_content)
     
-    # Generate EBNF file for easy copying
+    print(f"✅ Grammar documentation saved to: {grammar_output}")
+    
+    # Generate EBNF file for easy reference
     ebnf_output = docs_dir / 'grammar.ebnf'
+    core_grammar = create_simplified_core_grammar()
+    full_grammar = create_full_ebnf_grammar()
+    
     with open(ebnf_output, 'w', encoding='utf-8') as f:
         f.write("// Mangle Core Datalog Grammar (EBNF)\n")
         f.write("// Copy this to https://www.bottlecaps.de/rr/ui for interactive diagrams\n\n")
@@ -315,109 +261,15 @@ def main():
     
     print(f"✅ EBNF grammar saved to: {ebnf_output}")
     
-    # Create documentation
-    readme_content = '''# Mangle Grammar Railroad Diagrams
-
-This directory contains railroad diagram documentation for the Mangle language grammar, addressing [Issue #3](https://github.com/google/mangle/issues/3).
-
-## Files
-
-- **`grammar_railroad_core.html`** - Interactive railroad diagrams for core Datalog syntax
-- **`grammar_railroad_full.html`** - Interactive railroad diagrams for complete Mangle grammar  
-- **`grammar.ebnf`** - EBNF grammar file for use with external tools
-- **`README_grammar.md`** - This documentation file
-
-## Quick Start
-
-1. **View Static Diagrams**: Open the HTML files in your web browser
-2. **Interactive Diagrams**: 
-   - Open either HTML file in your browser
-   - Click the "📋 Copy Grammar" button
-   - Go to [https://www.bottlecaps.de/rr/ui](https://www.bottlecaps.de/rr/ui)
-   - Paste the grammar in the "Edit Grammar" tab
-   - Click "View Diagram" for beautiful interactive railroad diagrams!
-
-## Core Datalog Grammar
-
-The **core grammar** (`grammar_railroad_core.html`) focuses on essential Datalog constructs:
-- **Clauses and atoms** - Basic facts and rules
-- **Literals** - Positive and negative conditions  
-- **Variables and constants** - Data elements
-- **Predicates** - Relation names
-
-Example core syntax:
-```prolog
-parent(john, mary).           % Fact
-grandparent(X, Z) :- parent(X, Y), parent(Y, Z).  % Rule with variables
-```
-
-## Complete Grammar  
-
-The **full grammar** (`grammar_railroad_full.html`) includes all Mangle language features:
-- **Package declarations** - Module system
-- **Type declarations** - Schema definitions with bounds and constraints
-- **Aggregation transforms** - Data processing pipelines
-- **Structured data** - Lists, maps, and structured types
-- **Comparison operators** - Numeric and string comparisons
-
-## Grammar Rules Overview
-
-### Core Rules
-- `clause` - Top-level facts and rules
-- `atom` - Predicate applications  
-- `literal` - Atoms with optional negation
-- `varOrConstant` - Variable or constant values
-
-### Extended Rules
-- `program` - Complete Mangle programs
-- `decl` - Type and schema declarations
-- `transform` - Aggregation and data processing
-- `term` - All value expressions (atoms, lists, maps, etc.)
-
-## Regenerating Diagrams
-
-To regenerate these diagrams after grammar changes:
-
-```bash
-cd /path/to/mangle
-python3 scripts/generate_railroad_diagrams.py
-```
-
-## References
-
-- 🎫 [Original Issue #3](https://github.com/google/mangle/issues/3) - Request for railroad diagrams
-- 🚂 [Bottlecaps Railroad Diagram Generator](https://www.bottlecaps.de/rr/ui) - Interactive diagram tool
-- 🔄 [ANTLR to EBNF Converter](https://www.bottlecaps.de/convert/) - Grammar conversion tool
-- 📚 [Mangle Documentation](https://github.com/google/mangle) - Main project documentation
-
-## Contributing
-
-When modifying the Mangle grammar:
-1. Update the ANTLR grammar file (`parse/gen/Mangle.g4`)
-2. Run the railroad diagram generator
-3. Review the generated diagrams for clarity
-4. Update documentation as needed
-
----
-*Generated automatically by `scripts/generate_railroad_diagrams.py`*
-'''
-    
-    readme_output = docs_dir / 'README_grammar.md'
-    with open(readme_output, 'w', encoding='utf-8') as f:
-        f.write(readme_content)
-    
-    print(f"✅ Documentation saved to: {readme_output}")
-    
-    print("\n🎉 Railroad diagram generation complete!")
+    print("\n🎉 Grammar documentation generation complete!")
     print("\n📋 Files created:")
-    print(f"   📄 {core_output}")
-    print(f"   📄 {full_output}")  
+    print(f"   📄 {grammar_output}")
     print(f"   📄 {ebnf_output}")
-    print(f"   📄 {readme_output}")
     print("\n🚀 Next steps:")
-    print("1. Open the HTML files in your browser to view the diagrams")
-    print("2. Copy EBNF grammar to https://www.bottlecaps.de/rr/ui for interactive diagrams")
-    print("3. Review and commit the generated files")
+    print("1. The grammar documentation is now integrated into the Sphinx documentation")
+    print("2. Users can copy EBNF from docs/grammar.ebnf to https://www.bottlecaps.de/rr/ui for interactive diagrams")
+    print("3. Build the documentation with: cd readthedocs && sphinx-build . _build")
+    print("4. Review and commit the generated files")
     
     return 0
 

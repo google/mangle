@@ -1,3 +1,8 @@
+```{image} mangle_logo.png
+:alt: Mangle logo
+:align: center
+```
+
 # Mangle Datalog
 
 Mangle Datalog is a logic programming language and deductive database system.

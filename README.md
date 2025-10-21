@@ -1,6 +1,4 @@
-<center>
-  <img src="mangle_logo.png" width="50%">
-</center>
+<img src="https://github.com/google/mangle/blob/main/readthedocs/mangle_logo.png" width="50%">
 
 # Mangle
 

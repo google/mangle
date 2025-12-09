@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod pretty;
+pub use pretty::PrettyPrint;
+
 use bumpalo::Bump;
 use fxhash::FxHashMap;
 use std::cell::RefCell;
@@ -185,6 +188,17 @@ impl<'arena> Arena {
     pub fn predicate_name(&self, predicate_index: PredicateIndex) -> Option<&'static str> {
         let syms = self.predicate_syms.borrow();
         let i = predicate_index.0;
+        if i >= syms.len() {
+            return None;
+        }
+        let n = syms[i].name;
+        self.interner.lock().unwrap().lookup(n)
+    }
+
+    /// Given function index, returns name of function symbol.
+    pub fn function_name(&self, function_index: FunctionIndex) -> Option<&'static str> {
+        let syms = self.function_syms.borrow();
+        let i = function_index.0;
         if i >= syms.len() {
             return None;
         }
@@ -564,8 +578,30 @@ impl std::fmt::Display for Const<'_> {
             Const::List(v) => {
                 write!(f, "[{}]", v.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(", "))
             }
-            Const::Map { keys: _, values: _ } => write!(f, "{{...}}"),
-            Const::Struct { fields: _, values: _ } => write!(f, "{{...}}"),
+            Const::Map { keys, values } => {
+                if keys.is_empty() {
+                    write!(f, "fn:map()")
+                } else {
+                    write!(f, "[")?;
+                    for (i, (k, v)) in keys.iter().zip(values.iter()).enumerate() {
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{k}: {v}")?;
+                    }
+                    write!(f, "]")
+                }
+            }
+            Const::Struct { fields, values } => {
+                write!(f, "{{")?;
+                for (i, (field, val)) in fields.iter().zip(values.iter()).enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{field}: {val}")?;
+                }
+                write!(f, "}}")
+            }
         }
     }
 }
@@ -734,5 +770,26 @@ mod tests {
         }
         arena.interner.lock().unwrap().intern(&name);
         assert_that!(arena.predicate_name(p), eq(Some("/foo")));
+    }
+
+    #[test]
+    fn pretty_print_works() {
+        let arena = Arena::new_with_global_interner();
+        let foo = arena.const_(arena.name("/foo"));
+        let bar_pred = arena.predicate_sym("bar", Some(1));
+        let x_var = arena.variable("X");
+        let head = arena.atom(bar_pred, &[x_var]); // bar(X)
+
+        let premise = Term::Eq(x_var, foo);
+        let premise_ref = arena.alloc(premise);
+
+        let clause =
+            Clause { head, premises: arena.alloc_slice_copy(&[premise_ref]), transform: &[] };
+
+        assert_that!(clause.pretty(&arena).to_string(), eq("bar(X) :- X = /foo."));
+
+        let fun = arena.function_sym("f", Some(1));
+        let app = arena.apply_fn(fun, &[x_var]);
+        assert_that!(app.pretty(&arena).to_string(), eq("f(X)"));
     }
 }

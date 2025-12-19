@@ -68,6 +68,11 @@ func Escape(str string, isBytes bool) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		if r == utf8.RuneError {
+			if len(str)-len(rest) == 1 {
+				return "", fmt.Errorf("invalid UTF-8 encoding")
+			}
+		}
 		str = rest
 		buf = append(buf, `\u{`...)
 		for j := 2; 0 <= j; j-- {

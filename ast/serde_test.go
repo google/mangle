@@ -87,3 +87,12 @@ func TestBad(t *testing.T) {
 		})
 	}
 }
+
+func TestEscapeInvalidUTF8(t *testing.T) {
+	// 0xff is invalid in UTF-8
+	invalidStr := string([]byte{0xff})
+	got, err := Escape(invalidStr, false)
+	if err == nil {
+		t.Errorf("Escape(%q, false) expected error, got nil. Result: %q", invalidStr, got)
+	}
+}

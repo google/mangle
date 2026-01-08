@@ -65,8 +65,8 @@ and specify what aggregation we want.
 project_dev_energy(ProjectID, NumDevelopers, TotalHours) ⟸
   project_assignment(ProjectID, VolunteerID, /software_development, Hours)
   |> do fn:group_by(ProjectID),
-     NumDevelopers = fn:count(),
-     TotalHours = fn:sum(TotalHours).
+     let NumDevelopers = fn:count(),
+     let TotalHours = fn:sum(TotalHours).
 ```
 
 The query `project_assignment(ProjectID, VolunteerID, /software_development)`
@@ -100,8 +100,8 @@ Finally, the other parts of the do-transform say what we should do with each
 of the per-`ProjectID` tables. With `fn:count()` we count the number of rows,
 and with `fn:sum(Hours)` we sum the values in the `Hours` column.
 
-This then yields the final `project_dev_energy` table that contains the aggregated
-values.
+This then yields the final `project_dev_energy` table that contains the
+aggregated values.
 
 | ProjectID | NumDevelopers | TotalHours |
 |-----------|-------------|------|

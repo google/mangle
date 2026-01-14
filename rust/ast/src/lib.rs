@@ -26,7 +26,7 @@ const INTERNER_DEFAULT_CAPACITY: NonZeroUsize = NonZeroUsize::new(4096).unwrap()
 
 /// A simple way to intern strings and refer to them using u32 indices.
 /// This is following the blog post here:
-/// https://matklad.github.io/2020/03/22/fast-simple-rust-interner.html
+/// <https://matklad.github.io/2020/03/22/fast-simple-rust-interner.html>
 pub struct Interner {
     map: FxHashMap<&'static str, u32>,
     vec: Vec<&'static str>,
@@ -69,10 +69,15 @@ impl Interner {
         self.map.get(name).copied()
     }
 
-    pub fn lookup(&self, id: u32) -> Option<&'static str> {
+    fn lookup(&self, id: u32) -> Option<&'static str> {
         self.vec.get(id as usize).copied()
     }
 
+    /// Copies a str into our internal buffer and returns a reference.
+    ///
+    /// # Safety
+    ///
+    /// The reference is only valid for the lifetime of this object.
     unsafe fn alloc(&mut self, name: &str) -> &'static str {
         let cap = self.buf.capacity();
         if cap < self.buf.len() + name.len() {
@@ -86,7 +91,9 @@ impl Interner {
             self.buf.push_str(name);
             &self.buf[start..]
         };
-        &*(interned as *const str)
+        // SAFETY: This is reference to our internal buffer, which will
+        // be valid as long as this object is valid.
+        unsafe { &*(interned as *const str) }
     }
 }
 
@@ -193,6 +200,11 @@ impl<'arena> Arena {
         }
         let n = syms[i].name;
         self.interner.lock().unwrap().lookup(n)
+    }
+
+    /// Given predicate index, returns arity of predicate symbol.
+    pub fn predicate_arity(&self, predicate_index: PredicateIndex) -> Option<u8> {
+        self.predicate_syms.borrow().get(predicate_index.0).and_then(|s| s.arity)
     }
 
     /// Given function index, returns name of function symbol.
@@ -574,7 +586,7 @@ impl std::fmt::Display for Const<'_> {
             Const::Number(v) => write!(f, "{v}"),
             Const::Float(v) => write!(f, "{v}"),
             Const::String(v) => write!(f, "{v}"),
-            Const::Bytes(v) => write!(f, "{:?}", v),
+            Const::Bytes(v) => write!(f, "{v:?}"),
             Const::List(v) => {
                 write!(f, "[{}]", v.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(", "))
             }
@@ -661,10 +673,10 @@ impl<'a> Atom<'a> {
     // i.e. only variables and constants.
     pub fn matches(&'a self, query_args: &[&BaseTerm]) -> bool {
         for (fact_arg, query_arg) in self.args.iter().zip(query_args.iter()) {
-            if let BaseTerm::Const(_) = query_arg {
-                if fact_arg != query_arg {
-                    return false;
-                }
+            if let BaseTerm::Const(_) = query_arg
+                && fact_arg != query_arg
+            {
+                return false;
             }
         }
         true
@@ -715,14 +727,14 @@ mod tests {
         let arena = Arena::new_with_global_interner();
         let bar = arena.const_(arena.name("/bar"));
         let sym = arena.predicate_sym("foo", Some(1));
-        let atom = Atom { sym, args: &[&bar] };
+        let atom = Atom { sym, args: &[bar] };
         assert_that!(atom, displays_as(eq("p$0(n$1)")));
 
         let tests = vec![
             (Term::Atom(&atom), "p$0(n$1)"),
             (Term::NegAtom(&atom), "!p$0(n$1)"),
-            (Term::Eq(&bar, &bar), "n$1 = n$1"),
-            (Term::Ineq(&bar, &bar), "n$1 != n$1"),
+            (Term::Eq(bar, bar), "n$1 = n$1"),
+            (Term::Ineq(bar, bar), "n$1 != n$1"),
         ];
         for (term, s) in tests {
             assert_that!(term, displays_as(eq(s)));
@@ -766,7 +778,7 @@ mod tests {
         let p = arena.predicate_sym("/foo", Some(1));
         let mut name = "".to_string();
         for _ in 0..INTERNER_DEFAULT_CAPACITY.into() {
-            name = name + "a";
+            name += "a";
         }
         arena.interner.lock().unwrap().intern(&name);
         assert_that!(arena.predicate_name(p), eq(Some("/foo")));

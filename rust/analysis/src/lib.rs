@@ -12,42 +12,55 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Analysis and Transformation Pipeline for Mangle.
+//!
+//! This crate provides the core analysis passes and transformations that turn
+//! a parsed Mangle AST into an executable plan.
+//!
+//! # Transformation Stages
+//!
+//! 1.  **Program Structure**: The raw AST is wrapped in a [`Program`] abstraction
+//!     which distinguishes between extensional (data) and intensional (rules) predicates.
+//!
+//! 2.  **Stratification**: The program is analyzed for dependencies and stratified
+//!     to handle negation correctly. This produces a [`StratifiedProgram`], where
+//!     predicates are grouped into layers (strata) that can be evaluated sequentially.
+//!
+//! 3.  **Lowering**: The AST (or stratified program parts) is lowered into the
+//!     Intermediate Representation (IR). See [`LoweringContext`].
+//!
+//! 4.  **Type Checking**: The IR is checked for type consistency and safety.
+//!     See [`TypeChecker`].
+//!
+//! 5.  **Planning**: The Logical IR rules are transformed into Physical Operations
+//!     (like nested-loop joins) ready for execution or codegen.
+//!     See [`Planner`].
+
 use mangle_ast as ast;
 
-mod simple_program;
+mod type_check;
 
-pub use simple_program::{SimpleProgram, SimpleStratifiedProgram};
+pub use type_check::TypeChecker;
 
-type PredicateSet = fxhash::FxHashSet<ast::PredicateIndex>;
+#[cfg(test)]
+mod tests;
 
-/// Represents a program.
-///
-/// INVARIANT:
-/// `extensional_preds` and `intensional_preds` always return disjoint sets.
-pub trait Program<'p> {
-    fn arena(&'p self) -> &'p ast::Arena;
+mod lowering;
 
-    /// Returns predicates for extensional DB.
-    /// May return empty set.
-    fn extensional_preds(&'p self) -> PredicateSet;
+pub use lowering::LoweringContext;
 
-    /// Returns predicates for intensional DB.
-    /// May return empty set.
-    fn intensional_preds(&'p self) -> PredicateSet;
+mod rename;
 
-    /// Maps predicates of intensional DB to rules.
-    /// May return an empty iterator.
-    fn rules(&'p self, sym: ast::PredicateIndex) -> impl Iterator<Item = &'p ast::Clause<'p>>;
-}
+pub use rename::rewrite_unit;
 
-// A stratified program is a program that can be separated in
-// dependency layers (strata) such that if index(p) < index(q)
-// then p does not depend on q.
-pub trait StratifiedProgram<'p>: Program<'p> {
-    /// Returns an iterator of strata, in dependency order.
-    /// TODO: consider Iterator<Iterator<PredicateSet>>.
-    fn strata(&'p self) -> Vec<PredicateSet>;
+mod planner;
 
-    /// Returns the stratum (index into strata list).
-    fn pred_to_index(&'p self, sym: ast::PredicateIndex) -> Option<usize>;
-}
+pub use planner::Planner;
+
+mod stratification;
+
+pub use stratification::{Program, StratifiedProgram};
+
+/// A set of predicate symbols, typically used to represent a stratum or a
+/// collection of EDB/IDB predicates.
+pub type PredicateSet = fxhash::FxHashSet<ast::PredicateIndex>;

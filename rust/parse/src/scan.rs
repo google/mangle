@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::io;
 
 use crate::error::{ErrorContext, ScanError};
-use crate::quote::{unquote, DecodedSequence};
+use crate::quote::{DecodedSequence, unquote};
 use crate::token::Token;
 
 // Scanner turns a stream of bytes into a stream of tokens.
@@ -24,7 +24,7 @@ pub struct Scanner<R>
 where
     R: io::Read,
 {
-    iter: io::Bytes<R>,
+    iter: io::Bytes<io::BufReader<R>>,
 
     // Peeked char.
     ch: Option<char>,
@@ -46,8 +46,10 @@ where
     R: io::Read,
 {
     pub fn new<P: ToString>(reader: R, path: P) -> Self {
+        use io::Read;
+        let buf_reader = io::BufReader::new(reader);
         Self {
-            iter: reader.bytes(),
+            iter: buf_reader.bytes(),
             ch: None,
             line: 1,
             col: 0,
@@ -131,11 +133,11 @@ where
             Some(delim @ '"') => self.string(delim, false),
             Some(first @ '0'..='9') => self.numeric(first),
             Some(ch) if is_ident_start(ch) => {
-                if ch == 'b' {
-                    if let Some(delim @ ('\'' | '"')) = self.peek()? {
-                        let _ = self.next_char()?;
-                        return self.string(delim, true);
-                    }
+                if ch == 'b'
+                    && let Some(delim @ ('\'' | '"')) = self.peek()?
+                {
+                    let _ = self.next_char()?;
+                    return self.string(delim, true);
                 }
                 self.ident(ch)
             }
@@ -260,7 +262,7 @@ where
                         _ => Ok(Token::Ident {
                             name: self.text.clone(),
                         }),
-                    }
+                    };
                 }
             }
         }

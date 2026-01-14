@@ -2,7 +2,12 @@
 
 All notable changes in mangle/rust will be documented in this file.
 
-## upcoming - [0.2.0]
+## upcoming - [0.4.0]
+
+### 🚀 Features
+
+- change of architecture, WASM execution
+- seminaive evaluation, aggregation, indexed lookup
 
 ### 🐛 Bug Fixes
 

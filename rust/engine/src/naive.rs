@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::ast::{Arena, Atom, BaseTerm, Term};
 use crate::Engine;
 use crate::Result;
+use crate::ast::{Arena, Atom, BaseTerm, Term};
 use anyhow::anyhow;
 use fxhash::FxHashMap;
 
@@ -24,7 +24,7 @@ impl<'e> Engine<'e> for Naive {
     fn eval<'p>(
         &'e self,
         store: &'e impl mangle_factstore::FactStore<'e>,
-        program: &'p impl mangle_analysis::StratifiedProgram<'p>,
+        program: &'p mangle_analysis::StratifiedProgram<'p>,
     ) -> Result<()> {
         // Initial facts.
         for pred in program.intensional_preds() {
@@ -70,15 +70,14 @@ impl<'e> Engine<'e> for Naive {
                                             _ => {
                                                 return Err(anyhow!(format!(
                                                     "Unsupported term: {arg}"
-                                                )))
+                                                )));
                                             }
                                         }
                                     }
                                     *found.borrow_mut() = !mismatch;
                                     Ok(())
                                 });
-                                let x = !*found.borrow();
-                                x
+                                !*found.borrow()
                             }
                             Term::NegAtom(query) => {
                                 let query = query.apply_subst(&arena, &subst.borrow());
@@ -88,8 +87,7 @@ impl<'e> Engine<'e> for Naive {
                                     *found.borrow_mut() = true;
                                     Ok(())
                                 });
-                                let x = !*found.borrow();
-                                x
+                                !*found.borrow()
                             }
                             Term::Eq(left, right) => {
                                 let left = left.apply_subst(&arena, &subst.borrow());
@@ -126,7 +124,7 @@ mod test {
     use super::*;
     use crate::ast;
     use anyhow::Result;
-    use mangle_analysis::SimpleProgram;
+    use mangle_analysis::Program;
     use mangle_factstore::{TableConfig, TableStoreImpl, TableStoreSchema};
 
     #[test]
@@ -171,8 +169,10 @@ mod test {
             ),
         )?;
 
-        let mut simple =
-            SimpleProgram { arena: &arena, ext_preds: vec![edge], rules: FxHashMap::default() };
+        let mut simple = Program::new(&arena);
+        // Manually set ext_preds since Program::new doesn't take them anymore?
+        // Wait, Program::new initializes ext_preds to empty. The struct definition shows it as public.
+        simple.ext_preds = vec![edge];
 
         let head = arena.alloc(ast::Atom {
             sym: reachable,
@@ -211,18 +211,20 @@ mod test {
         engine.eval(&store, &stratified_program)?;
 
         use crate::factstore::ReadOnlyFactStore;
-        assert!(store
-            .contains(
-                &arena,
-                arena.atom(
-                    edge,
-                    &[
-                        &ast::BaseTerm::Const(ast::Const::Number(30)),
-                        &ast::BaseTerm::Const(ast::Const::Number(40))
-                    ],
+        assert!(
+            store
+                .contains(
+                    &arena,
+                    arena.atom(
+                        edge,
+                        &[
+                            &ast::BaseTerm::Const(ast::Const::Number(30)),
+                            &ast::BaseTerm::Const(ast::Const::Number(40))
+                        ],
+                    )
                 )
-            )
-            .unwrap());
+                .unwrap()
+        );
         Ok(())
     }
 }

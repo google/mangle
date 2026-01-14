@@ -1,8 +1,8 @@
 [package]
-name = "mangle-engine"
+name = "mangle-interpreter"
 version.workspace = true
 edition.workspace = true
-description.workspace = true
+description = "Pure Rust interpreter for Mangle IR"
 documentation.workspace = true
 license.workspace = true
 homepage.workspace = true
@@ -10,11 +10,7 @@ repository.workspace = true
 readme = "README.md"
 
 [dependencies]
-anyhow.workspace = true
-mangle-analysis.workspace = true
+mangle-ir.workspace = true
 mangle-ast.workspace = true
-mangle-factstore.workspace = true
-fxhash.workspace = true
-
-[dev-dependencies]
-mangle-driver = { path = "../driver" }
+anyhow.workspace = true
+# log.workspace = true

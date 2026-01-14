@@ -1,0 +1,25 @@
+[package]
+name = "mangle-simplecolumn"
+version.workspace = true
+edition.workspace = true
+description = "SimpleColumn storage format support for Mangle"
+documentation.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme = "README.md"
+
+[dependencies]
+anyhow.workspace = true
+mangle-ast.workspace = true
+mangle-ir.workspace = true
+mangle-vm = { workspace = true, optional = true }
+mangle-interpreter = { workspace = true, optional = true }
+mangle-parse.workspace = true # For parsing terms from the file
+# For decoding constants if needed (base64, etc is in std/helper?)
+# The format uses percent-encoding for names starting with /. 
+
+[features]
+default = []
+server = ["dep:mangle-vm"]
+edge = ["dep:mangle-interpreter"]

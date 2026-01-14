@@ -21,7 +21,10 @@ use std::fmt;
 /// Provides pretty-printing, including name lookup from arena.
 /// Usage:
 /// ```
+/// # fn print(arena: &mangle_ast::Arena, clause: mangle_ast::Clause) -> String {
+/// use mangle_ast::PrettyPrint;
 /// clause.pretty(&arena).to_string()
+/// # }
 /// ```
 pub struct Pretty<'a, T: ?Sized> {
     arena: &'a Arena,
@@ -87,13 +90,13 @@ impl<'a> fmt::Display for Pretty<'a, Const<'a>> {
         match self.inner {
             Const::Name(n) => match self.arena.lookup_name(*n) {
                 Some(name) => write!(f, "{name}"),
-                None => write!(f, "n${}", n),
+                None => write!(f, "n${n}"),
             },
             Const::Bool(b) => write!(f, "{b}"),
             Const::Number(n) => write!(f, "{n}"),
             Const::Float(fl) => write!(f, "{fl}"),
-            Const::String(s) => write!(f, "{:?}", s), // Use Debug for quoting
-            Const::Bytes(b) => write!(f, "{:?}", b),
+            Const::String(s) => write!(f, "{s:?}"), // Use Debug for quoting
+            Const::Bytes(b) => write!(f, "{b:?}"),
             Const::List(l) => {
                 write!(f, "[")?;
                 for (i, c) in l.iter().enumerate() {
@@ -264,15 +267,15 @@ impl<'a> fmt::Display for Pretty<'a, Decl<'a>> {
             }
             write!(f, "]")?;
         }
-        if let Some(bounds) = self.inner.bounds {
-            if !bounds.is_empty() {
-                write!(f, " bound ")?;
-                for (i, b) in bounds.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, " | ")?;
-                    }
-                    write!(f, "{}", b.pretty(self.arena))?;
+        if let Some(bounds) = self.inner.bounds
+            && !bounds.is_empty()
+        {
+            write!(f, " bound ")?;
+            for (i, b) in bounds.iter().enumerate() {
+                if i > 0 {
+                    write!(f, " | ")?;
                 }
+                write!(f, "{}", b.pretty(self.arena))?;
             }
         }
         if let Some(constraints) = &self.inner.constraints {

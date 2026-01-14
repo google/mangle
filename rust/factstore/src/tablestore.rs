@@ -16,10 +16,10 @@ use fxhash::FxHashMap;
 use std::cell::RefCell;
 use std::path::Path;
 
-use crate::ast;
 use crate::FactStore;
-use crate::{anyhow, Result};
+use crate::ast;
 use crate::{ReadOnlyFactStore, Receiver};
+use crate::{Result, anyhow};
 use ast::Arena;
 
 #[derive(Clone)]
@@ -43,7 +43,7 @@ impl<'a> ReadOnlyFactStore<'a> for TableStoreImpl<'a> {
 
     fn contains<'src>(&'a self, _src: &'src Arena, fact: &'src ast::Atom<'src>) -> Result<bool> {
         if let Some(table) = self.tables.borrow().get(&fact.sym) {
-            return Ok(table.iter().any(|e| *e == fact));
+            return Ok(table.contains(&fact));
         }
         Err(anyhow!("unknown predicate index {}", fact.sym))
     }
@@ -58,7 +58,7 @@ impl<'a> ReadOnlyFactStore<'a> for TableStoreImpl<'a> {
         if let Some(table) = self.tables.borrow().get(&query_sym) {
             for fact in table {
                 if fact.matches(query_args) {
-                    cb.next(&fact)?;
+                    cb.next(fact)?;
                 }
             }
             return Ok(());
@@ -71,7 +71,10 @@ impl<'a> ReadOnlyFactStore<'a> for TableStoreImpl<'a> {
     }
 
     fn estimate_fact_count(&self) -> u32 {
-        self.tables.borrow().values().fold(0, |x, y| x + y.len() as u32)
+        self.tables
+            .borrow()
+            .values()
+            .fold(0, |x, y| x + y.len() as u32)
     }
 }
 
@@ -108,6 +111,10 @@ impl<'a> TableStoreImpl<'a> {
         for entry in schema.keys() {
             tables.insert(*entry, vec![]);
         }
-        TableStoreImpl { schema, arena, tables: RefCell::new(tables) }
+        TableStoreImpl {
+            schema,
+            arena,
+            tables: RefCell::new(tables),
+        }
     }
 }

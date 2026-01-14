@@ -1,0 +1,28 @@
+[package]
+name = "mangle-vm"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+documentation.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme = "README.md"
+
+[dependencies]
+wasmtime = "30"
+anyhow.workspace = true
+csv = { version = "1.3", optional = true }
+
+[dev-dependencies]
+mangle-codegen.workspace = true
+mangle-analysis.workspace = true
+mangle-ast.workspace = true
+mangle-ir.workspace = true
+tempfile = "3.10"
+mangle-simplecolumn = { workspace = true, features = ["server"] }
+# mangle-factstore.workspace = true
+
+[features]
+default = []
+csv_storage = ["dep:csv"]

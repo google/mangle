@@ -12,7 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use anyhow::{anyhow, Result};
+//! # Mangle FactStore (Legacy)
+//!
+//! An in-memory storage implementation for Mangle AST `Atom`s.
+//!
+//! This crate is used by the legacy `mangle-engine`.
+//! New components should use the `Store` trait defined in `mangle-interpreter`
+//! or the `Host` interface in `mangle-vm`, which operate on flat `Value` tuples.
+
+use anyhow::{Result, anyhow};
 use ast::Arena;
 use mangle_ast as ast;
 
@@ -75,7 +83,7 @@ where
 
     for pred in preds {
         arena.copy_predicate_sym(store.arena(), pred);
-        store.get(pred, &arena.new_query(pred).args, cb)?;
+        store.get(pred, arena.new_query(pred).args, cb)?;
     }
     Ok(())
 }
@@ -104,8 +112,8 @@ mod test {
         }
 
         fn contains<'src>(&'a self, src: &'src Arena, fact: &'src ast::Atom<'src>) -> Result<bool> {
-            if self.arena as *const _ as usize == src as *const _ as usize {
-                return Ok(self.facts.borrow().iter().any(|x| *x == fact));
+            if std::ptr::eq(self.arena, src) {
+                return Ok(self.facts.borrow().contains(&fact));
             }
             let src_predicate_name = self.arena.predicate_name(fact.sym);
             if src_predicate_name.is_none() {
@@ -115,9 +123,11 @@ mod test {
                 None => Ok(false),
                 Some(n) => match self.arena.lookup_predicate_sym(n) {
                     None => Ok(false),
-                    Some(sym) => {
-                        Ok(self.facts.borrow().iter().any(|x| x.sym == sym && x.args == fact.args))
-                    }
+                    Some(sym) => Ok(self
+                        .facts
+                        .borrow()
+                        .iter()
+                        .any(|x| x.sym == sym && x.args == fact.args)),
                 },
             }
         }
@@ -129,10 +139,8 @@ mod test {
             cb: &R,
         ) -> Result<()> {
             for fact in self.facts.borrow().iter() {
-                if fact.sym == query_sym {
-                    if fact.matches(query_args) {
-                        cb.next(&fact)?;
-                    }
+                if fact.sym == query_sym && fact.matches(query_args) {
+                    cb.next(fact)?;
                 }
             }
             Ok(())
@@ -144,7 +152,7 @@ mod test {
                 let pred = &fact.sym;
                 seen.insert(*pred);
             }
-            seen.iter().map(|x| *x).collect()
+            seen.iter().copied().collect()
         }
 
         fn estimate_fact_count(&self) -> u32 {
@@ -158,7 +166,9 @@ mod test {
             if self.contains(src, fact)? {
                 return Ok(false);
             }
-            self.facts.borrow_mut().push(self.arena.copy_atom(src, fact));
+            self.facts
+                .borrow_mut()
+                .push(self.arena.copy_atom(src, fact));
             Ok(true)
         }
 
@@ -177,7 +187,10 @@ mod test {
     #[test]
     fn test_get_factsa() {
         let arena = Arena::new_with_global_interner();
-        let simple = TestStore { arena: &arena, facts: RefCell::new(vec![]) };
+        let simple = TestStore {
+            arena: &arena,
+            facts: RefCell::new(vec![]),
+        };
         let atom = test_atom(&arena);
 
         assert!(!simple.contains(&arena, &atom).unwrap());
@@ -189,7 +202,10 @@ mod test {
     fn test_multi_arena() {
         let arena1 = Arena::new_with_global_interner();
         let arena2 = Arena::new_with_global_interner();
-        let store = TestStore { arena: &arena1, facts: RefCell::new(vec![]) };
+        let store = TestStore {
+            arena: &arena1,
+            facts: RefCell::new(vec![]),
+        };
 
         let atom_in_arena2 = test_atom(&arena2);
 

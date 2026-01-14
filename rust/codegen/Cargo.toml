@@ -1,5 +1,5 @@
 [package]
-name = "mangle-analysis"
+name = "mangle-codegen"
 version.workspace = true
 edition.workspace = true
 description.workspace = true
@@ -10,12 +10,12 @@ repository.workspace = true
 readme = "README.md"
 
 [dependencies]
+mangle-ir.workspace = true
+mangle-ast.workspace = true
+mangle-analysis.workspace = true
+wasm-encoder = "0.240"
 anyhow.workspace = true
 fxhash.workspace = true
-googletest.workspace = true
-mangle-ast.workspace = true
-mangle-ir.workspace = true
-mangle-factstore.workspace = true
 
 [dev-dependencies]
-mangle-parse.workspace = true
+wasmparser = "0.240"

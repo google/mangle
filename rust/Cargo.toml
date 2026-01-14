@@ -7,13 +7,19 @@ members = [
     "analysis",
     "engine",
     "factstore",
-    "parse"
+    "parse",
+    "ir",
+    "codegen",
+    "vm",
+    "driver",
+    "interpreter",
+    "simplecolumn"
 ]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Burak Emir <burak.emir@gmail.com>"]
-edition = "2021"
+edition = "2024"
 description = "Rust implementation of Mangle, a logic programming language"
 documentation = "https://github.com/google/mangle"
 license = "Apache-2.0"
@@ -26,11 +32,17 @@ anyhow = "1.0"
 bumpalo = "3.14"
 fxhash = "0.2.1"
 googletest = { version = "0.14.1", features = ["anyhow"] }
-mangle-analysis = { version = "0.2.0", path = "./analysis" }
-mangle-ast = { version = "0.2.0", path = "./ast" }
-mangle-engine = { version = "0.2.0", path = "./engine" }
-mangle-factstore = { version = "0.2.0", path = "./factstore" }
-mangle-parse = { version = "0.2.0", path = "./parse" }
+mangle-analysis = { version = "0.3.0", path = "./analysis" }
+mangle-ast = { version = "0.3.0", path = "./ast" }
+mangle-codegen = { version = "0.3.0", path = "./codegen" }
+mangle-engine = { version = "0.3.0", path = "./engine" }
+mangle-ir = { version = "0.3.0", path = "./ir" }
+mangle-factstore = { version = "0.3.0", path = "./factstore" }
+mangle-parse = { version = "0.3.0", path = "./parse" }
+mangle-vm = { version = "0.3.0", path = "./vm" }
 smol_str = "0.3.2"
 thiserror = "1.0.58"
-
+log = "0.4"
+mangle-driver = { version = "0.3.0", path = "./driver" }
+mangle-interpreter = { version = "0.3.0", path = "./interpreter" }
+mangle-simplecolumn = { version = "0.3.0", path = "./simplecolumn" }

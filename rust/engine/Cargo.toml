@@ -17,4 +17,4 @@ mangle-factstore.workspace = true
 fxhash.workspace = true
 
 [dev-dependencies]
-mangle-driver = { path = "../driver" }
+mangle-driver.workspace = true

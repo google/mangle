@@ -1,4 +1,4 @@
-# mangle_ast
+# mangle-engine
 
 This package is part of the Mangle logic programming language.
 It contains code related to the evaluation of programs.

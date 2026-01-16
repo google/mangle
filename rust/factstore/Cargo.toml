@@ -13,3 +13,8 @@ readme = "README.md"
 anyhow.workspace = true
 fxhash.workspace = true
 mangle-ast.workspace = true
+
+[features]
+default = []
+edge = []
+server = []

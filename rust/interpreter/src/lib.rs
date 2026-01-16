@@ -31,51 +31,7 @@ use mangle_ir::physical::{Aggregate, CmpOp, Condition, Constant, DataSource, Exp
 use mangle_ir::{Ir, NameId};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Hash)]
-pub enum Value {
-    Number(i64),
-    String(String),
-    Null, // Used for iteration end or missing
-}
-
-/// Abstract interface for relation storage.
-pub trait Store {
-    /// Returns an iterator over all tuples in the relation.
-    /// Returns an error if the relation does not exist.
-    fn scan(&self, relation: &str) -> Result<Box<dyn Iterator<Item = Vec<Value>> + '_>>;
-
-    /// Returns an iterator over only the new tuples added in the last iteration.
-    fn scan_delta(&self, relation: &str) -> Result<Box<dyn Iterator<Item = Vec<Value>> + '_>>;
-
-    /// Returns an iterator over tuples being collected for the next iteration.
-    fn scan_next_delta(&self, relation: &str) -> Result<Box<dyn Iterator<Item = Vec<Value>> + '_>>;
-
-    /// Returns an iterator over tuples in the relation matching a key in a column.
-    fn scan_index(
-        &self,
-        relation: &str,
-        col_idx: usize,
-        key: &Value,
-    ) -> Result<Box<dyn Iterator<Item = Vec<Value>> + '_>>;
-
-    /// Returns an iterator over delta tuples matching a key in a column.
-    fn scan_delta_index(
-        &self,
-        relation: &str,
-        col_idx: usize,
-        key: &Value,
-    ) -> Result<Box<dyn Iterator<Item = Vec<Value>> + '_>>;
-
-    /// Inserts a tuple into the relation (specifically into the delta/new set).
-    /// Returns true if it was new.
-    fn insert(&mut self, relation: &str, tuple: Vec<Value>) -> Result<bool>;
-
-    /// Merges current deltas into the stable set of facts.
-    fn merge_deltas(&mut self);
-
-    /// Ensures a relation exists in the store.
-    fn create_relation(&mut self, relation: &str);
-}
+pub use mangle_factstore::{Store, Value};
 
 /// A simple in-memory implementation of `Store`.
 /// Supports semi-naive evaluation by tracking "stable" and "delta" facts.
@@ -534,7 +490,7 @@ impl<'a> Interpreter<'a> {
                 }
                 min_val.ok_or_else(|| anyhow!("fn:min on empty group"))
             }
-            _ => Err(anyhow!("Unknown aggregation function: {}", fn_name)),
+            _ => Err(anyhow!("Unknown aggregation function: {fn_name}")),
         }
     }
 
@@ -604,7 +560,7 @@ impl<'a> Interpreter<'a> {
                             Err(anyhow!("Type mismatch for fn:minus"))
                         }
                     }
-                    _ => Err(anyhow!("Unknown function: {}", fn_name)),
+                    _ => Err(anyhow!("Unknown function: {fn_name}")),
                 }
             }
         }

@@ -63,7 +63,7 @@ impl<'a> ReadOnlyFactStore<'a> for TableStoreImpl<'a> {
             }
             return Ok(());
         }
-        Err(anyhow!("unknown predicate index {query_sym}"))
+        Err(anyhow!("unknown predicate index {}", query_sym))
     }
 
     fn predicates(&'a self) -> Vec<ast::PredicateIndex> {

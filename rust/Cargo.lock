@@ -782,7 +782,6 @@ version = "0.3.0"
 dependencies = [
  "anyhow",
  "mangle-ast",
- "mangle-factstore",
  "mangle-ir",
 ]
 
@@ -806,10 +805,10 @@ version = "0.3.0"
 dependencies = [
  "anyhow",
  "mangle-ast",
- "mangle-factstore",
  "mangle-interpreter",
  "mangle-ir",
  "mangle-parse",
+ "mangle-vm",
 ]
 
 [[package]]
@@ -821,7 +820,6 @@ dependencies = [
  "mangle-analysis",
  "mangle-ast",
  "mangle-codegen",
- "mangle-factstore",
  "mangle-ir",
  "mangle-simplecolumn",
  "tempfile",

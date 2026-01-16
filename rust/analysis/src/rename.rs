@@ -20,20 +20,12 @@ pub fn rewrite_unit<'a>(arena: &'a ast::Arena, unit: &'a ast::Unit<'a>) -> ast::
     let (pkg_name, used_pkgs) = find_package_info(arena, unit);
 
     if pkg_name.is_empty() {
-        return ast::Unit {
-            decls: unit.decls,
-            clauses: unit.clauses,
-        };
+        return ast::Unit { decls: unit.decls, clauses: unit.clauses };
     }
 
     let defined_preds = find_defined_preds(unit);
-    let mut renamer = Renamer {
-        arena,
-        pkg_name,
-        used_pkgs,
-        defined_preds,
-        cache: FxHashMap::default(),
-    };
+    let mut renamer =
+        Renamer { arena, pkg_name, used_pkgs, defined_preds, cache: FxHashMap::default() };
 
     let mut new_decls = Vec::with_capacity(unit.decls.len());
     for &decl in unit.decls {
@@ -123,9 +115,7 @@ impl<'a> Renamer<'a> {
 
         if self.defined_preds.contains(&sym) {
             let new_name = format!("{}.{}", self.pkg_name, name);
-            let new_sym = self
-                .arena
-                .predicate_sym(&new_name, self.arena.predicate_arity(sym));
+            let new_sym = self.arena.predicate_sym(&new_name, self.arena.predicate_arity(sym));
             self.cache.insert(sym, new_sym);
             return Some(new_sym);
         }
@@ -362,9 +352,7 @@ mod tests {
     fn make_pkg_decl<'a>(arena: &'a ast::Arena, name: &str) -> &'a ast::Decl<'a> {
         let pkg_sym = arena.predicate_sym("Package", Some(0));
         let name_sym = arena.predicate_sym("name", Some(1));
-        let pkg_name = arena.alloc(ast::BaseTerm::Const(ast::Const::String(
-            arena.alloc_str(name),
-        )));
+        let pkg_name = arena.alloc(ast::BaseTerm::Const(ast::Const::String(arena.alloc_str(name))));
         arena.alloc(ast::Decl {
             atom: arena.atom(pkg_sym, &[]),
             descr: arena.alloc_slice_copy(&[arena.atom(name_sym, &[pkg_name])]),
@@ -384,10 +372,7 @@ mod tests {
             ))]),
             transform: &[],
         });
-        let unit = ast::Unit {
-            decls: &[],
-            clauses: arena.alloc_slice_copy(&[clause]),
-        };
+        let unit = ast::Unit { decls: &[], clauses: arena.alloc_slice_copy(&[clause]) };
         let new_unit = rewrite_unit(&arena, &unit);
         let head = arena.predicate_name(new_unit.clauses[0].head.sym).unwrap();
         assert_that!(head, eq("clause_defined_here"));

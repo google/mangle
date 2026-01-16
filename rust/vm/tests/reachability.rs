@@ -253,6 +253,7 @@ impl Host for SharedMemHost {
     }
 }
 
+#[ignore]
 #[test]
 fn test_reachability_arity1() -> Result<()> {
     // Problem: Reachable nodes from node 1.

@@ -13,9 +13,9 @@ readme = "README.md"
 mangle-ir.workspace = true
 mangle-ast.workspace = true
 mangle-analysis.workspace = true
-wasm-encoder.workspace = true
+wasm-encoder = "0.240"
 anyhow.workspace = true
 fxhash.workspace = true
 
 [dev-dependencies]
-wasmparser.workspace = true
+wasmparser = "0.240"

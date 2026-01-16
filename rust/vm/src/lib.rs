@@ -13,13 +13,26 @@
 // limitations under the License.
 
 use anyhow::Result;
-pub use mangle_factstore::Host;
 use wasmtime::{Engine, Linker, Module, Store};
 
 #[cfg(feature = "csv_storage")]
 pub mod csv_host;
 
 pub mod composite_host;
+
+/// Trait for the host environment that provides storage and data access.
+pub trait Host {
+    fn scan_start(&mut self, rel_id: i32) -> i32;
+    fn scan_delta_start(&mut self, rel_id: i32) -> i32;
+    fn scan_index_start(&mut self, rel_id: i32, col_idx: i32, val: i64) -> i32;
+    fn scan_aggregate_start(&mut self, rel_id: i32, description: Vec<i32>) -> i32;
+    fn scan_next(&mut self, iter_id: i32) -> i32;
+    fn get_col(&mut self, tuple_ptr: i32, col_idx: i32) -> i64;
+    fn insert(&mut self, rel_id: i32, val: i64);
+    /// Merges deltas and returns 1 if changes occurred, 0 otherwise.
+    fn merge_deltas(&mut self) -> i32;
+    fn debuglog(&mut self, val: i64);
+}
 
 pub struct Vm {
     engine: Engine,

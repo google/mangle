@@ -60,7 +60,7 @@ pub fn unquote(quoted_str: &str) -> anyhow::Result<DecodedSequence> {
 
     let first = quoted.chars().next().unwrap();
     if first != '"' && first != '\'' || first != quoted.chars().last().unwrap() {
-        return Err(anyhow!("string literal {quoted} has invalid quotes"));
+        return Err(anyhow!("string literal {} has invalid quotes", quoted));
     }
 
     // Check for triple quoted string.
@@ -152,40 +152,45 @@ pub fn unquote(quoted_str: &str) -> anyhow::Result<DecodedSequence> {
                 }
                 if !is_byte && n > 127 {
                     return Err(anyhow!(
-                        "non-ASCII octal escape \\{n:o} (use \\u{n:04x} for the UTF-8 encoding of U+{n:04x})",
+                        "non-ASCII octal escape \\{:o} (use \\u{:04x} for the UTF-8 encoding of U+{:04x})",
+                        n,
+                        n,
+                        n
                     ));
                 }
                 if n >= 256 {
                     // NOTE: Python silently discards the high bit,
                     // so that '\541' == '\141' == 'a'.
                     // Let's see if we can avoid doing that in BUILD files.
-                    return Err(anyhow!("invalid escape sequence \\{n:03}o"));
+                    return Err(anyhow!("invalid escape sequence \\{:03}o", n));
                 }
                 buf.push(0 /* char::from_u32(n).unwrap() */) // TODO
             }
             Some('x') => {
                 // Hexadecimal escape, exactly 2 digits, \xXX. [0-127]
                 if quoted.len() < 4 {
-                    return Err(anyhow!("truncated escape sequence {quoted}"));
+                    return Err(anyhow!("truncated escape sequence {}", quoted));
                 }
                 match u32::from_str_radix(&quoted[2..4], 16) {
                     Ok(n) => {
                         if !is_byte && n > 127 {
                             return Err(anyhow!(
-                                "non-ASCII hex escape {} (use \\u{n:04X} for the UTF-8 encoding of U+{n:04x})",
+                                "non-ASCII hex escape {} (use \\u{:04X} for the UTF-8 encoding of U+{:04x})",
                                 &quoted[..4],
+                                n,
+                                n
                             ));
                         }
                         let decoded_ch = char::from_u32(n);
                         if decoded_ch.is_none() {
-                            return Err(anyhow!("invalid Unicode code point U{n:04x}"));
+                            return Err(anyhow!("invalid Unicode code point U{:04x}", n));
                         }
                         let mut tmp: [u8; 4] = [0; 4];
                         let encoded = char::encode_utf8(decoded_ch.unwrap(), &mut tmp);
                         encoded.as_bytes().iter().for_each(|b| buf.push(*b));
                         quoted = &quoted[4..]
                     }
-                    _ => return Err(anyhow!("could not parse unicode codepoint {quoted}")),
+                    _ => return Err(anyhow!("could not parse unicode codepoint {}", quoted)),
                 }
             }
             Some('u' | 'U') => {
@@ -195,14 +200,14 @@ pub fn unquote(quoted_str: &str) -> anyhow::Result<DecodedSequence> {
                     sz = 10
                 }
                 if quoted.len() < sz {
-                    return Err(anyhow!("truncated escape sequence {quoted}"));
+                    return Err(anyhow!("truncated escape sequence {}", quoted));
                 }
 
                 match u32::from_str_radix(&quoted[2..sz], 16) {
                     Ok(n) => {
                         // As in Rust, surrogates are disallowed.
                         if (0xd800u32..0xe000u32).contains(&n) {
-                            return Err(anyhow!("invalid Unicode code point U{n:04x}"));
+                            return Err(anyhow!("invalid Unicode code point U{:04x}", n));
                         }
                         if n > 0x10FFFFu32 {
                             return Err(anyhow!(
@@ -213,14 +218,14 @@ pub fn unquote(quoted_str: &str) -> anyhow::Result<DecodedSequence> {
                         }
                         let decoded_ch = char::from_u32(n);
                         if decoded_ch.is_none() {
-                            return Err(anyhow!("invalid Unicode code point U{n:04x}"));
+                            return Err(anyhow!("invalid Unicode code point U{:04x}", n));
                         }
                         let mut tmp: [u8; 8] = [0; 8];
                         let encoded = char::encode_utf8(decoded_ch.unwrap(), &mut tmp); // from_u32(n).unwrap());
                         encoded.as_bytes().iter().for_each(|b| buf.push(*b));
                         quoted = &quoted[sz..]
                     }
-                    _ => return Err(anyhow!("failed to parse unicode code point: {quoted}")),
+                    _ => return Err(anyhow!("failed to parse unicode code point: {}", quoted)),
                 }
             }
             _ =>
@@ -228,7 +233,7 @@ pub fn unquote(quoted_str: &str) -> anyhow::Result<DecodedSequence> {
             // (Python still treats unnecessary backslashes literally,
             // but since 3.6 has emitted a deprecation warning.)
             {
-                return Err(anyhow!("invalid escape sequence \\{quoted}"));
+                return Err(anyhow!("invalid escape sequence \\{}", quoted));
             }
         }
     }

@@ -396,7 +396,7 @@ impl<'a, B: Backend> Codegen<'a, B> {
         // Pass 1: Collect Vars
         let mut total_iter_count = 0;
         for op in &ops {
-            total_iter_count += Self::collect_vars(op, &mut ctx);
+            total_iter_count += self.collect_vars(op, &mut ctx);
         }
 
         // Variable locals
@@ -473,7 +473,7 @@ impl<'a, B: Backend> Codegen<'a, B> {
         module.finish()
     }
 
-    fn collect_vars(op: &Op, ctx: &mut FuncContext) -> usize {
+    fn collect_vars(&self, op: &Op, ctx: &mut FuncContext) -> usize {
         let mut count = 0;
         match op {
             Op::Iterate { source, body } => {
@@ -490,21 +490,21 @@ impl<'a, B: Backend> Codegen<'a, B> {
                         }
                     }
                 }
-                count += Self::collect_vars(body, ctx);
+                count += self.collect_vars(body, ctx);
             }
             Op::Let { var, body, .. } => {
                 if !ctx.var_map.contains_key(var) {
                     ctx.var_map.insert(*var, ctx.next_local);
                     ctx.next_local += 1;
                 }
-                count += Self::collect_vars(body, ctx);
+                count += self.collect_vars(body, ctx);
             }
             Op::Filter { body, .. } => {
-                count += Self::collect_vars(body, ctx);
+                count += self.collect_vars(body, ctx);
             }
             Op::Seq(ops) => {
                 for o in ops {
-                    count += Self::collect_vars(o, ctx);
+                    count += self.collect_vars(o, ctx);
                 }
             }
             Op::GroupBy {
@@ -529,7 +529,7 @@ impl<'a, B: Backend> Codegen<'a, B> {
                 }
                 // Recurse body? GroupBy body inserts head. No new loops?
                 // Wait, GroupBy body might have Lets.
-                count += Self::collect_vars(body, ctx);
+                count += self.collect_vars(body, ctx);
             }
             _ => {}
         }

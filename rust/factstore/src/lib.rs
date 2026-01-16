@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # Mangle FactStore
+//! # Mangle FactStore (Legacy)
 //!
-//! Defines core storage interfaces (`Store`, `Host`) and a legacy in-memory storage implementation.
+//! An in-memory storage implementation for Mangle AST `Atom`s.
+//!
+//! This crate is used by the legacy `mangle-engine`.
+//! New components should use the `Store` trait defined in `mangle-interpreter`
+//! or the `Host` interface in `mangle-vm`, which operate on flat `Value` tuples.
 
 use anyhow::{Result, anyhow};
 use ast::Arena;
@@ -22,73 +26,6 @@ use mangle_ast as ast;
 
 mod tablestore;
 pub use tablestore::{TableConfig, TableStoreImpl, TableStoreSchema};
-
-// --- New Interfaces (Moved from interpreter/vm to break cycles) ---
-
-#[cfg(feature = "edge")]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Hash)]
-pub enum Value {
-    Number(i64),
-    String(String),
-    Null, // Used for iteration end or missing
-}
-
-/// Abstract interface for relation storage (Edge Mode).
-#[cfg(feature = "edge")]
-pub trait Store {
-    /// Returns an iterator over all tuples in the relation.
-    /// Returns an error if the relation does not exist.
-    fn scan(&self, relation: &str) -> Result<Box<dyn Iterator<Item = Vec<Value>> + '_>>;
-
-    /// Returns an iterator over only the new tuples added in the last iteration.
-    fn scan_delta(&self, relation: &str) -> Result<Box<dyn Iterator<Item = Vec<Value>> + '_>>;
-
-    /// Returns an iterator over tuples being collected for the next iteration.
-    fn scan_next_delta(&self, relation: &str) -> Result<Box<dyn Iterator<Item = Vec<Value>> + '_>>;
-
-    /// Returns an iterator over tuples in the relation matching a key in a column.
-    fn scan_index(
-        &self,
-        relation: &str,
-        col_idx: usize,
-        key: &Value,
-    ) -> Result<Box<dyn Iterator<Item = Vec<Value>> + '_>>;
-
-    /// Returns an iterator over delta tuples matching a key in a column.
-    fn scan_delta_index(
-        &self,
-        relation: &str,
-        col_idx: usize,
-        key: &Value,
-    ) -> Result<Box<dyn Iterator<Item = Vec<Value>> + '_>>;
-
-    /// Inserts a tuple into the relation (specifically into the delta/new set).
-    /// Returns true if it was new.
-    fn insert(&mut self, relation: &str, tuple: Vec<Value>) -> Result<bool>;
-
-    /// Merges current deltas into the stable set of facts.
-    fn merge_deltas(&mut self);
-
-    /// Ensures a relation exists in the store.
-    fn create_relation(&mut self, relation: &str);
-}
-
-/// Trait for the host environment that provides storage and data access (Server Mode).
-#[cfg(feature = "server")]
-pub trait Host {
-    fn scan_start(&mut self, rel_id: i32) -> i32;
-    fn scan_delta_start(&mut self, rel_id: i32) -> i32;
-    fn scan_index_start(&mut self, rel_id: i32, col_idx: i32, val: i64) -> i32;
-    fn scan_aggregate_start(&mut self, rel_id: i32, description: Vec<i32>) -> i32;
-    fn scan_next(&mut self, iter_id: i32) -> i32;
-    fn get_col(&mut self, tuple_ptr: i32, col_idx: i32) -> i64;
-    fn insert(&mut self, rel_id: i32, val: i64);
-    /// Merges deltas and returns 1 if changes occurred, 0 otherwise.
-    fn merge_deltas(&mut self) -> i32;
-    fn debuglog(&mut self, val: i64);
-}
-
-// --- Legacy Interfaces ---
 
 pub trait Receiver<'a> {
     fn next(&self, item: &'a ast::Atom<'a>) -> Result<()>;
@@ -149,4 +86,150 @@ where
         store.get(pred, arena.new_query(pred).args, cb)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use std::{cell::RefCell, collections::HashSet};
+
+    use super::*;
+
+    fn test_atom<'arena>(arena: &'arena Arena) -> ast::Atom<'arena> {
+        ast::Atom {
+            sym: arena.predicate_sym("foo", Some(1)),
+            args: &[&ast::BaseTerm::Const(ast::Const::String("bar"))],
+        }
+    }
+
+    struct TestStore<'a> {
+        arena: &'a Arena,
+        facts: RefCell<Vec<&'a ast::Atom<'a>>>,
+    }
+
+    impl<'a> ReadOnlyFactStore<'a> for TestStore<'a> {
+        fn arena(&'a self) -> &'a Arena {
+            self.arena
+        }
+
+        fn contains<'src>(&'a self, src: &'src Arena, fact: &'src ast::Atom<'src>) -> Result<bool> {
+            if std::ptr::eq(self.arena, src) {
+                return Ok(self.facts.borrow().contains(&fact));
+            }
+            let src_predicate_name = self.arena.predicate_name(fact.sym);
+            if src_predicate_name.is_none() {
+                return Ok(false);
+            }
+            match self.arena.lookup_opt(src_predicate_name.unwrap()) {
+                None => Ok(false),
+                Some(n) => match self.arena.lookup_predicate_sym(n) {
+                    None => Ok(false),
+                    Some(sym) => Ok(self
+                        .facts
+                        .borrow()
+                        .iter()
+                        .any(|x| x.sym == sym && x.args == fact.args)),
+                },
+            }
+        }
+
+        fn get<'query, R: Receiver<'a>>(
+            &'a self,
+            query_sym: ast::PredicateIndex,
+            query_args: &'query [&'query ast::BaseTerm<'query>],
+            cb: &R,
+        ) -> Result<()> {
+            for fact in self.facts.borrow().iter() {
+                if fact.sym == query_sym && fact.matches(query_args) {
+                    cb.next(fact)?;
+                }
+            }
+            Ok(())
+        }
+
+        fn predicates(&'a self) -> Vec<ast::PredicateIndex> {
+            let mut seen = HashSet::new();
+            for fact in self.facts.borrow().iter() {
+                let pred = &fact.sym;
+                seen.insert(*pred);
+            }
+            seen.iter().copied().collect()
+        }
+
+        fn estimate_fact_count(&self) -> u32 {
+            self.facts.borrow().len().try_into().unwrap()
+        }
+    }
+
+    impl<'a> FactStore<'a> for TestStore<'a> {
+        fn add<'src>(&'a self, src: &'src Arena, fact: &'src ast::Atom) -> Result<bool> {
+            // If the fact is from a different arena, it must be copied.
+            if self.contains(src, fact)? {
+                return Ok(false);
+            }
+            self.facts
+                .borrow_mut()
+                .push(self.arena.copy_atom(src, fact));
+            Ok(true)
+        }
+
+        fn merge<'src, S>(&'a self, src: &'src Arena, store: &'src S)
+        where
+            S: ReadOnlyFactStore<'src>,
+        {
+            let _ = get_all_facts(store, &move |fact| {
+                let atom = self.arena.copy_atom(src, fact);
+                self.facts.borrow_mut().push(atom);
+                Ok(())
+            });
+        }
+    }
+
+    #[test]
+    fn test_get_factsa() {
+        let arena = Arena::new_with_global_interner();
+        let simple = TestStore {
+            arena: &arena,
+            facts: RefCell::new(vec![]),
+        };
+        let atom = test_atom(&arena);
+
+        assert!(!simple.contains(&arena, &atom).unwrap());
+        assert!(simple.add(&arena, &atom).unwrap());
+        assert!(simple.contains(&arena, &atom).unwrap());
+    }
+
+    #[test]
+    fn test_multi_arena() {
+        let arena1 = Arena::new_with_global_interner();
+        let arena2 = Arena::new_with_global_interner();
+        let store = TestStore {
+            arena: &arena1,
+            facts: RefCell::new(vec![]),
+        };
+
+        let atom_in_arena2 = test_atom(&arena2);
+
+        // Register the predicate symbol in the store's arena as well.
+        let index1 = arena1.predicate_sym("foo", Some(1));
+
+        println!("predicate_sym: {:?}", index1);
+
+        // Add atom from arena2 to store with arena1
+        assert!(store.add(&arena2, &atom_in_arena2).unwrap());
+
+        // Check if the atom is now in the store
+        assert!(store.contains(&arena2, &atom_in_arena2).unwrap());
+
+        // Verify that the stored atom is in arena1
+        let found = RefCell::new(false);
+        let _ = get_all_facts(&store, &|fact: &ast::Atom| {
+            // This is a bit of a hack to check if the atom is in arena1.
+            // We can't directly compare arenas, but we can check if the symbols
+            // are the same.
+            assert_eq!(fact.sym, arena1.predicate_sym("foo", Some(1)));
+            *found.borrow_mut() = true;
+            Ok(())
+        });
+        assert!(*found.borrow());
+    }
 }

@@ -60,7 +60,7 @@ fn read_simple_column<'a, R: BufRead>(
         reader.read_line(&mut line)?;
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() != 3 {
-            return Err(anyhow!("Invalid predicate header: {line}"));
+            return Err(anyhow!("Invalid predicate header: {}", line));
         }
         let name = parts[0].to_string();
         let arity: usize = parts[1].parse().context("parsing arity")?;
@@ -95,7 +95,9 @@ fn read_simple_column<'a, R: BufRead>(
                 line.clear();
                 if reader.read_line(&mut line)? == 0 {
                     return Err(anyhow!(
-                        "Unexpected EOF reading column {col_idx} row {row_idx}",
+                        "Unexpected EOF reading column {} row {}",
+                        col_idx,
+                        row_idx
                     ));
                 }
 
@@ -115,7 +117,7 @@ fn read_simple_column<'a, R: BufRead>(
                 parser.next_token()?;
                 let term = parser
                     .parse_base_term()
-                    .context(format!("parsing term: {term_str}"))?;
+                    .context(format!("parsing term: {}", term_str))?;
 
                 facts[row_idx].push(term);
             }
@@ -162,8 +164,7 @@ fn percent_unescape(s: &str) -> Result<String> {
 pub mod store {
     use super::*;
     use mangle_ast as ast;
-    use mangle_factstore::{Store, Value};
-    use mangle_interpreter::MemStore;
+    use mangle_interpreter::{MemStore, Store, Value};
 
     pub struct SimpleColumnStore {
         mem: MemStore,
@@ -247,7 +248,7 @@ pub mod store {
 pub mod host {
     use super::*;
     use mangle_ast::Arena;
-    use mangle_factstore::Host;
+    use mangle_vm::Host;
     use std::collections::HashMap;
     use std::fs::File;
     use std::path::Path;

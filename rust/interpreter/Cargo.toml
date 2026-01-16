@@ -12,6 +12,5 @@ readme = "README.md"
 [dependencies]
 mangle-ir.workspace = true
 mangle-ast.workspace = true
-mangle-factstore = { workspace = true, features = ["edge"] }
 anyhow.workspace = true
-
+# log.workspace = true

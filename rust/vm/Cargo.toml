@@ -10,18 +10,19 @@ repository.workspace = true
 readme = "README.md"
 
 [dependencies]
-wasmtime = "30"
+wasmtime.workspace = true
+mangle-factstore = { workspace = true, features = ["server"] }
 anyhow.workspace = true
-csv = { version = "1.3", optional = true }
+csv = { workspace = true, optional = true }
 
 [dev-dependencies]
 mangle-codegen.workspace = true
 mangle-analysis.workspace = true
 mangle-ast.workspace = true
 mangle-ir.workspace = true
-tempfile = "3.10"
-mangle-simplecolumn = { workspace = true, features = ["server"] }
-# mangle-factstore.workspace = true
+tempfile.workspace = true
+mangle-simplecolumn.workspace = true
+# mangle-factstore = { workspace = true, features = ["server"] }
 
 [features]
 default = []

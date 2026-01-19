@@ -595,10 +595,7 @@ where
         if let ast::BaseTerm::Const(ast::Const::Name { .. }) = name {
             items.push(name)
         } else {
-            bail!(
-                "parse_base_term: expected name in struct expression {{ ... }} got {:?}",
-                name
-            );
+            bail!("parse_base_term: expected name in struct expression {{ ... }} got {name:?}",);
         }
         self.expect(Token::Colon)?;
         items.push(self.parse_base_term()?);
@@ -610,10 +607,7 @@ where
             if let ast::BaseTerm::Const(ast::Const::Name { .. }) = name {
                 items.push(name)
             } else {
-                bail!(
-                    "parse_base_term: expected name in struct expression {{ ... }} got {:?}",
-                    name
-                );
+                bail!("parse_base_term: expected name in struct expression {{ ... }} got {name:?}");
             }
             self.expect(Token::Colon)?;
             items.push(self.parse_base_term()?);

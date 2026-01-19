@@ -1,6 +1,6 @@
 # Mangle Rust Implementation Architecture Summary
 
-This document summarizes the architecture of the Rust implementation of Mangle, as observed during the development and refactoring process (December 2025).
+This document summarizes the architecture of the Rust implementation of Mangle.
 
 ## 1. Abstract Syntax Tree (AST) & Parsing
 **Location:** `third_party/mangle/rust/ast`, `third_party/mangle/rust/parse`
@@ -45,13 +45,25 @@ This document summarizes the architecture of the Rust implementation of Mangle, 
 *   **Interpreter:** Directly interprets Physical IR operations (`Op`).
 *   **State:** Manages in-memory fact storage for local execution.
 
-## 6. Key Data Structures
+## 6. Data Storage & Interfaces (New)
+**Location:** `third_party/mangle/rust/factstore`
+
+*   **Role:** Acts as the central interface definition crate to prevent dependency cycles.
+*   **Interfaces:**
+    *   `Store` (Feature `edge`): The abstract interface for storage in Edge mode, used by `mangle-interpreter`.
+    *   `Host` (Feature `server`): The abstract interface for the host environment in Server mode, used by `mangle-vm`.
+*   **Implementations:**
+    *   `MemStore` (in `mangle-interpreter`): In-memory implementation of `Store`.
+    *   `SimpleColumnStore`/`SimpleColumnHost` (in `mangle-simplecolumn`): Implementations for the SimpleColumn file format.
+
+## 7. Key Data Structures
+
 *   **`InstId`**: Reference to an instruction in the IR.
 *   **`NameId`**: Interned string reference.
 *   **`physical::Op`**: Imperative operation (e.g., `Iterate`, `Insert`).
 
-## 7. Change Sets Context
-*   **Driver Extraction:** Moved `SimpleProgram` and orchestration logic to `mangle_driver`.
-*   **Interpreter:** Added `mangle_interpreter` for pure Rust execution.
-*   **Dual Mode:** Architecture now explicitly supports both Server (WASM) and Edge (Interpreter) use cases.
-*   **Pluggable Host:** Introduced `Host` interface in VM to support arbitrary storage backends.
+## 8. TODO Parity Goals (Go vs Rust)
+
+*   **Primitives**: Check support for all Go primitives (int, float, bytes, etc.) in Rust (`i64`, `String` currently dominant).
+*   **Functions**: Match built-in function availability.
+*   **Parser**: Ensure syntax compliance matches the Go reference parser.

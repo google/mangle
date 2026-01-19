@@ -13,13 +13,11 @@ readme = "README.md"
 anyhow.workspace = true
 mangle-ast.workspace = true
 mangle-ir.workspace = true
-mangle-vm = { workspace = true, optional = true }
+mangle-parse.workspace = true
+mangle-factstore = { workspace = true }
 mangle-interpreter = { workspace = true, optional = true }
-mangle-parse.workspace = true # For parsing terms from the file
-# For decoding constants if needed (base64, etc is in std/helper?)
-# The format uses percent-encoding for names starting with /. 
 
 [features]
 default = []
-server = ["dep:mangle-vm"]
-edge = ["dep:mangle-interpreter"]
+server = ["mangle-factstore/server"]
+edge = ["dep:mangle-interpreter", "mangle-factstore/edge"]

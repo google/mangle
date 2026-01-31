@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	antlr "github.com/antlr4-go/antlr/v4"
 	"github.com/google/mangle/ast"
@@ -207,6 +208,12 @@ func (p *Parser) Visit(tree antlr.ParseTree) any {
 		return p.VisitDotType(tree.(*gen.DotTypeContext))
 	case *gen.MemberContext:
 		return p.VisitMember(tree.(*gen.MemberContext))
+	case *gen.TemporalAnnotationContext:
+		return p.VisitTemporalAnnotation(tree.(*gen.TemporalAnnotationContext))
+	case *gen.TemporalBoundContext:
+		return p.VisitTemporalBound(tree.(*gen.TemporalBoundContext))
+	case *gen.TemporalOperatorContext:
+		return p.VisitTemporalOperator(tree.(*gen.TemporalOperatorContext))
 	}
 	p.errors.Add(fmt.Sprintf("parse error: %q", tree.GetText()), 0, 0)
 	return nil
@@ -269,6 +276,10 @@ func (p Parser) VisitDecl(ctx *gen.DeclContext) any {
 	if ctx.DescrBlock() != nil {
 		descrAtoms = p.Visit(ctx.DescrBlock()).([]ast.Atom)
 	}
+	// Check for 'temporal' keyword (T__0 corresponds to 'temporal' in the grammar)
+	if ctx.GetToken(gen.MangleParserT__0, 0) != nil {
+		descrAtoms = append(descrAtoms, ast.NewAtom(ast.DescrTemporal))
+	}
 	var bounds []ast.BoundDecl
 	for _, b := range ctx.AllBoundsBlock() {
 		bounds = append(bounds, p.Visit(b).(ast.BoundDecl))
@@ -315,12 +326,20 @@ func (p Parser) VisitConstraintsBlock(ctx *gen.ConstraintsBlockContext) any {
 // VisitClause visits a parse tree produced by MangleParser#clause.
 func (p Parser) VisitClause(ctx *gen.ClauseContext) any {
 	head := p.Visit(ctx.Atom()).(ast.Atom)
+
+	// Check for temporal annotation on head
+	var headTime *ast.Interval
+	if tempAnnot := ctx.TemporalAnnotation(); tempAnnot != nil {
+		headTime = p.Visit(tempAnnot).(*ast.Interval)
+	}
+
 	if (ctx.COLONDASH() != nil) || (ctx.LONGLEFTDOUBLEARROW() != nil) {
 		body := p.Visit(ctx.ClauseBody()).(ast.Clause)
 		body.Head = head
+		body.HeadTime = headTime
 		return body
 	}
-	return ast.NewClause(head, nil)
+	return ast.NewTemporalClause(head, headTime, nil)
 }
 
 // VisitClauseBody visits a parse tree produced by MangleParser#clauseBody.
@@ -379,19 +398,50 @@ func (p Parser) VisitLetStmt(ctx *gen.LetStmtContext) any {
 func (p Parser) VisitLiteralOrFml(ctx *gen.LiteralOrFmlContext) any {
 	term := p.Visit(ctx.Term(0)).(ast.Term)
 	atom, ok := term.(ast.Atom)
+
+	// Handle negation
 	if ctx.BANG() != nil {
 		if !ok {
 			p.errors.Add(fmt.Sprintf("not a literal or fml: %v", ctx.Term(0).GetText()), ctx.Term(0).GetStart().GetLine(), ctx.Term(0).GetStart().GetColumn())
 		}
 		return ast.NegAtom{atom}
 	}
+
+	// Check for temporal operator
+	var tempOp *ast.TemporalOperator
+	if tempOpCtx := ctx.TemporalOperator(); tempOpCtx != nil {
+		tempOp = p.Visit(tempOpCtx).(*ast.TemporalOperator)
+	}
+
+	// Check for temporal annotation
+	var tempAnnot *ast.Interval
+	if tempAnnotCtx := ctx.TemporalAnnotation(); tempAnnotCtx != nil {
+		tempAnnot = p.Visit(tempAnnotCtx).(*ast.Interval)
+	}
+
+	// If no comparison operator, it's a simple literal (possibly with temporal annotations)
 	if ctx.EQ() == nil && ctx.BANGEQ() == nil && ctx.LESS() == nil && ctx.LESSEQ() == nil && ctx.GREATER() == nil && ctx.GREATEREQ() == nil {
 		if ok {
+			// If there's a temporal operator or annotation, wrap in TemporalLiteral
+			if tempOp != nil || tempAnnot != nil {
+				var intervalVar *ast.Variable
+				// If the annotation is a variable, extract it
+				if tempAnnot != nil && tempAnnot.Start.Type == ast.VariableBound {
+					intervalVar = &tempAnnot.Start.Variable
+				}
+				return ast.TemporalLiteral{
+					Literal:     atom,
+					Operator:    tempOp,
+					IntervalVar: intervalVar,
+				}
+			}
 			return atom
 		}
 		p.errors.Add(fmt.Sprintf("parse error: %v", ctx.GetText()), ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
 		return ast.NewAtom("br0ken")
 	}
+
+	// Handle comparison operators
 	left := p.Visit(ctx.Term(0)).(ast.Term)
 	leftBase, ok := left.(ast.BaseTerm)
 	if !ok {
@@ -734,4 +784,160 @@ func (p *Parser) ReportAttemptingFullContext(recognizer antlr.Parser, dfa *antlr
 // ReportContextSensitivity  implements error listener interface.
 func (p *Parser) ReportContextSensitivity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex, prediction int, configs *antlr.ATNConfigSet) {
 	// Intentional
+}
+
+// VisitTemporalAnnotation visits a parse tree produced by MangleParser#temporalAnnotation.
+// Returns an *ast.Interval.
+func (p Parser) VisitTemporalAnnotation(ctx *gen.TemporalAnnotationContext) any {
+	bounds := ctx.AllTemporalBound()
+	if len(bounds) == 0 {
+		p.errors.Add("temporal annotation requires at least one bound", ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
+		return nil
+	}
+
+	start := p.Visit(bounds[0]).(ast.TemporalBound)
+
+	var end ast.TemporalBound
+	if len(bounds) > 1 {
+		end = p.Visit(bounds[1]).(ast.TemporalBound)
+	} else {
+		// Point interval: @[t] means @[t, t]
+		end = start
+	}
+
+	interval := ast.NewInterval(start, end)
+	return &interval
+}
+
+// VisitTemporalBound visits a parse tree produced by MangleParser#temporalBound.
+// Returns an ast.TemporalBound.
+func (p Parser) VisitTemporalBound(ctx *gen.TemporalBoundContext) any {
+	if ts := ctx.TIMESTAMP(); ts != nil {
+		text := ts.GetText()
+		t, err := parseTimestamp(text)
+		if err != nil {
+			p.errors.Add(fmt.Sprintf("invalid timestamp %q: %v", text, err), ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
+			return ast.TemporalBound{}
+		}
+		return ast.NewTimestampBound(t)
+	}
+
+	if dur := ctx.DURATION(); dur != nil {
+		text := dur.GetText()
+		d, err := parseDuration(text)
+		if err != nil {
+			p.errors.Add(fmt.Sprintf("invalid duration %q: %v", text, err), ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
+			return ast.TemporalBound{}
+		}
+		// Duration bounds are relative to "now" - store as negative offset from epoch
+		// This will be resolved during evaluation
+		return ast.TemporalBound{
+			Type:      ast.TimestampBound,
+			Timestamp: -d.Nanoseconds(), // Negative to indicate relative duration
+		}
+	}
+
+	if v := ctx.VARIABLE(); v != nil {
+		text := v.GetText()
+		if text == "_" {
+			// Unbounded - determine if positive or negative based on position
+			// The caller (VisitTemporalAnnotation) will need to handle this
+			// For now, default to positive infinity (end bound)
+			return ast.PositiveInfinity()
+		}
+		return ast.NewVariableBound(ast.Variable{Symbol: text})
+	}
+
+	// Check for 'now' keyword
+	if ctx.GetText() == "now" {
+		return ast.Now()
+	}
+
+	p.errors.Add("unknown temporal bound", ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
+	return ast.TemporalBound{}
+}
+
+// VisitTemporalOperator visits a parse tree produced by MangleParser#temporalOperator.
+// Returns an *ast.TemporalOperator.
+func (p Parser) VisitTemporalOperator(ctx *gen.TemporalOperatorContext) any {
+	bounds := ctx.AllTemporalBound()
+	if len(bounds) != 2 {
+		p.errors.Add("temporal operator requires exactly two bounds", ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
+		return nil
+	}
+
+	start := p.Visit(bounds[0]).(ast.TemporalBound)
+	end := p.Visit(bounds[1]).(ast.TemporalBound)
+	interval := ast.NewInterval(start, end)
+
+	var opType ast.TemporalOperatorType
+	if ctx.DIAMONDMINUS() != nil {
+		opType = ast.DiamondMinus
+	} else if ctx.BOXMINUS() != nil {
+		opType = ast.BoxMinus
+	} else {
+		p.errors.Add("unknown temporal operator", ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
+		return nil
+	}
+
+	return &ast.TemporalOperator{
+		Type:     opType,
+		Interval: interval,
+	}
+}
+
+// parseTimestamp parses a timestamp string in ISO 8601 format.
+func parseTimestamp(s string) (time.Time, error) {
+	// Try various formats
+	formats := []string{
+		"2006-01-02T15:04:05Z",
+		"2006-01-02T15:04:05",
+		"2006-01-02",
+	}
+
+	for _, format := range formats {
+		if t, err := time.Parse(format, s); err == nil {
+			return t, nil
+		}
+	}
+
+	return time.Time{}, fmt.Errorf("unable to parse timestamp: %s", s)
+}
+
+// parseDuration parses a duration string like "7d", "24h", "30m", "1s", "500ms".
+func parseDuration(s string) (time.Duration, error) {
+	if len(s) < 2 {
+		return 0, fmt.Errorf("duration too short: %s", s)
+	}
+
+	// Handle "ms" suffix specially
+	if strings.HasSuffix(s, "ms") {
+		numStr := s[:len(s)-2]
+		num, err := strconv.ParseInt(numStr, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		return time.Duration(num) * time.Millisecond, nil
+	}
+
+	// Single character suffix
+	suffix := s[len(s)-1]
+	numStr := s[:len(s)-1]
+	num, err := strconv.ParseInt(numStr, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	switch suffix {
+	case 'd':
+		return time.Duration(num) * 24 * time.Hour, nil
+	case 'h':
+		return time.Duration(num) * time.Hour, nil
+	case 'm':
+		return time.Duration(num) * time.Minute, nil
+	case 's':
+		return time.Duration(num) * time.Second, nil
+	default:
+		return 0, fmt.Errorf("unknown duration suffix: %c", suffix)
+	}
 }

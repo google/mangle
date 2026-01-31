@@ -1,4 +1,4 @@
-// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
+// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Mangle
 import (
@@ -32,154 +32,178 @@ var MangleParserStaticData struct {
 func mangleParserInit() {
 	staticData := &MangleParserStaticData
 	staticData.LiteralNames = []string{
-		"", "'.'", "'descr'", "'inclusion'", "':'", "'{'", "'}'", "'opt'", "",
-		"", "'\\u27F8'", "'Package'", "'Use'", "'Decl'", "'bound'", "'let'",
-		"'do'", "'('", "')'", "'['", "']'", "'='", "'!='", "','", "'!'", "'<'",
-		"'<='", "'>'", "'>='", "':-'", "'\\n'", "'|>'",
+		"", "'temporal'", "'.'", "'descr'", "'inclusion'", "'now'", "':'", "'opt'",
+		"", "", "'\\u27F8'", "'Package'", "'Use'", "'Decl'", "'bound'", "'let'",
+		"'do'", "'('", "')'", "'['", "']'", "'{'", "'}'", "'='", "'!='", "','",
+		"'!'", "'<='", "'<'", "'>='", "'>'", "':-'", "'\\n'", "'|>'", "'@'",
+		"'<-'", "'[-'",
 	}
 	staticData.SymbolicNames = []string{
 		"", "", "", "", "", "", "", "", "WHITESPACE", "COMMENT", "LONGLEFTDOUBLEARROW",
 		"PACKAGE", "USE", "DECL", "BOUND", "LET", "DO", "LPAREN", "RPAREN",
-		"LBRACKET", "RBRACKET", "EQ", "BANGEQ", "COMMA", "BANG", "LESS", "LESSEQ",
-		"GREATER", "GREATEREQ", "COLONDASH", "NEWLINE", "PIPEGREATER", "NUMBER",
-		"FLOAT", "VARIABLE", "NAME", "TYPENAME", "DOT_TYPE", "CONSTANT", "STRING",
-		"BYTESTRING",
+		"LBRACKET", "RBRACKET", "LBRACE", "RBRACE", "EQ", "BANGEQ", "COMMA",
+		"BANG", "LESSEQ", "LESS", "GREATEREQ", "GREATER", "COLONDASH", "NEWLINE",
+		"PIPEGREATER", "AT", "DIAMONDMINUS", "BOXMINUS", "TIMESTAMP", "DURATION",
+		"NUMBER", "FLOAT", "VARIABLE", "NAME", "TYPENAME", "DOT_TYPE", "CONSTANT",
+		"STRING", "BYTESTRING",
 	}
 	staticData.RuleNames = []string{
 		"start", "program", "packageDecl", "useDecl", "decl", "descrBlock",
-		"boundsBlock", "constraintsBlock", "clause", "clauseBody", "transform",
-		"letStmt", "literalOrFml", "term", "member", "atom", "atoms",
+		"boundsBlock", "constraintsBlock", "clause", "temporalAnnotation", "temporalBound",
+		"clauseBody", "transform", "letStmt", "literalOrFml", "temporalOperator",
+		"term", "member", "atom", "atoms",
 	}
 	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
-		4, 1, 40, 283, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 1, 47, 328, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
 		4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2, 10, 7,
 		10, 2, 11, 7, 11, 2, 12, 7, 12, 2, 13, 7, 13, 2, 14, 7, 14, 2, 15, 7, 15,
-		2, 16, 7, 16, 1, 0, 1, 0, 1, 0, 1, 1, 3, 1, 39, 8, 1, 1, 1, 5, 1, 42, 8,
-		1, 10, 1, 12, 1, 45, 9, 1, 1, 1, 1, 1, 5, 1, 49, 8, 1, 10, 1, 12, 1, 52,
-		9, 1, 1, 2, 1, 2, 1, 2, 3, 2, 57, 8, 2, 1, 2, 1, 2, 1, 3, 1, 3, 1, 3, 3,
-		3, 64, 8, 3, 1, 3, 1, 3, 1, 4, 1, 4, 1, 4, 3, 4, 71, 8, 4, 1, 4, 5, 4,
-		74, 8, 4, 10, 4, 12, 4, 77, 9, 4, 1, 4, 3, 4, 80, 8, 4, 1, 4, 1, 4, 1,
-		5, 1, 5, 1, 5, 1, 6, 1, 6, 1, 6, 1, 6, 1, 6, 5, 6, 92, 8, 6, 10, 6, 12,
-		6, 95, 9, 6, 1, 6, 3, 6, 98, 8, 6, 1, 6, 1, 6, 1, 7, 1, 7, 1, 7, 1, 8,
-		1, 8, 1, 8, 3, 8, 108, 8, 8, 1, 8, 1, 8, 1, 9, 1, 9, 1, 9, 5, 9, 115, 8,
-		9, 10, 9, 12, 9, 118, 9, 9, 1, 9, 3, 9, 121, 8, 9, 1, 9, 1, 9, 5, 9, 125,
-		8, 9, 10, 9, 12, 9, 128, 9, 9, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10,
-		5, 10, 136, 8, 10, 10, 10, 12, 10, 139, 9, 10, 3, 10, 141, 8, 10, 1, 10,
-		1, 10, 1, 10, 5, 10, 146, 8, 10, 10, 10, 12, 10, 149, 9, 10, 3, 10, 151,
-		8, 10, 1, 11, 1, 11, 1, 11, 1, 11, 1, 11, 1, 12, 1, 12, 1, 12, 3, 12, 161,
-		8, 12, 1, 12, 1, 12, 3, 12, 165, 8, 12, 1, 13, 1, 13, 1, 13, 1, 13, 1,
-		13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 5, 13, 177, 8, 13, 10, 13, 12, 13,
-		180, 9, 13, 1, 13, 3, 13, 183, 8, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13,
-		1, 13, 1, 13, 5, 13, 192, 8, 13, 10, 13, 12, 13, 195, 9, 13, 1, 13, 1,
-		13, 1, 13, 1, 13, 3, 13, 201, 8, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13,
-		1, 13, 1, 13, 5, 13, 210, 8, 13, 10, 13, 12, 13, 213, 9, 13, 1, 13, 1,
-		13, 1, 13, 1, 13, 3, 13, 219, 8, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13,
-		1, 13, 5, 13, 227, 8, 13, 10, 13, 12, 13, 230, 9, 13, 1, 13, 1, 13, 3,
-		13, 234, 8, 13, 3, 13, 236, 8, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1, 13, 1,
-		13, 5, 13, 244, 8, 13, 10, 13, 12, 13, 247, 9, 13, 1, 13, 3, 13, 250, 8,
-		13, 1, 13, 3, 13, 253, 8, 13, 1, 14, 1, 14, 1, 14, 3, 14, 258, 8, 14, 1,
-		14, 1, 14, 1, 14, 1, 14, 1, 14, 3, 14, 265, 8, 14, 1, 15, 1, 15, 1, 16,
-		1, 16, 1, 16, 1, 16, 5, 16, 273, 8, 16, 10, 16, 12, 16, 276, 9, 16, 1,
-		16, 3, 16, 279, 8, 16, 1, 16, 1, 16, 1, 16, 0, 0, 17, 0, 2, 4, 6, 8, 10,
-		12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 0, 2, 2, 0, 10, 10, 29, 29,
-		2, 0, 21, 22, 25, 28, 311, 0, 34, 1, 0, 0, 0, 2, 38, 1, 0, 0, 0, 4, 53,
-		1, 0, 0, 0, 6, 60, 1, 0, 0, 0, 8, 67, 1, 0, 0, 0, 10, 83, 1, 0, 0, 0, 12,
-		86, 1, 0, 0, 0, 14, 101, 1, 0, 0, 0, 16, 104, 1, 0, 0, 0, 18, 111, 1, 0,
-		0, 0, 20, 150, 1, 0, 0, 0, 22, 152, 1, 0, 0, 0, 24, 164, 1, 0, 0, 0, 26,
-		252, 1, 0, 0, 0, 28, 264, 1, 0, 0, 0, 30, 266, 1, 0, 0, 0, 32, 268, 1,
-		0, 0, 0, 34, 35, 3, 2, 1, 0, 35, 36, 5, 0, 0, 1, 36, 1, 1, 0, 0, 0, 37,
-		39, 3, 4, 2, 0, 38, 37, 1, 0, 0, 0, 38, 39, 1, 0, 0, 0, 39, 43, 1, 0, 0,
-		0, 40, 42, 3, 6, 3, 0, 41, 40, 1, 0, 0, 0, 42, 45, 1, 0, 0, 0, 43, 41,
-		1, 0, 0, 0, 43, 44, 1, 0, 0, 0, 44, 50, 1, 0, 0, 0, 45, 43, 1, 0, 0, 0,
-		46, 49, 3, 8, 4, 0, 47, 49, 3, 16, 8, 0, 48, 46, 1, 0, 0, 0, 48, 47, 1,
-		0, 0, 0, 49, 52, 1, 0, 0, 0, 50, 48, 1, 0, 0, 0, 50, 51, 1, 0, 0, 0, 51,
-		3, 1, 0, 0, 0, 52, 50, 1, 0, 0, 0, 53, 54, 5, 11, 0, 0, 54, 56, 5, 35,
-		0, 0, 55, 57, 3, 32, 16, 0, 56, 55, 1, 0, 0, 0, 56, 57, 1, 0, 0, 0, 57,
-		58, 1, 0, 0, 0, 58, 59, 5, 24, 0, 0, 59, 5, 1, 0, 0, 0, 60, 61, 5, 12,
-		0, 0, 61, 63, 5, 35, 0, 0, 62, 64, 3, 32, 16, 0, 63, 62, 1, 0, 0, 0, 63,
-		64, 1, 0, 0, 0, 64, 65, 1, 0, 0, 0, 65, 66, 5, 24, 0, 0, 66, 7, 1, 0, 0,
-		0, 67, 68, 5, 13, 0, 0, 68, 70, 3, 30, 15, 0, 69, 71, 3, 10, 5, 0, 70,
-		69, 1, 0, 0, 0, 70, 71, 1, 0, 0, 0, 71, 75, 1, 0, 0, 0, 72, 74, 3, 12,
-		6, 0, 73, 72, 1, 0, 0, 0, 74, 77, 1, 0, 0, 0, 75, 73, 1, 0, 0, 0, 75, 76,
-		1, 0, 0, 0, 76, 79, 1, 0, 0, 0, 77, 75, 1, 0, 0, 0, 78, 80, 3, 14, 7, 0,
-		79, 78, 1, 0, 0, 0, 79, 80, 1, 0, 0, 0, 80, 81, 1, 0, 0, 0, 81, 82, 5,
-		1, 0, 0, 82, 9, 1, 0, 0, 0, 83, 84, 5, 2, 0, 0, 84, 85, 3, 32, 16, 0, 85,
-		11, 1, 0, 0, 0, 86, 87, 5, 14, 0, 0, 87, 93, 5, 19, 0, 0, 88, 89, 3, 26,
-		13, 0, 89, 90, 5, 23, 0, 0, 90, 92, 1, 0, 0, 0, 91, 88, 1, 0, 0, 0, 92,
-		95, 1, 0, 0, 0, 93, 91, 1, 0, 0, 0, 93, 94, 1, 0, 0, 0, 94, 97, 1, 0, 0,
-		0, 95, 93, 1, 0, 0, 0, 96, 98, 3, 26, 13, 0, 97, 96, 1, 0, 0, 0, 97, 98,
-		1, 0, 0, 0, 98, 99, 1, 0, 0, 0, 99, 100, 5, 20, 0, 0, 100, 13, 1, 0, 0,
-		0, 101, 102, 5, 3, 0, 0, 102, 103, 3, 32, 16, 0, 103, 15, 1, 0, 0, 0, 104,
-		107, 3, 30, 15, 0, 105, 106, 7, 0, 0, 0, 106, 108, 3, 18, 9, 0, 107, 105,
-		1, 0, 0, 0, 107, 108, 1, 0, 0, 0, 108, 109, 1, 0, 0, 0, 109, 110, 5, 1,
-		0, 0, 110, 17, 1, 0, 0, 0, 111, 116, 3, 24, 12, 0, 112, 113, 5, 23, 0,
-		0, 113, 115, 3, 24, 12, 0, 114, 112, 1, 0, 0, 0, 115, 118, 1, 0, 0, 0,
-		116, 114, 1, 0, 0, 0, 116, 117, 1, 0, 0, 0, 117, 120, 1, 0, 0, 0, 118,
-		116, 1, 0, 0, 0, 119, 121, 5, 23, 0, 0, 120, 119, 1, 0, 0, 0, 120, 121,
-		1, 0, 0, 0, 121, 126, 1, 0, 0, 0, 122, 123, 5, 31, 0, 0, 123, 125, 3, 20,
-		10, 0, 124, 122, 1, 0, 0, 0, 125, 128, 1, 0, 0, 0, 126, 124, 1, 0, 0, 0,
-		126, 127, 1, 0, 0, 0, 127, 19, 1, 0, 0, 0, 128, 126, 1, 0, 0, 0, 129, 130,
-		5, 16, 0, 0, 130, 140, 3, 26, 13, 0, 131, 132, 5, 23, 0, 0, 132, 137, 3,
-		22, 11, 0, 133, 134, 5, 23, 0, 0, 134, 136, 3, 22, 11, 0, 135, 133, 1,
-		0, 0, 0, 136, 139, 1, 0, 0, 0, 137, 135, 1, 0, 0, 0, 137, 138, 1, 0, 0,
-		0, 138, 141, 1, 0, 0, 0, 139, 137, 1, 0, 0, 0, 140, 131, 1, 0, 0, 0, 140,
-		141, 1, 0, 0, 0, 141, 151, 1, 0, 0, 0, 142, 147, 3, 22, 11, 0, 143, 144,
-		5, 23, 0, 0, 144, 146, 3, 22, 11, 0, 145, 143, 1, 0, 0, 0, 146, 149, 1,
-		0, 0, 0, 147, 145, 1, 0, 0, 0, 147, 148, 1, 0, 0, 0, 148, 151, 1, 0, 0,
-		0, 149, 147, 1, 0, 0, 0, 150, 129, 1, 0, 0, 0, 150, 142, 1, 0, 0, 0, 151,
-		21, 1, 0, 0, 0, 152, 153, 5, 15, 0, 0, 153, 154, 5, 34, 0, 0, 154, 155,
-		5, 21, 0, 0, 155, 156, 3, 26, 13, 0, 156, 23, 1, 0, 0, 0, 157, 160, 3,
-		26, 13, 0, 158, 159, 7, 1, 0, 0, 159, 161, 3, 26, 13, 0, 160, 158, 1, 0,
-		0, 0, 160, 161, 1, 0, 0, 0, 161, 165, 1, 0, 0, 0, 162, 163, 5, 24, 0, 0,
-		163, 165, 3, 26, 13, 0, 164, 157, 1, 0, 0, 0, 164, 162, 1, 0, 0, 0, 165,
-		25, 1, 0, 0, 0, 166, 253, 5, 34, 0, 0, 167, 253, 5, 38, 0, 0, 168, 253,
-		5, 32, 0, 0, 169, 253, 5, 33, 0, 0, 170, 253, 5, 39, 0, 0, 171, 253, 5,
-		40, 0, 0, 172, 178, 5, 19, 0, 0, 173, 174, 3, 26, 13, 0, 174, 175, 5, 23,
-		0, 0, 175, 177, 1, 0, 0, 0, 176, 173, 1, 0, 0, 0, 177, 180, 1, 0, 0, 0,
-		178, 176, 1, 0, 0, 0, 178, 179, 1, 0, 0, 0, 179, 182, 1, 0, 0, 0, 180,
-		178, 1, 0, 0, 0, 181, 183, 3, 26, 13, 0, 182, 181, 1, 0, 0, 0, 182, 183,
-		1, 0, 0, 0, 183, 184, 1, 0, 0, 0, 184, 253, 5, 20, 0, 0, 185, 193, 5, 19,
-		0, 0, 186, 187, 3, 26, 13, 0, 187, 188, 5, 4, 0, 0, 188, 189, 3, 26, 13,
-		0, 189, 190, 5, 23, 0, 0, 190, 192, 1, 0, 0, 0, 191, 186, 1, 0, 0, 0, 192,
-		195, 1, 0, 0, 0, 193, 191, 1, 0, 0, 0, 193, 194, 1, 0, 0, 0, 194, 200,
-		1, 0, 0, 0, 195, 193, 1, 0, 0, 0, 196, 197, 3, 26, 13, 0, 197, 198, 5,
-		4, 0, 0, 198, 199, 3, 26, 13, 0, 199, 201, 1, 0, 0, 0, 200, 196, 1, 0,
-		0, 0, 200, 201, 1, 0, 0, 0, 201, 202, 1, 0, 0, 0, 202, 253, 5, 20, 0, 0,
-		203, 211, 5, 5, 0, 0, 204, 205, 3, 26, 13, 0, 205, 206, 5, 4, 0, 0, 206,
-		207, 3, 26, 13, 0, 207, 208, 5, 23, 0, 0, 208, 210, 1, 0, 0, 0, 209, 204,
-		1, 0, 0, 0, 210, 213, 1, 0, 0, 0, 211, 209, 1, 0, 0, 0, 211, 212, 1, 0,
-		0, 0, 212, 218, 1, 0, 0, 0, 213, 211, 1, 0, 0, 0, 214, 215, 3, 26, 13,
-		0, 215, 216, 5, 4, 0, 0, 216, 217, 3, 26, 13, 0, 217, 219, 1, 0, 0, 0,
-		218, 214, 1, 0, 0, 0, 218, 219, 1, 0, 0, 0, 219, 220, 1, 0, 0, 0, 220,
-		253, 5, 6, 0, 0, 221, 222, 5, 37, 0, 0, 222, 228, 5, 25, 0, 0, 223, 224,
-		3, 28, 14, 0, 224, 225, 5, 23, 0, 0, 225, 227, 1, 0, 0, 0, 226, 223, 1,
-		0, 0, 0, 227, 230, 1, 0, 0, 0, 228, 226, 1, 0, 0, 0, 228, 229, 1, 0, 0,
-		0, 229, 235, 1, 0, 0, 0, 230, 228, 1, 0, 0, 0, 231, 233, 3, 28, 14, 0,
-		232, 234, 5, 23, 0, 0, 233, 232, 1, 0, 0, 0, 233, 234, 1, 0, 0, 0, 234,
-		236, 1, 0, 0, 0, 235, 231, 1, 0, 0, 0, 235, 236, 1, 0, 0, 0, 236, 237,
-		1, 0, 0, 0, 237, 253, 5, 27, 0, 0, 238, 239, 5, 35, 0, 0, 239, 245, 5,
-		17, 0, 0, 240, 241, 3, 26, 13, 0, 241, 242, 5, 23, 0, 0, 242, 244, 1, 0,
-		0, 0, 243, 240, 1, 0, 0, 0, 244, 247, 1, 0, 0, 0, 245, 243, 1, 0, 0, 0,
-		245, 246, 1, 0, 0, 0, 246, 249, 1, 0, 0, 0, 247, 245, 1, 0, 0, 0, 248,
-		250, 3, 26, 13, 0, 249, 248, 1, 0, 0, 0, 249, 250, 1, 0, 0, 0, 250, 251,
-		1, 0, 0, 0, 251, 253, 5, 18, 0, 0, 252, 166, 1, 0, 0, 0, 252, 167, 1, 0,
-		0, 0, 252, 168, 1, 0, 0, 0, 252, 169, 1, 0, 0, 0, 252, 170, 1, 0, 0, 0,
-		252, 171, 1, 0, 0, 0, 252, 172, 1, 0, 0, 0, 252, 185, 1, 0, 0, 0, 252,
-		203, 1, 0, 0, 0, 252, 221, 1, 0, 0, 0, 252, 238, 1, 0, 0, 0, 253, 27, 1,
-		0, 0, 0, 254, 257, 3, 26, 13, 0, 255, 256, 5, 4, 0, 0, 256, 258, 3, 26,
-		13, 0, 257, 255, 1, 0, 0, 0, 257, 258, 1, 0, 0, 0, 258, 265, 1, 0, 0, 0,
-		259, 260, 5, 7, 0, 0, 260, 261, 3, 26, 13, 0, 261, 262, 5, 4, 0, 0, 262,
-		263, 3, 26, 13, 0, 263, 265, 1, 0, 0, 0, 264, 254, 1, 0, 0, 0, 264, 259,
-		1, 0, 0, 0, 265, 29, 1, 0, 0, 0, 266, 267, 3, 26, 13, 0, 267, 31, 1, 0,
-		0, 0, 268, 274, 5, 19, 0, 0, 269, 270, 3, 30, 15, 0, 270, 271, 5, 23, 0,
-		0, 271, 273, 1, 0, 0, 0, 272, 269, 1, 0, 0, 0, 273, 276, 1, 0, 0, 0, 274,
-		272, 1, 0, 0, 0, 274, 275, 1, 0, 0, 0, 275, 278, 1, 0, 0, 0, 276, 274,
-		1, 0, 0, 0, 277, 279, 3, 30, 15, 0, 278, 277, 1, 0, 0, 0, 278, 279, 1,
-		0, 0, 0, 279, 280, 1, 0, 0, 0, 280, 281, 5, 20, 0, 0, 281, 33, 1, 0, 0,
-		0, 37, 38, 43, 48, 50, 56, 63, 70, 75, 79, 93, 97, 107, 116, 120, 126,
-		137, 140, 147, 150, 160, 164, 178, 182, 193, 200, 211, 218, 228, 233, 235,
-		245, 249, 252, 257, 264, 274, 278,
+		2, 16, 7, 16, 2, 17, 7, 17, 2, 18, 7, 18, 2, 19, 7, 19, 1, 0, 1, 0, 1,
+		0, 1, 1, 3, 1, 45, 8, 1, 1, 1, 5, 1, 48, 8, 1, 10, 1, 12, 1, 51, 9, 1,
+		1, 1, 1, 1, 5, 1, 55, 8, 1, 10, 1, 12, 1, 58, 9, 1, 1, 2, 1, 2, 1, 2, 3,
+		2, 63, 8, 2, 1, 2, 1, 2, 1, 3, 1, 3, 1, 3, 3, 3, 70, 8, 3, 1, 3, 1, 3,
+		1, 4, 1, 4, 1, 4, 3, 4, 77, 8, 4, 1, 4, 3, 4, 80, 8, 4, 1, 4, 5, 4, 83,
+		8, 4, 10, 4, 12, 4, 86, 9, 4, 1, 4, 3, 4, 89, 8, 4, 1, 4, 1, 4, 1, 5, 1,
+		5, 1, 5, 1, 6, 1, 6, 1, 6, 1, 6, 1, 6, 5, 6, 101, 8, 6, 10, 6, 12, 6, 104,
+		9, 6, 1, 6, 3, 6, 107, 8, 6, 1, 6, 1, 6, 1, 7, 1, 7, 1, 7, 1, 8, 1, 8,
+		3, 8, 116, 8, 8, 1, 8, 1, 8, 3, 8, 120, 8, 8, 1, 8, 1, 8, 1, 9, 1, 9, 1,
+		9, 1, 9, 1, 9, 3, 9, 129, 8, 9, 1, 9, 1, 9, 1, 10, 1, 10, 1, 11, 1, 11,
+		1, 11, 5, 11, 138, 8, 11, 10, 11, 12, 11, 141, 9, 11, 1, 11, 3, 11, 144,
+		8, 11, 1, 11, 1, 11, 5, 11, 148, 8, 11, 10, 11, 12, 11, 151, 9, 11, 1,
+		12, 1, 12, 1, 12, 1, 12, 1, 12, 1, 12, 5, 12, 159, 8, 12, 10, 12, 12, 12,
+		162, 9, 12, 3, 12, 164, 8, 12, 1, 12, 1, 12, 1, 12, 5, 12, 169, 8, 12,
+		10, 12, 12, 12, 172, 9, 12, 3, 12, 174, 8, 12, 1, 13, 1, 13, 1, 13, 1,
+		13, 1, 13, 1, 14, 3, 14, 182, 8, 14, 1, 14, 1, 14, 3, 14, 186, 8, 14, 1,
+		14, 1, 14, 3, 14, 190, 8, 14, 1, 14, 1, 14, 3, 14, 194, 8, 14, 1, 15, 1,
+		15, 1, 15, 1, 15, 1, 15, 1, 15, 1, 15, 1, 15, 1, 15, 1, 15, 1, 15, 1, 15,
+		1, 15, 1, 15, 3, 15, 210, 8, 15, 1, 16, 1, 16, 1, 16, 1, 16, 1, 16, 1,
+		16, 1, 16, 1, 16, 1, 16, 1, 16, 5, 16, 222, 8, 16, 10, 16, 12, 16, 225,
+		9, 16, 1, 16, 3, 16, 228, 8, 16, 1, 16, 1, 16, 1, 16, 1, 16, 1, 16, 1,
+		16, 1, 16, 5, 16, 237, 8, 16, 10, 16, 12, 16, 240, 9, 16, 1, 16, 1, 16,
+		1, 16, 1, 16, 3, 16, 246, 8, 16, 1, 16, 1, 16, 1, 16, 1, 16, 1, 16, 1,
+		16, 1, 16, 5, 16, 255, 8, 16, 10, 16, 12, 16, 258, 9, 16, 1, 16, 1, 16,
+		1, 16, 1, 16, 3, 16, 264, 8, 16, 1, 16, 1, 16, 1, 16, 1, 16, 1, 16, 1,
+		16, 5, 16, 272, 8, 16, 10, 16, 12, 16, 275, 9, 16, 1, 16, 1, 16, 3, 16,
+		279, 8, 16, 3, 16, 281, 8, 16, 1, 16, 1, 16, 1, 16, 1, 16, 1, 16, 1, 16,
+		5, 16, 289, 8, 16, 10, 16, 12, 16, 292, 9, 16, 1, 16, 3, 16, 295, 8, 16,
+		1, 16, 3, 16, 298, 8, 16, 1, 17, 1, 17, 1, 17, 3, 17, 303, 8, 17, 1, 17,
+		1, 17, 1, 17, 1, 17, 1, 17, 3, 17, 310, 8, 17, 1, 18, 1, 18, 1, 19, 1,
+		19, 1, 19, 1, 19, 5, 19, 318, 8, 19, 10, 19, 12, 19, 321, 9, 19, 1, 19,
+		3, 19, 324, 8, 19, 1, 19, 1, 19, 1, 19, 0, 0, 20, 0, 2, 4, 6, 8, 10, 12,
+		14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 0, 3, 2, 0, 10, 10,
+		31, 31, 3, 0, 5, 5, 37, 38, 41, 41, 2, 0, 23, 24, 27, 30, 359, 0, 40, 1,
+		0, 0, 0, 2, 44, 1, 0, 0, 0, 4, 59, 1, 0, 0, 0, 6, 66, 1, 0, 0, 0, 8, 73,
+		1, 0, 0, 0, 10, 92, 1, 0, 0, 0, 12, 95, 1, 0, 0, 0, 14, 110, 1, 0, 0, 0,
+		16, 113, 1, 0, 0, 0, 18, 123, 1, 0, 0, 0, 20, 132, 1, 0, 0, 0, 22, 134,
+		1, 0, 0, 0, 24, 173, 1, 0, 0, 0, 26, 175, 1, 0, 0, 0, 28, 193, 1, 0, 0,
+		0, 30, 209, 1, 0, 0, 0, 32, 297, 1, 0, 0, 0, 34, 309, 1, 0, 0, 0, 36, 311,
+		1, 0, 0, 0, 38, 313, 1, 0, 0, 0, 40, 41, 3, 2, 1, 0, 41, 42, 5, 0, 0, 1,
+		42, 1, 1, 0, 0, 0, 43, 45, 3, 4, 2, 0, 44, 43, 1, 0, 0, 0, 44, 45, 1, 0,
+		0, 0, 45, 49, 1, 0, 0, 0, 46, 48, 3, 6, 3, 0, 47, 46, 1, 0, 0, 0, 48, 51,
+		1, 0, 0, 0, 49, 47, 1, 0, 0, 0, 49, 50, 1, 0, 0, 0, 50, 56, 1, 0, 0, 0,
+		51, 49, 1, 0, 0, 0, 52, 55, 3, 8, 4, 0, 53, 55, 3, 16, 8, 0, 54, 52, 1,
+		0, 0, 0, 54, 53, 1, 0, 0, 0, 55, 58, 1, 0, 0, 0, 56, 54, 1, 0, 0, 0, 56,
+		57, 1, 0, 0, 0, 57, 3, 1, 0, 0, 0, 58, 56, 1, 0, 0, 0, 59, 60, 5, 11, 0,
+		0, 60, 62, 5, 42, 0, 0, 61, 63, 3, 38, 19, 0, 62, 61, 1, 0, 0, 0, 62, 63,
+		1, 0, 0, 0, 63, 64, 1, 0, 0, 0, 64, 65, 5, 26, 0, 0, 65, 5, 1, 0, 0, 0,
+		66, 67, 5, 12, 0, 0, 67, 69, 5, 42, 0, 0, 68, 70, 3, 38, 19, 0, 69, 68,
+		1, 0, 0, 0, 69, 70, 1, 0, 0, 0, 70, 71, 1, 0, 0, 0, 71, 72, 5, 26, 0, 0,
+		72, 7, 1, 0, 0, 0, 73, 74, 5, 13, 0, 0, 74, 76, 3, 36, 18, 0, 75, 77, 5,
+		1, 0, 0, 76, 75, 1, 0, 0, 0, 76, 77, 1, 0, 0, 0, 77, 79, 1, 0, 0, 0, 78,
+		80, 3, 10, 5, 0, 79, 78, 1, 0, 0, 0, 79, 80, 1, 0, 0, 0, 80, 84, 1, 0,
+		0, 0, 81, 83, 3, 12, 6, 0, 82, 81, 1, 0, 0, 0, 83, 86, 1, 0, 0, 0, 84,
+		82, 1, 0, 0, 0, 84, 85, 1, 0, 0, 0, 85, 88, 1, 0, 0, 0, 86, 84, 1, 0, 0,
+		0, 87, 89, 3, 14, 7, 0, 88, 87, 1, 0, 0, 0, 88, 89, 1, 0, 0, 0, 89, 90,
+		1, 0, 0, 0, 90, 91, 5, 2, 0, 0, 91, 9, 1, 0, 0, 0, 92, 93, 5, 3, 0, 0,
+		93, 94, 3, 38, 19, 0, 94, 11, 1, 0, 0, 0, 95, 96, 5, 14, 0, 0, 96, 102,
+		5, 19, 0, 0, 97, 98, 3, 32, 16, 0, 98, 99, 5, 25, 0, 0, 99, 101, 1, 0,
+		0, 0, 100, 97, 1, 0, 0, 0, 101, 104, 1, 0, 0, 0, 102, 100, 1, 0, 0, 0,
+		102, 103, 1, 0, 0, 0, 103, 106, 1, 0, 0, 0, 104, 102, 1, 0, 0, 0, 105,
+		107, 3, 32, 16, 0, 106, 105, 1, 0, 0, 0, 106, 107, 1, 0, 0, 0, 107, 108,
+		1, 0, 0, 0, 108, 109, 5, 20, 0, 0, 109, 13, 1, 0, 0, 0, 110, 111, 5, 4,
+		0, 0, 111, 112, 3, 38, 19, 0, 112, 15, 1, 0, 0, 0, 113, 115, 3, 36, 18,
+		0, 114, 116, 3, 18, 9, 0, 115, 114, 1, 0, 0, 0, 115, 116, 1, 0, 0, 0, 116,
+		119, 1, 0, 0, 0, 117, 118, 7, 0, 0, 0, 118, 120, 3, 22, 11, 0, 119, 117,
+		1, 0, 0, 0, 119, 120, 1, 0, 0, 0, 120, 121, 1, 0, 0, 0, 121, 122, 5, 2,
+		0, 0, 122, 17, 1, 0, 0, 0, 123, 124, 5, 34, 0, 0, 124, 125, 5, 19, 0, 0,
+		125, 128, 3, 20, 10, 0, 126, 127, 5, 25, 0, 0, 127, 129, 3, 20, 10, 0,
+		128, 126, 1, 0, 0, 0, 128, 129, 1, 0, 0, 0, 129, 130, 1, 0, 0, 0, 130,
+		131, 5, 20, 0, 0, 131, 19, 1, 0, 0, 0, 132, 133, 7, 1, 0, 0, 133, 21, 1,
+		0, 0, 0, 134, 139, 3, 28, 14, 0, 135, 136, 5, 25, 0, 0, 136, 138, 3, 28,
+		14, 0, 137, 135, 1, 0, 0, 0, 138, 141, 1, 0, 0, 0, 139, 137, 1, 0, 0, 0,
+		139, 140, 1, 0, 0, 0, 140, 143, 1, 0, 0, 0, 141, 139, 1, 0, 0, 0, 142,
+		144, 5, 25, 0, 0, 143, 142, 1, 0, 0, 0, 143, 144, 1, 0, 0, 0, 144, 149,
+		1, 0, 0, 0, 145, 146, 5, 33, 0, 0, 146, 148, 3, 24, 12, 0, 147, 145, 1,
+		0, 0, 0, 148, 151, 1, 0, 0, 0, 149, 147, 1, 0, 0, 0, 149, 150, 1, 0, 0,
+		0, 150, 23, 1, 0, 0, 0, 151, 149, 1, 0, 0, 0, 152, 153, 5, 16, 0, 0, 153,
+		163, 3, 32, 16, 0, 154, 155, 5, 25, 0, 0, 155, 160, 3, 26, 13, 0, 156,
+		157, 5, 25, 0, 0, 157, 159, 3, 26, 13, 0, 158, 156, 1, 0, 0, 0, 159, 162,
+		1, 0, 0, 0, 160, 158, 1, 0, 0, 0, 160, 161, 1, 0, 0, 0, 161, 164, 1, 0,
+		0, 0, 162, 160, 1, 0, 0, 0, 163, 154, 1, 0, 0, 0, 163, 164, 1, 0, 0, 0,
+		164, 174, 1, 0, 0, 0, 165, 170, 3, 26, 13, 0, 166, 167, 5, 25, 0, 0, 167,
+		169, 3, 26, 13, 0, 168, 166, 1, 0, 0, 0, 169, 172, 1, 0, 0, 0, 170, 168,
+		1, 0, 0, 0, 170, 171, 1, 0, 0, 0, 171, 174, 1, 0, 0, 0, 172, 170, 1, 0,
+		0, 0, 173, 152, 1, 0, 0, 0, 173, 165, 1, 0, 0, 0, 174, 25, 1, 0, 0, 0,
+		175, 176, 5, 15, 0, 0, 176, 177, 5, 41, 0, 0, 177, 178, 5, 23, 0, 0, 178,
+		179, 3, 32, 16, 0, 179, 27, 1, 0, 0, 0, 180, 182, 3, 30, 15, 0, 181, 180,
+		1, 0, 0, 0, 181, 182, 1, 0, 0, 0, 182, 183, 1, 0, 0, 0, 183, 185, 3, 32,
+		16, 0, 184, 186, 3, 18, 9, 0, 185, 184, 1, 0, 0, 0, 185, 186, 1, 0, 0,
+		0, 186, 189, 1, 0, 0, 0, 187, 188, 7, 2, 0, 0, 188, 190, 3, 32, 16, 0,
+		189, 187, 1, 0, 0, 0, 189, 190, 1, 0, 0, 0, 190, 194, 1, 0, 0, 0, 191,
+		192, 5, 26, 0, 0, 192, 194, 3, 32, 16, 0, 193, 181, 1, 0, 0, 0, 193, 191,
+		1, 0, 0, 0, 194, 29, 1, 0, 0, 0, 195, 196, 5, 35, 0, 0, 196, 197, 5, 19,
+		0, 0, 197, 198, 3, 20, 10, 0, 198, 199, 5, 25, 0, 0, 199, 200, 3, 20, 10,
+		0, 200, 201, 5, 20, 0, 0, 201, 210, 1, 0, 0, 0, 202, 203, 5, 36, 0, 0,
+		203, 204, 5, 19, 0, 0, 204, 205, 3, 20, 10, 0, 205, 206, 5, 25, 0, 0, 206,
+		207, 3, 20, 10, 0, 207, 208, 5, 20, 0, 0, 208, 210, 1, 0, 0, 0, 209, 195,
+		1, 0, 0, 0, 209, 202, 1, 0, 0, 0, 210, 31, 1, 0, 0, 0, 211, 298, 5, 41,
+		0, 0, 212, 298, 5, 45, 0, 0, 213, 298, 5, 39, 0, 0, 214, 298, 5, 40, 0,
+		0, 215, 298, 5, 46, 0, 0, 216, 298, 5, 47, 0, 0, 217, 223, 5, 19, 0, 0,
+		218, 219, 3, 32, 16, 0, 219, 220, 5, 25, 0, 0, 220, 222, 1, 0, 0, 0, 221,
+		218, 1, 0, 0, 0, 222, 225, 1, 0, 0, 0, 223, 221, 1, 0, 0, 0, 223, 224,
+		1, 0, 0, 0, 224, 227, 1, 0, 0, 0, 225, 223, 1, 0, 0, 0, 226, 228, 3, 32,
+		16, 0, 227, 226, 1, 0, 0, 0, 227, 228, 1, 0, 0, 0, 228, 229, 1, 0, 0, 0,
+		229, 298, 5, 20, 0, 0, 230, 238, 5, 19, 0, 0, 231, 232, 3, 32, 16, 0, 232,
+		233, 5, 6, 0, 0, 233, 234, 3, 32, 16, 0, 234, 235, 5, 25, 0, 0, 235, 237,
+		1, 0, 0, 0, 236, 231, 1, 0, 0, 0, 237, 240, 1, 0, 0, 0, 238, 236, 1, 0,
+		0, 0, 238, 239, 1, 0, 0, 0, 239, 245, 1, 0, 0, 0, 240, 238, 1, 0, 0, 0,
+		241, 242, 3, 32, 16, 0, 242, 243, 5, 6, 0, 0, 243, 244, 3, 32, 16, 0, 244,
+		246, 1, 0, 0, 0, 245, 241, 1, 0, 0, 0, 245, 246, 1, 0, 0, 0, 246, 247,
+		1, 0, 0, 0, 247, 298, 5, 20, 0, 0, 248, 256, 5, 21, 0, 0, 249, 250, 3,
+		32, 16, 0, 250, 251, 5, 6, 0, 0, 251, 252, 3, 32, 16, 0, 252, 253, 5, 25,
+		0, 0, 253, 255, 1, 0, 0, 0, 254, 249, 1, 0, 0, 0, 255, 258, 1, 0, 0, 0,
+		256, 254, 1, 0, 0, 0, 256, 257, 1, 0, 0, 0, 257, 263, 1, 0, 0, 0, 258,
+		256, 1, 0, 0, 0, 259, 260, 3, 32, 16, 0, 260, 261, 5, 6, 0, 0, 261, 262,
+		3, 32, 16, 0, 262, 264, 1, 0, 0, 0, 263, 259, 1, 0, 0, 0, 263, 264, 1,
+		0, 0, 0, 264, 265, 1, 0, 0, 0, 265, 298, 5, 22, 0, 0, 266, 267, 5, 44,
+		0, 0, 267, 273, 5, 28, 0, 0, 268, 269, 3, 34, 17, 0, 269, 270, 5, 25, 0,
+		0, 270, 272, 1, 0, 0, 0, 271, 268, 1, 0, 0, 0, 272, 275, 1, 0, 0, 0, 273,
+		271, 1, 0, 0, 0, 273, 274, 1, 0, 0, 0, 274, 280, 1, 0, 0, 0, 275, 273,
+		1, 0, 0, 0, 276, 278, 3, 34, 17, 0, 277, 279, 5, 25, 0, 0, 278, 277, 1,
+		0, 0, 0, 278, 279, 1, 0, 0, 0, 279, 281, 1, 0, 0, 0, 280, 276, 1, 0, 0,
+		0, 280, 281, 1, 0, 0, 0, 281, 282, 1, 0, 0, 0, 282, 298, 5, 30, 0, 0, 283,
+		284, 5, 42, 0, 0, 284, 290, 5, 17, 0, 0, 285, 286, 3, 32, 16, 0, 286, 287,
+		5, 25, 0, 0, 287, 289, 1, 0, 0, 0, 288, 285, 1, 0, 0, 0, 289, 292, 1, 0,
+		0, 0, 290, 288, 1, 0, 0, 0, 290, 291, 1, 0, 0, 0, 291, 294, 1, 0, 0, 0,
+		292, 290, 1, 0, 0, 0, 293, 295, 3, 32, 16, 0, 294, 293, 1, 0, 0, 0, 294,
+		295, 1, 0, 0, 0, 295, 296, 1, 0, 0, 0, 296, 298, 5, 18, 0, 0, 297, 211,
+		1, 0, 0, 0, 297, 212, 1, 0, 0, 0, 297, 213, 1, 0, 0, 0, 297, 214, 1, 0,
+		0, 0, 297, 215, 1, 0, 0, 0, 297, 216, 1, 0, 0, 0, 297, 217, 1, 0, 0, 0,
+		297, 230, 1, 0, 0, 0, 297, 248, 1, 0, 0, 0, 297, 266, 1, 0, 0, 0, 297,
+		283, 1, 0, 0, 0, 298, 33, 1, 0, 0, 0, 299, 302, 3, 32, 16, 0, 300, 301,
+		5, 6, 0, 0, 301, 303, 3, 32, 16, 0, 302, 300, 1, 0, 0, 0, 302, 303, 1,
+		0, 0, 0, 303, 310, 1, 0, 0, 0, 304, 305, 5, 7, 0, 0, 305, 306, 3, 32, 16,
+		0, 306, 307, 5, 6, 0, 0, 307, 308, 3, 32, 16, 0, 308, 310, 1, 0, 0, 0,
+		309, 299, 1, 0, 0, 0, 309, 304, 1, 0, 0, 0, 310, 35, 1, 0, 0, 0, 311, 312,
+		3, 32, 16, 0, 312, 37, 1, 0, 0, 0, 313, 319, 5, 19, 0, 0, 314, 315, 3,
+		36, 18, 0, 315, 316, 5, 25, 0, 0, 316, 318, 1, 0, 0, 0, 317, 314, 1, 0,
+		0, 0, 318, 321, 1, 0, 0, 0, 319, 317, 1, 0, 0, 0, 319, 320, 1, 0, 0, 0,
+		320, 323, 1, 0, 0, 0, 321, 319, 1, 0, 0, 0, 322, 324, 3, 36, 18, 0, 323,
+		322, 1, 0, 0, 0, 323, 324, 1, 0, 0, 0, 324, 325, 1, 0, 0, 0, 325, 326,
+		5, 20, 0, 0, 326, 39, 1, 0, 0, 0, 43, 44, 49, 54, 56, 62, 69, 76, 79, 84,
+		88, 102, 106, 115, 119, 128, 139, 143, 149, 160, 163, 170, 173, 181, 185,
+		189, 193, 209, 223, 227, 238, 245, 256, 263, 273, 278, 280, 290, 294, 297,
+		302, 309, 319, 323,
 	}
 	deserializer := antlr.NewATNDeserializer(nil)
 	staticData.atn = deserializer.Deserialize(staticData.serializedATN)
@@ -238,47 +262,57 @@ const (
 	MangleParserRPAREN              = 18
 	MangleParserLBRACKET            = 19
 	MangleParserRBRACKET            = 20
-	MangleParserEQ                  = 21
-	MangleParserBANGEQ              = 22
-	MangleParserCOMMA               = 23
-	MangleParserBANG                = 24
-	MangleParserLESS                = 25
-	MangleParserLESSEQ              = 26
-	MangleParserGREATER             = 27
-	MangleParserGREATEREQ           = 28
-	MangleParserCOLONDASH           = 29
-	MangleParserNEWLINE             = 30
-	MangleParserPIPEGREATER         = 31
-	MangleParserNUMBER              = 32
-	MangleParserFLOAT               = 33
-	MangleParserVARIABLE            = 34
-	MangleParserNAME                = 35
-	MangleParserTYPENAME            = 36
-	MangleParserDOT_TYPE            = 37
-	MangleParserCONSTANT            = 38
-	MangleParserSTRING              = 39
-	MangleParserBYTESTRING          = 40
+	MangleParserLBRACE              = 21
+	MangleParserRBRACE              = 22
+	MangleParserEQ                  = 23
+	MangleParserBANGEQ              = 24
+	MangleParserCOMMA               = 25
+	MangleParserBANG                = 26
+	MangleParserLESSEQ              = 27
+	MangleParserLESS                = 28
+	MangleParserGREATEREQ           = 29
+	MangleParserGREATER             = 30
+	MangleParserCOLONDASH           = 31
+	MangleParserNEWLINE             = 32
+	MangleParserPIPEGREATER         = 33
+	MangleParserAT                  = 34
+	MangleParserDIAMONDMINUS        = 35
+	MangleParserBOXMINUS            = 36
+	MangleParserTIMESTAMP           = 37
+	MangleParserDURATION            = 38
+	MangleParserNUMBER              = 39
+	MangleParserFLOAT               = 40
+	MangleParserVARIABLE            = 41
+	MangleParserNAME                = 42
+	MangleParserTYPENAME            = 43
+	MangleParserDOT_TYPE            = 44
+	MangleParserCONSTANT            = 45
+	MangleParserSTRING              = 46
+	MangleParserBYTESTRING          = 47
 )
 
 // MangleParser rules.
 const (
-	MangleParserRULE_start            = 0
-	MangleParserRULE_program          = 1
-	MangleParserRULE_packageDecl      = 2
-	MangleParserRULE_useDecl          = 3
-	MangleParserRULE_decl             = 4
-	MangleParserRULE_descrBlock       = 5
-	MangleParserRULE_boundsBlock      = 6
-	MangleParserRULE_constraintsBlock = 7
-	MangleParserRULE_clause           = 8
-	MangleParserRULE_clauseBody       = 9
-	MangleParserRULE_transform        = 10
-	MangleParserRULE_letStmt          = 11
-	MangleParserRULE_literalOrFml     = 12
-	MangleParserRULE_term             = 13
-	MangleParserRULE_member           = 14
-	MangleParserRULE_atom             = 15
-	MangleParserRULE_atoms            = 16
+	MangleParserRULE_start              = 0
+	MangleParserRULE_program            = 1
+	MangleParserRULE_packageDecl        = 2
+	MangleParserRULE_useDecl            = 3
+	MangleParserRULE_decl               = 4
+	MangleParserRULE_descrBlock         = 5
+	MangleParserRULE_boundsBlock        = 6
+	MangleParserRULE_constraintsBlock   = 7
+	MangleParserRULE_clause             = 8
+	MangleParserRULE_temporalAnnotation = 9
+	MangleParserRULE_temporalBound      = 10
+	MangleParserRULE_clauseBody         = 11
+	MangleParserRULE_transform          = 12
+	MangleParserRULE_letStmt            = 13
+	MangleParserRULE_literalOrFml       = 14
+	MangleParserRULE_temporalOperator   = 15
+	MangleParserRULE_term               = 16
+	MangleParserRULE_member             = 17
+	MangleParserRULE_atom               = 18
+	MangleParserRULE_atoms              = 19
 )
 
 // IStartContext is an interface to support dynamic dispatch.
@@ -383,11 +417,11 @@ func (p *MangleParser) Start_() (localctx IStartContext) {
 	p.EnterRule(localctx, 0, MangleParserRULE_start)
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(34)
+		p.SetState(40)
 		p.Program()
 	}
 	{
-		p.SetState(35)
+		p.SetState(41)
 		p.Match(MangleParserEOF)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -635,7 +669,7 @@ func (p *MangleParser) Program() (localctx IProgramContext) {
 	var _la int
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(38)
+	p.SetState(44)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -644,12 +678,12 @@ func (p *MangleParser) Program() (localctx IProgramContext) {
 
 	if _la == MangleParserPACKAGE {
 		{
-			p.SetState(37)
+			p.SetState(43)
 			p.PackageDecl()
 		}
 
 	}
-	p.SetState(43)
+	p.SetState(49)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -658,26 +692,26 @@ func (p *MangleParser) Program() (localctx IProgramContext) {
 
 	for _la == MangleParserUSE {
 		{
-			p.SetState(40)
+			p.SetState(46)
 			p.UseDecl()
 		}
 
-		p.SetState(45)
+		p.SetState(51)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
 		}
 		_la = p.GetTokenStream().LA(1)
 	}
-	p.SetState(50)
+	p.SetState(56)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	for (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&2126009344032) != 0 {
-		p.SetState(48)
+	for (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&272129130504192) != 0 {
+		p.SetState(54)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -686,13 +720,13 @@ func (p *MangleParser) Program() (localctx IProgramContext) {
 		switch p.GetTokenStream().LA(1) {
 		case MangleParserDECL:
 			{
-				p.SetState(46)
+				p.SetState(52)
 				p.Decl()
 			}
 
-		case MangleParserT__4, MangleParserLBRACKET, MangleParserNUMBER, MangleParserFLOAT, MangleParserVARIABLE, MangleParserNAME, MangleParserDOT_TYPE, MangleParserCONSTANT, MangleParserSTRING, MangleParserBYTESTRING:
+		case MangleParserLBRACKET, MangleParserLBRACE, MangleParserNUMBER, MangleParserFLOAT, MangleParserVARIABLE, MangleParserNAME, MangleParserDOT_TYPE, MangleParserCONSTANT, MangleParserSTRING, MangleParserBYTESTRING:
 			{
-				p.SetState(47)
+				p.SetState(53)
 				p.Clause()
 			}
 
@@ -701,7 +735,7 @@ func (p *MangleParser) Program() (localctx IProgramContext) {
 			goto errorExit
 		}
 
-		p.SetState(52)
+		p.SetState(58)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -836,7 +870,7 @@ func (p *MangleParser) PackageDecl() (localctx IPackageDeclContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(53)
+		p.SetState(59)
 		p.Match(MangleParserPACKAGE)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -844,14 +878,14 @@ func (p *MangleParser) PackageDecl() (localctx IPackageDeclContext) {
 		}
 	}
 	{
-		p.SetState(54)
+		p.SetState(60)
 		p.Match(MangleParserNAME)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
 		}
 	}
-	p.SetState(56)
+	p.SetState(62)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -860,13 +894,13 @@ func (p *MangleParser) PackageDecl() (localctx IPackageDeclContext) {
 
 	if _la == MangleParserLBRACKET {
 		{
-			p.SetState(55)
+			p.SetState(61)
 			p.Atoms()
 		}
 
 	}
 	{
-		p.SetState(58)
+		p.SetState(64)
 		p.Match(MangleParserBANG)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -1001,7 +1035,7 @@ func (p *MangleParser) UseDecl() (localctx IUseDeclContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(60)
+		p.SetState(66)
 		p.Match(MangleParserUSE)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -1009,14 +1043,14 @@ func (p *MangleParser) UseDecl() (localctx IUseDeclContext) {
 		}
 	}
 	{
-		p.SetState(61)
+		p.SetState(67)
 		p.Match(MangleParserNAME)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
 		}
 	}
-	p.SetState(63)
+	p.SetState(69)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -1025,13 +1059,13 @@ func (p *MangleParser) UseDecl() (localctx IUseDeclContext) {
 
 	if _la == MangleParserLBRACKET {
 		{
-			p.SetState(62)
+			p.SetState(68)
 			p.Atoms()
 		}
 
 	}
 	{
-		p.SetState(65)
+		p.SetState(71)
 		p.Match(MangleParserBANG)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -1233,7 +1267,7 @@ func (p *MangleParser) Decl() (localctx IDeclContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(67)
+		p.SetState(73)
 		p.Match(MangleParserDECL)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -1241,42 +1275,26 @@ func (p *MangleParser) Decl() (localctx IDeclContext) {
 		}
 	}
 	{
-		p.SetState(68)
+		p.SetState(74)
 		p.Atom()
 	}
-	p.SetState(70)
+	p.SetState(76)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	if _la == MangleParserT__1 {
+	if _la == MangleParserT__0 {
 		{
-			p.SetState(69)
-			p.DescrBlock()
+			p.SetState(75)
+			p.Match(MangleParserT__0)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
-	}
-	p.SetState(75)
-	p.GetErrorHandler().Sync(p)
-	if p.HasError() {
-		goto errorExit
-	}
-	_la = p.GetTokenStream().LA(1)
-
-	for _la == MangleParserBOUND {
-		{
-			p.SetState(72)
-			p.BoundsBlock()
-		}
-
-		p.SetState(77)
-		p.GetErrorHandler().Sync(p)
-		if p.HasError() {
-			goto errorExit
-		}
-		_la = p.GetTokenStream().LA(1)
 	}
 	p.SetState(79)
 	p.GetErrorHandler().Sync(p)
@@ -1288,13 +1306,47 @@ func (p *MangleParser) Decl() (localctx IDeclContext) {
 	if _la == MangleParserT__2 {
 		{
 			p.SetState(78)
+			p.DescrBlock()
+		}
+
+	}
+	p.SetState(84)
+	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
+	_la = p.GetTokenStream().LA(1)
+
+	for _la == MangleParserBOUND {
+		{
+			p.SetState(81)
+			p.BoundsBlock()
+		}
+
+		p.SetState(86)
+		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
+		_la = p.GetTokenStream().LA(1)
+	}
+	p.SetState(88)
+	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
+	_la = p.GetTokenStream().LA(1)
+
+	if _la == MangleParserT__3 {
+		{
+			p.SetState(87)
 			p.ConstraintsBlock()
 		}
 
 	}
 	{
-		p.SetState(81)
-		p.Match(MangleParserT__0)
+		p.SetState(90)
+		p.Match(MangleParserT__1)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
@@ -1411,15 +1463,15 @@ func (p *MangleParser) DescrBlock() (localctx IDescrBlockContext) {
 	p.EnterRule(localctx, 10, MangleParserRULE_descrBlock)
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(83)
-		p.Match(MangleParserT__1)
+		p.SetState(92)
+		p.Match(MangleParserT__2)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
 		}
 	}
 	{
-		p.SetState(84)
+		p.SetState(93)
 		p.Atoms()
 	}
 
@@ -1588,7 +1640,7 @@ func (p *MangleParser) BoundsBlock() (localctx IBoundsBlockContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(86)
+		p.SetState(95)
 		p.Match(MangleParserBOUND)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -1596,30 +1648,30 @@ func (p *MangleParser) BoundsBlock() (localctx IBoundsBlockContext) {
 		}
 	}
 	{
-		p.SetState(87)
+		p.SetState(96)
 		p.Match(MangleParserLBRACKET)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
 		}
 	}
-	p.SetState(93)
+	p.SetState(102)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
-	_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 9, p.GetParserRuleContext())
+	_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 10, p.GetParserRuleContext())
 	if p.HasError() {
 		goto errorExit
 	}
 	for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
 		if _alt == 1 {
 			{
-				p.SetState(88)
+				p.SetState(97)
 				p.Term()
 			}
 			{
-				p.SetState(89)
+				p.SetState(98)
 				p.Match(MangleParserCOMMA)
 				if p.HasError() {
 					// Recognition error - abort rule
@@ -1628,32 +1680,32 @@ func (p *MangleParser) BoundsBlock() (localctx IBoundsBlockContext) {
 			}
 
 		}
-		p.SetState(95)
+		p.SetState(104)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
 		}
-		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 9, p.GetParserRuleContext())
+		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 10, p.GetParserRuleContext())
 		if p.HasError() {
 			goto errorExit
 		}
 	}
-	p.SetState(97)
+	p.SetState(106)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&2126009335840) != 0 {
+	if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&272129130496000) != 0 {
 		{
-			p.SetState(96)
+			p.SetState(105)
 			p.Term()
 		}
 
 	}
 	{
-		p.SetState(99)
+		p.SetState(108)
 		p.Match(MangleParserRBRACKET)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -1771,15 +1823,15 @@ func (p *MangleParser) ConstraintsBlock() (localctx IConstraintsBlockContext) {
 	p.EnterRule(localctx, 14, MangleParserRULE_constraintsBlock)
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(101)
-		p.Match(MangleParserT__2)
+		p.SetState(110)
+		p.Match(MangleParserT__3)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
 		}
 	}
 	{
-		p.SetState(102)
+		p.SetState(111)
 		p.Atoms()
 	}
 
@@ -1805,6 +1857,7 @@ type IClauseContext interface {
 
 	// Getter signatures
 	Atom() IAtomContext
+	TemporalAnnotation() ITemporalAnnotationContext
 	ClauseBody() IClauseBodyContext
 	COLONDASH() antlr.TerminalNode
 	LONGLEFTDOUBLEARROW() antlr.TerminalNode
@@ -1859,6 +1912,22 @@ func (s *ClauseContext) Atom() IAtomContext {
 	}
 
 	return t.(IAtomContext)
+}
+
+func (s *ClauseContext) TemporalAnnotation() ITemporalAnnotationContext {
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ITemporalAnnotationContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(ITemporalAnnotationContext)
 }
 
 func (s *ClauseContext) ClauseBody() IClauseBodyContext {
@@ -1922,10 +1991,24 @@ func (p *MangleParser) Clause() (localctx IClauseContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(104)
+		p.SetState(113)
 		p.Atom()
 	}
-	p.SetState(107)
+	p.SetState(115)
+	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
+	_la = p.GetTokenStream().LA(1)
+
+	if _la == MangleParserAT {
+		{
+			p.SetState(114)
+			p.TemporalAnnotation()
+		}
+
+	}
+	p.SetState(119)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -1934,7 +2017,7 @@ func (p *MangleParser) Clause() (localctx IClauseContext) {
 
 	if _la == MangleParserLONGLEFTDOUBLEARROW || _la == MangleParserCOLONDASH {
 		{
-			p.SetState(105)
+			p.SetState(117)
 			_la = p.GetTokenStream().LA(1)
 
 			if !(_la == MangleParserLONGLEFTDOUBLEARROW || _la == MangleParserCOLONDASH) {
@@ -1945,17 +2028,346 @@ func (p *MangleParser) Clause() (localctx IClauseContext) {
 			}
 		}
 		{
-			p.SetState(106)
+			p.SetState(118)
 			p.ClauseBody()
 		}
 
 	}
 	{
-		p.SetState(109)
-		p.Match(MangleParserT__0)
+		p.SetState(121)
+		p.Match(MangleParserT__1)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
+		}
+	}
+
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
+	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
+}
+
+// ITemporalAnnotationContext is an interface to support dynamic dispatch.
+type ITemporalAnnotationContext interface {
+	antlr.ParserRuleContext
+
+	// GetParser returns the parser.
+	GetParser() antlr.Parser
+
+	// Getter signatures
+	AT() antlr.TerminalNode
+	LBRACKET() antlr.TerminalNode
+	AllTemporalBound() []ITemporalBoundContext
+	TemporalBound(i int) ITemporalBoundContext
+	RBRACKET() antlr.TerminalNode
+	COMMA() antlr.TerminalNode
+
+	// IsTemporalAnnotationContext differentiates from other interfaces.
+	IsTemporalAnnotationContext()
+}
+
+type TemporalAnnotationContext struct {
+	antlr.BaseParserRuleContext
+	parser antlr.Parser
+}
+
+func NewEmptyTemporalAnnotationContext() *TemporalAnnotationContext {
+	var p = new(TemporalAnnotationContext)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = MangleParserRULE_temporalAnnotation
+	return p
+}
+
+func InitEmptyTemporalAnnotationContext(p *TemporalAnnotationContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = MangleParserRULE_temporalAnnotation
+}
+
+func (*TemporalAnnotationContext) IsTemporalAnnotationContext() {}
+
+func NewTemporalAnnotationContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *TemporalAnnotationContext {
+	var p = new(TemporalAnnotationContext)
+
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
+
+	p.parser = parser
+	p.RuleIndex = MangleParserRULE_temporalAnnotation
+
+	return p
+}
+
+func (s *TemporalAnnotationContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *TemporalAnnotationContext) AT() antlr.TerminalNode {
+	return s.GetToken(MangleParserAT, 0)
+}
+
+func (s *TemporalAnnotationContext) LBRACKET() antlr.TerminalNode {
+	return s.GetToken(MangleParserLBRACKET, 0)
+}
+
+func (s *TemporalAnnotationContext) AllTemporalBound() []ITemporalBoundContext {
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(ITemporalBoundContext); ok {
+			len++
+		}
+	}
+
+	tst := make([]ITemporalBoundContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(ITemporalBoundContext); ok {
+			tst[i] = t.(ITemporalBoundContext)
+			i++
+		}
+	}
+
+	return tst
+}
+
+func (s *TemporalAnnotationContext) TemporalBound(i int) ITemporalBoundContext {
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ITemporalBoundContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(ITemporalBoundContext)
+}
+
+func (s *TemporalAnnotationContext) RBRACKET() antlr.TerminalNode {
+	return s.GetToken(MangleParserRBRACKET, 0)
+}
+
+func (s *TemporalAnnotationContext) COMMA() antlr.TerminalNode {
+	return s.GetToken(MangleParserCOMMA, 0)
+}
+
+func (s *TemporalAnnotationContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *TemporalAnnotationContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+func (s *TemporalAnnotationContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(MangleListener); ok {
+		listenerT.EnterTemporalAnnotation(s)
+	}
+}
+
+func (s *TemporalAnnotationContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(MangleListener); ok {
+		listenerT.ExitTemporalAnnotation(s)
+	}
+}
+
+func (s *TemporalAnnotationContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+	switch t := visitor.(type) {
+	case MangleVisitor:
+		return t.VisitTemporalAnnotation(s)
+
+	default:
+		return t.VisitChildren(s)
+	}
+}
+
+func (p *MangleParser) TemporalAnnotation() (localctx ITemporalAnnotationContext) {
+	localctx = NewTemporalAnnotationContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 18, MangleParserRULE_temporalAnnotation)
+	var _la int
+
+	p.EnterOuterAlt(localctx, 1)
+	{
+		p.SetState(123)
+		p.Match(MangleParserAT)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
+	}
+	{
+		p.SetState(124)
+		p.Match(MangleParserLBRACKET)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
+	}
+	{
+		p.SetState(125)
+		p.TemporalBound()
+	}
+	p.SetState(128)
+	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
+	_la = p.GetTokenStream().LA(1)
+
+	if _la == MangleParserCOMMA {
+		{
+			p.SetState(126)
+			p.Match(MangleParserCOMMA)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		{
+			p.SetState(127)
+			p.TemporalBound()
+		}
+
+	}
+	{
+		p.SetState(130)
+		p.Match(MangleParserRBRACKET)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
+	}
+
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
+	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
+}
+
+// ITemporalBoundContext is an interface to support dynamic dispatch.
+type ITemporalBoundContext interface {
+	antlr.ParserRuleContext
+
+	// GetParser returns the parser.
+	GetParser() antlr.Parser
+
+	// Getter signatures
+	TIMESTAMP() antlr.TerminalNode
+	DURATION() antlr.TerminalNode
+	VARIABLE() antlr.TerminalNode
+
+	// IsTemporalBoundContext differentiates from other interfaces.
+	IsTemporalBoundContext()
+}
+
+type TemporalBoundContext struct {
+	antlr.BaseParserRuleContext
+	parser antlr.Parser
+}
+
+func NewEmptyTemporalBoundContext() *TemporalBoundContext {
+	var p = new(TemporalBoundContext)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = MangleParserRULE_temporalBound
+	return p
+}
+
+func InitEmptyTemporalBoundContext(p *TemporalBoundContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = MangleParserRULE_temporalBound
+}
+
+func (*TemporalBoundContext) IsTemporalBoundContext() {}
+
+func NewTemporalBoundContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *TemporalBoundContext {
+	var p = new(TemporalBoundContext)
+
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
+
+	p.parser = parser
+	p.RuleIndex = MangleParserRULE_temporalBound
+
+	return p
+}
+
+func (s *TemporalBoundContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *TemporalBoundContext) TIMESTAMP() antlr.TerminalNode {
+	return s.GetToken(MangleParserTIMESTAMP, 0)
+}
+
+func (s *TemporalBoundContext) DURATION() antlr.TerminalNode {
+	return s.GetToken(MangleParserDURATION, 0)
+}
+
+func (s *TemporalBoundContext) VARIABLE() antlr.TerminalNode {
+	return s.GetToken(MangleParserVARIABLE, 0)
+}
+
+func (s *TemporalBoundContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *TemporalBoundContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+func (s *TemporalBoundContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(MangleListener); ok {
+		listenerT.EnterTemporalBound(s)
+	}
+}
+
+func (s *TemporalBoundContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(MangleListener); ok {
+		listenerT.ExitTemporalBound(s)
+	}
+}
+
+func (s *TemporalBoundContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+	switch t := visitor.(type) {
+	case MangleVisitor:
+		return t.VisitTemporalBound(s)
+
+	default:
+		return t.VisitChildren(s)
+	}
+}
+
+func (p *MangleParser) TemporalBound() (localctx ITemporalBoundContext) {
+	localctx = NewTemporalBoundContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 20, MangleParserRULE_temporalBound)
+	var _la int
+
+	p.EnterOuterAlt(localctx, 1)
+	{
+		p.SetState(132)
+		_la = p.GetTokenStream().LA(1)
+
+		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&2611340116000) != 0) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
 		}
 	}
 
@@ -2155,29 +2567,29 @@ func (s *ClauseBodyContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 
 func (p *MangleParser) ClauseBody() (localctx IClauseBodyContext) {
 	localctx = NewClauseBodyContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 18, MangleParserRULE_clauseBody)
+	p.EnterRule(localctx, 22, MangleParserRULE_clauseBody)
 	var _la int
 
 	var _alt int
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(111)
+		p.SetState(134)
 		p.LiteralOrFml()
 	}
-	p.SetState(116)
+	p.SetState(139)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
-	_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 12, p.GetParserRuleContext())
+	_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 15, p.GetParserRuleContext())
 	if p.HasError() {
 		goto errorExit
 	}
 	for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
 		if _alt == 1 {
 			{
-				p.SetState(112)
+				p.SetState(135)
 				p.Match(MangleParserCOMMA)
 				if p.HasError() {
 					// Recognition error - abort rule
@@ -2185,22 +2597,22 @@ func (p *MangleParser) ClauseBody() (localctx IClauseBodyContext) {
 				}
 			}
 			{
-				p.SetState(113)
+				p.SetState(136)
 				p.LiteralOrFml()
 			}
 
 		}
-		p.SetState(118)
+		p.SetState(141)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
 		}
-		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 12, p.GetParserRuleContext())
+		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 15, p.GetParserRuleContext())
 		if p.HasError() {
 			goto errorExit
 		}
 	}
-	p.SetState(120)
+	p.SetState(143)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -2209,7 +2621,7 @@ func (p *MangleParser) ClauseBody() (localctx IClauseBodyContext) {
 
 	if _la == MangleParserCOMMA {
 		{
-			p.SetState(119)
+			p.SetState(142)
 			p.Match(MangleParserCOMMA)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -2218,7 +2630,7 @@ func (p *MangleParser) ClauseBody() (localctx IClauseBodyContext) {
 		}
 
 	}
-	p.SetState(126)
+	p.SetState(149)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -2227,7 +2639,7 @@ func (p *MangleParser) ClauseBody() (localctx IClauseBodyContext) {
 
 	for _la == MangleParserPIPEGREATER {
 		{
-			p.SetState(122)
+			p.SetState(145)
 			p.Match(MangleParserPIPEGREATER)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -2235,11 +2647,11 @@ func (p *MangleParser) ClauseBody() (localctx IClauseBodyContext) {
 			}
 		}
 		{
-			p.SetState(123)
+			p.SetState(146)
 			p.Transform()
 		}
 
-		p.SetState(128)
+		p.SetState(151)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -2412,10 +2824,10 @@ func (s *TransformContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 
 func (p *MangleParser) Transform() (localctx ITransformContext) {
 	localctx = NewTransformContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 20, MangleParserRULE_transform)
+	p.EnterRule(localctx, 24, MangleParserRULE_transform)
 	var _la int
 
-	p.SetState(150)
+	p.SetState(173)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -2425,7 +2837,7 @@ func (p *MangleParser) Transform() (localctx ITransformContext) {
 	case MangleParserDO:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(129)
+			p.SetState(152)
 			p.Match(MangleParserDO)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -2433,10 +2845,10 @@ func (p *MangleParser) Transform() (localctx ITransformContext) {
 			}
 		}
 		{
-			p.SetState(130)
+			p.SetState(153)
 			p.Term()
 		}
-		p.SetState(140)
+		p.SetState(163)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -2445,7 +2857,7 @@ func (p *MangleParser) Transform() (localctx ITransformContext) {
 
 		if _la == MangleParserCOMMA {
 			{
-				p.SetState(131)
+				p.SetState(154)
 				p.Match(MangleParserCOMMA)
 				if p.HasError() {
 					// Recognition error - abort rule
@@ -2453,10 +2865,10 @@ func (p *MangleParser) Transform() (localctx ITransformContext) {
 				}
 			}
 			{
-				p.SetState(132)
+				p.SetState(155)
 				p.LetStmt()
 			}
-			p.SetState(137)
+			p.SetState(160)
 			p.GetErrorHandler().Sync(p)
 			if p.HasError() {
 				goto errorExit
@@ -2465,7 +2877,7 @@ func (p *MangleParser) Transform() (localctx ITransformContext) {
 
 			for _la == MangleParserCOMMA {
 				{
-					p.SetState(133)
+					p.SetState(156)
 					p.Match(MangleParserCOMMA)
 					if p.HasError() {
 						// Recognition error - abort rule
@@ -2473,11 +2885,11 @@ func (p *MangleParser) Transform() (localctx ITransformContext) {
 					}
 				}
 				{
-					p.SetState(134)
+					p.SetState(157)
 					p.LetStmt()
 				}
 
-				p.SetState(139)
+				p.SetState(162)
 				p.GetErrorHandler().Sync(p)
 				if p.HasError() {
 					goto errorExit
@@ -2490,10 +2902,10 @@ func (p *MangleParser) Transform() (localctx ITransformContext) {
 	case MangleParserLET:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(142)
+			p.SetState(165)
 			p.LetStmt()
 		}
-		p.SetState(147)
+		p.SetState(170)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -2502,7 +2914,7 @@ func (p *MangleParser) Transform() (localctx ITransformContext) {
 
 		for _la == MangleParserCOMMA {
 			{
-				p.SetState(143)
+				p.SetState(166)
 				p.Match(MangleParserCOMMA)
 				if p.HasError() {
 					// Recognition error - abort rule
@@ -2510,11 +2922,11 @@ func (p *MangleParser) Transform() (localctx ITransformContext) {
 				}
 			}
 			{
-				p.SetState(144)
+				p.SetState(167)
 				p.LetStmt()
 			}
 
-			p.SetState(149)
+			p.SetState(172)
 			p.GetErrorHandler().Sync(p)
 			if p.HasError() {
 				goto errorExit
@@ -2649,10 +3061,10 @@ func (s *LetStmtContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 
 func (p *MangleParser) LetStmt() (localctx ILetStmtContext) {
 	localctx = NewLetStmtContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 22, MangleParserRULE_letStmt)
+	p.EnterRule(localctx, 26, MangleParserRULE_letStmt)
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(152)
+		p.SetState(175)
 		p.Match(MangleParserLET)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -2660,7 +3072,7 @@ func (p *MangleParser) LetStmt() (localctx ILetStmtContext) {
 		}
 	}
 	{
-		p.SetState(153)
+		p.SetState(176)
 		p.Match(MangleParserVARIABLE)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -2668,7 +3080,7 @@ func (p *MangleParser) LetStmt() (localctx ILetStmtContext) {
 		}
 	}
 	{
-		p.SetState(154)
+		p.SetState(177)
 		p.Match(MangleParserEQ)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -2676,7 +3088,7 @@ func (p *MangleParser) LetStmt() (localctx ILetStmtContext) {
 		}
 	}
 	{
-		p.SetState(155)
+		p.SetState(178)
 		p.Term()
 	}
 
@@ -2703,6 +3115,8 @@ type ILiteralOrFmlContext interface {
 	// Getter signatures
 	AllTerm() []ITermContext
 	Term(i int) ITermContext
+	TemporalOperator() ITemporalOperatorContext
+	TemporalAnnotation() ITemporalAnnotationContext
 	EQ() antlr.TerminalNode
 	BANGEQ() antlr.TerminalNode
 	LESS() antlr.TerminalNode
@@ -2788,6 +3202,38 @@ func (s *LiteralOrFmlContext) Term(i int) ITermContext {
 	return t.(ITermContext)
 }
 
+func (s *LiteralOrFmlContext) TemporalOperator() ITemporalOperatorContext {
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ITemporalOperatorContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(ITemporalOperatorContext)
+}
+
+func (s *LiteralOrFmlContext) TemporalAnnotation() ITemporalAnnotationContext {
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ITemporalAnnotationContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(ITemporalAnnotationContext)
+}
+
 func (s *LiteralOrFmlContext) EQ() antlr.TerminalNode {
 	return s.GetToken(MangleParserEQ, 0)
 }
@@ -2848,35 +3294,63 @@ func (s *LiteralOrFmlContext) Accept(visitor antlr.ParseTreeVisitor) interface{}
 
 func (p *MangleParser) LiteralOrFml() (localctx ILiteralOrFmlContext) {
 	localctx = NewLiteralOrFmlContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 24, MangleParserRULE_literalOrFml)
+	p.EnterRule(localctx, 28, MangleParserRULE_literalOrFml)
 	var _la int
 
-	p.SetState(164)
+	p.SetState(193)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
 
 	switch p.GetTokenStream().LA(1) {
-	case MangleParserT__4, MangleParserLBRACKET, MangleParserNUMBER, MangleParserFLOAT, MangleParserVARIABLE, MangleParserNAME, MangleParserDOT_TYPE, MangleParserCONSTANT, MangleParserSTRING, MangleParserBYTESTRING:
+	case MangleParserLBRACKET, MangleParserLBRACE, MangleParserDIAMONDMINUS, MangleParserBOXMINUS, MangleParserNUMBER, MangleParserFLOAT, MangleParserVARIABLE, MangleParserNAME, MangleParserDOT_TYPE, MangleParserCONSTANT, MangleParserSTRING, MangleParserBYTESTRING:
 		p.EnterOuterAlt(localctx, 1)
-		{
-			p.SetState(157)
-			p.Term()
-		}
-		p.SetState(160)
+		p.SetState(181)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
 		}
 		_la = p.GetTokenStream().LA(1)
 
-		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&509607936) != 0 {
+		if _la == MangleParserDIAMONDMINUS || _la == MangleParserBOXMINUS {
 			{
-				p.SetState(158)
+				p.SetState(180)
+				p.TemporalOperator()
+			}
+
+		}
+		{
+			p.SetState(183)
+			p.Term()
+		}
+		p.SetState(185)
+		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
+		_la = p.GetTokenStream().LA(1)
+
+		if _la == MangleParserAT {
+			{
+				p.SetState(184)
+				p.TemporalAnnotation()
+			}
+
+		}
+		p.SetState(189)
+		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
+		_la = p.GetTokenStream().LA(1)
+
+		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&2038431744) != 0 {
+			{
+				p.SetState(187)
 				_la = p.GetTokenStream().LA(1)
 
-				if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&509607936) != 0) {
+				if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&2038431744) != 0) {
 					p.GetErrorHandler().RecoverInline(p)
 				} else {
 					p.GetErrorHandler().ReportMatch(p)
@@ -2884,7 +3358,7 @@ func (p *MangleParser) LiteralOrFml() (localctx ILiteralOrFmlContext) {
 				}
 			}
 			{
-				p.SetState(159)
+				p.SetState(188)
 				p.Term()
 			}
 
@@ -2893,7 +3367,7 @@ func (p *MangleParser) LiteralOrFml() (localctx ILiteralOrFmlContext) {
 	case MangleParserBANG:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(162)
+			p.SetState(191)
 			p.Match(MangleParserBANG)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -2901,8 +3375,265 @@ func (p *MangleParser) LiteralOrFml() (localctx ILiteralOrFmlContext) {
 			}
 		}
 		{
-			p.SetState(163)
+			p.SetState(192)
 			p.Term()
+		}
+
+	default:
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
+	}
+
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
+	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
+}
+
+// ITemporalOperatorContext is an interface to support dynamic dispatch.
+type ITemporalOperatorContext interface {
+	antlr.ParserRuleContext
+
+	// GetParser returns the parser.
+	GetParser() antlr.Parser
+
+	// Getter signatures
+	DIAMONDMINUS() antlr.TerminalNode
+	LBRACKET() antlr.TerminalNode
+	AllTemporalBound() []ITemporalBoundContext
+	TemporalBound(i int) ITemporalBoundContext
+	COMMA() antlr.TerminalNode
+	RBRACKET() antlr.TerminalNode
+	BOXMINUS() antlr.TerminalNode
+
+	// IsTemporalOperatorContext differentiates from other interfaces.
+	IsTemporalOperatorContext()
+}
+
+type TemporalOperatorContext struct {
+	antlr.BaseParserRuleContext
+	parser antlr.Parser
+}
+
+func NewEmptyTemporalOperatorContext() *TemporalOperatorContext {
+	var p = new(TemporalOperatorContext)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = MangleParserRULE_temporalOperator
+	return p
+}
+
+func InitEmptyTemporalOperatorContext(p *TemporalOperatorContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = MangleParserRULE_temporalOperator
+}
+
+func (*TemporalOperatorContext) IsTemporalOperatorContext() {}
+
+func NewTemporalOperatorContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *TemporalOperatorContext {
+	var p = new(TemporalOperatorContext)
+
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
+
+	p.parser = parser
+	p.RuleIndex = MangleParserRULE_temporalOperator
+
+	return p
+}
+
+func (s *TemporalOperatorContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *TemporalOperatorContext) DIAMONDMINUS() antlr.TerminalNode {
+	return s.GetToken(MangleParserDIAMONDMINUS, 0)
+}
+
+func (s *TemporalOperatorContext) LBRACKET() antlr.TerminalNode {
+	return s.GetToken(MangleParserLBRACKET, 0)
+}
+
+func (s *TemporalOperatorContext) AllTemporalBound() []ITemporalBoundContext {
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(ITemporalBoundContext); ok {
+			len++
+		}
+	}
+
+	tst := make([]ITemporalBoundContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(ITemporalBoundContext); ok {
+			tst[i] = t.(ITemporalBoundContext)
+			i++
+		}
+	}
+
+	return tst
+}
+
+func (s *TemporalOperatorContext) TemporalBound(i int) ITemporalBoundContext {
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ITemporalBoundContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(ITemporalBoundContext)
+}
+
+func (s *TemporalOperatorContext) COMMA() antlr.TerminalNode {
+	return s.GetToken(MangleParserCOMMA, 0)
+}
+
+func (s *TemporalOperatorContext) RBRACKET() antlr.TerminalNode {
+	return s.GetToken(MangleParserRBRACKET, 0)
+}
+
+func (s *TemporalOperatorContext) BOXMINUS() antlr.TerminalNode {
+	return s.GetToken(MangleParserBOXMINUS, 0)
+}
+
+func (s *TemporalOperatorContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *TemporalOperatorContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+func (s *TemporalOperatorContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(MangleListener); ok {
+		listenerT.EnterTemporalOperator(s)
+	}
+}
+
+func (s *TemporalOperatorContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(MangleListener); ok {
+		listenerT.ExitTemporalOperator(s)
+	}
+}
+
+func (s *TemporalOperatorContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+	switch t := visitor.(type) {
+	case MangleVisitor:
+		return t.VisitTemporalOperator(s)
+
+	default:
+		return t.VisitChildren(s)
+	}
+}
+
+func (p *MangleParser) TemporalOperator() (localctx ITemporalOperatorContext) {
+	localctx = NewTemporalOperatorContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 30, MangleParserRULE_temporalOperator)
+	p.SetState(209)
+	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
+
+	switch p.GetTokenStream().LA(1) {
+	case MangleParserDIAMONDMINUS:
+		p.EnterOuterAlt(localctx, 1)
+		{
+			p.SetState(195)
+			p.Match(MangleParserDIAMONDMINUS)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		{
+			p.SetState(196)
+			p.Match(MangleParserLBRACKET)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		{
+			p.SetState(197)
+			p.TemporalBound()
+		}
+		{
+			p.SetState(198)
+			p.Match(MangleParserCOMMA)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		{
+			p.SetState(199)
+			p.TemporalBound()
+		}
+		{
+			p.SetState(200)
+			p.Match(MangleParserRBRACKET)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+
+	case MangleParserBOXMINUS:
+		p.EnterOuterAlt(localctx, 2)
+		{
+			p.SetState(202)
+			p.Match(MangleParserBOXMINUS)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		{
+			p.SetState(203)
+			p.Match(MangleParserLBRACKET)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		{
+			p.SetState(204)
+			p.TemporalBound()
+		}
+		{
+			p.SetState(205)
+			p.Match(MangleParserCOMMA)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		{
+			p.SetState(206)
+			p.TemporalBound()
+		}
+		{
+			p.SetState(207)
+			p.Match(MangleParserRBRACKET)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	default:
@@ -3554,6 +4285,14 @@ func (s *StructContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
+func (s *StructContext) LBRACE() antlr.TerminalNode {
+	return s.GetToken(MangleParserLBRACE, 0)
+}
+
+func (s *StructContext) RBRACE() antlr.TerminalNode {
+	return s.GetToken(MangleParserRBRACE, 0)
+}
+
 func (s *StructContext) AllTerm() []ITermContext {
 	children := s.GetChildren()
 	len := 0
@@ -3728,23 +4467,23 @@ func (s *DotTypeContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 
 func (p *MangleParser) Term() (localctx ITermContext) {
 	localctx = NewTermContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 26, MangleParserRULE_term)
+	p.EnterRule(localctx, 32, MangleParserRULE_term)
 	var _la int
 
 	var _alt int
 
-	p.SetState(252)
+	p.SetState(297)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
 
-	switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 32, p.GetParserRuleContext()) {
+	switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 38, p.GetParserRuleContext()) {
 	case 1:
 		localctx = NewVarContext(p, localctx)
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(166)
+			p.SetState(211)
 			p.Match(MangleParserVARIABLE)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3756,7 +4495,7 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 		localctx = NewConstContext(p, localctx)
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(167)
+			p.SetState(212)
 			p.Match(MangleParserCONSTANT)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3768,7 +4507,7 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 		localctx = NewNumContext(p, localctx)
 		p.EnterOuterAlt(localctx, 3)
 		{
-			p.SetState(168)
+			p.SetState(213)
 			p.Match(MangleParserNUMBER)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3780,7 +4519,7 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 		localctx = NewFloatContext(p, localctx)
 		p.EnterOuterAlt(localctx, 4)
 		{
-			p.SetState(169)
+			p.SetState(214)
 			p.Match(MangleParserFLOAT)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3792,7 +4531,7 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 		localctx = NewStrContext(p, localctx)
 		p.EnterOuterAlt(localctx, 5)
 		{
-			p.SetState(170)
+			p.SetState(215)
 			p.Match(MangleParserSTRING)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3804,7 +4543,7 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 		localctx = NewBStrContext(p, localctx)
 		p.EnterOuterAlt(localctx, 6)
 		{
-			p.SetState(171)
+			p.SetState(216)
 			p.Match(MangleParserBYTESTRING)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3816,277 +4555,14 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 		localctx = NewListContext(p, localctx)
 		p.EnterOuterAlt(localctx, 7)
 		{
-			p.SetState(172)
+			p.SetState(217)
 			p.Match(MangleParserLBRACKET)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
-		p.SetState(178)
-		p.GetErrorHandler().Sync(p)
-		if p.HasError() {
-			goto errorExit
-		}
-		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 21, p.GetParserRuleContext())
-		if p.HasError() {
-			goto errorExit
-		}
-		for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
-			if _alt == 1 {
-				{
-					p.SetState(173)
-					p.Term()
-				}
-				{
-					p.SetState(174)
-					p.Match(MangleParserCOMMA)
-					if p.HasError() {
-						// Recognition error - abort rule
-						goto errorExit
-					}
-				}
-
-			}
-			p.SetState(180)
-			p.GetErrorHandler().Sync(p)
-			if p.HasError() {
-				goto errorExit
-			}
-			_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 21, p.GetParserRuleContext())
-			if p.HasError() {
-				goto errorExit
-			}
-		}
-		p.SetState(182)
-		p.GetErrorHandler().Sync(p)
-		if p.HasError() {
-			goto errorExit
-		}
-		_la = p.GetTokenStream().LA(1)
-
-		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&2126009335840) != 0 {
-			{
-				p.SetState(181)
-				p.Term()
-			}
-
-		}
-		{
-			p.SetState(184)
-			p.Match(MangleParserRBRACKET)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
-		}
-
-	case 8:
-		localctx = NewMapContext(p, localctx)
-		p.EnterOuterAlt(localctx, 8)
-		{
-			p.SetState(185)
-			p.Match(MangleParserLBRACKET)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
-		}
-		p.SetState(193)
-		p.GetErrorHandler().Sync(p)
-		if p.HasError() {
-			goto errorExit
-		}
-		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 23, p.GetParserRuleContext())
-		if p.HasError() {
-			goto errorExit
-		}
-		for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
-			if _alt == 1 {
-				{
-					p.SetState(186)
-					p.Term()
-				}
-				{
-					p.SetState(187)
-					p.Match(MangleParserT__3)
-					if p.HasError() {
-						// Recognition error - abort rule
-						goto errorExit
-					}
-				}
-				{
-					p.SetState(188)
-					p.Term()
-				}
-				{
-					p.SetState(189)
-					p.Match(MangleParserCOMMA)
-					if p.HasError() {
-						// Recognition error - abort rule
-						goto errorExit
-					}
-				}
-
-			}
-			p.SetState(195)
-			p.GetErrorHandler().Sync(p)
-			if p.HasError() {
-				goto errorExit
-			}
-			_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 23, p.GetParserRuleContext())
-			if p.HasError() {
-				goto errorExit
-			}
-		}
-		p.SetState(200)
-		p.GetErrorHandler().Sync(p)
-		if p.HasError() {
-			goto errorExit
-		}
-		_la = p.GetTokenStream().LA(1)
-
-		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&2126009335840) != 0 {
-			{
-				p.SetState(196)
-				p.Term()
-			}
-			{
-				p.SetState(197)
-				p.Match(MangleParserT__3)
-				if p.HasError() {
-					// Recognition error - abort rule
-					goto errorExit
-				}
-			}
-			{
-				p.SetState(198)
-				p.Term()
-			}
-
-		}
-		{
-			p.SetState(202)
-			p.Match(MangleParserRBRACKET)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
-		}
-
-	case 9:
-		localctx = NewStructContext(p, localctx)
-		p.EnterOuterAlt(localctx, 9)
-		{
-			p.SetState(203)
-			p.Match(MangleParserT__4)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
-		}
-		p.SetState(211)
-		p.GetErrorHandler().Sync(p)
-		if p.HasError() {
-			goto errorExit
-		}
-		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 25, p.GetParserRuleContext())
-		if p.HasError() {
-			goto errorExit
-		}
-		for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
-			if _alt == 1 {
-				{
-					p.SetState(204)
-					p.Term()
-				}
-				{
-					p.SetState(205)
-					p.Match(MangleParserT__3)
-					if p.HasError() {
-						// Recognition error - abort rule
-						goto errorExit
-					}
-				}
-				{
-					p.SetState(206)
-					p.Term()
-				}
-				{
-					p.SetState(207)
-					p.Match(MangleParserCOMMA)
-					if p.HasError() {
-						// Recognition error - abort rule
-						goto errorExit
-					}
-				}
-
-			}
-			p.SetState(213)
-			p.GetErrorHandler().Sync(p)
-			if p.HasError() {
-				goto errorExit
-			}
-			_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 25, p.GetParserRuleContext())
-			if p.HasError() {
-				goto errorExit
-			}
-		}
-		p.SetState(218)
-		p.GetErrorHandler().Sync(p)
-		if p.HasError() {
-			goto errorExit
-		}
-		_la = p.GetTokenStream().LA(1)
-
-		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&2126009335840) != 0 {
-			{
-				p.SetState(214)
-				p.Term()
-			}
-			{
-				p.SetState(215)
-				p.Match(MangleParserT__3)
-				if p.HasError() {
-					// Recognition error - abort rule
-					goto errorExit
-				}
-			}
-			{
-				p.SetState(216)
-				p.Term()
-			}
-
-		}
-		{
-			p.SetState(220)
-			p.Match(MangleParserT__5)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
-		}
-
-	case 10:
-		localctx = NewDotTypeContext(p, localctx)
-		p.EnterOuterAlt(localctx, 10)
-		{
-			p.SetState(221)
-			p.Match(MangleParserDOT_TYPE)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
-		}
-		{
-			p.SetState(222)
-			p.Match(MangleParserLESS)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
-		}
-		p.SetState(228)
+		p.SetState(223)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -4098,11 +4574,11 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 		for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
 			if _alt == 1 {
 				{
-					p.SetState(223)
-					p.Member()
+					p.SetState(218)
+					p.Term()
 				}
 				{
-					p.SetState(224)
+					p.SetState(219)
 					p.Match(MangleParserCOMMA)
 					if p.HasError() {
 						// Recognition error - abort rule
@@ -4111,7 +4587,7 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 				}
 
 			}
-			p.SetState(230)
+			p.SetState(225)
 			p.GetErrorHandler().Sync(p)
 			if p.HasError() {
 				goto errorExit
@@ -4121,19 +4597,282 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 				goto errorExit
 			}
 		}
-		p.SetState(235)
+		p.SetState(227)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
 		}
 		_la = p.GetTokenStream().LA(1)
 
-		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&2126009335968) != 0 {
+		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&272129130496000) != 0 {
 			{
-				p.SetState(231)
+				p.SetState(226)
+				p.Term()
+			}
+
+		}
+		{
+			p.SetState(229)
+			p.Match(MangleParserRBRACKET)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+
+	case 8:
+		localctx = NewMapContext(p, localctx)
+		p.EnterOuterAlt(localctx, 8)
+		{
+			p.SetState(230)
+			p.Match(MangleParserLBRACKET)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		p.SetState(238)
+		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
+		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 29, p.GetParserRuleContext())
+		if p.HasError() {
+			goto errorExit
+		}
+		for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
+			if _alt == 1 {
+				{
+					p.SetState(231)
+					p.Term()
+				}
+				{
+					p.SetState(232)
+					p.Match(MangleParserT__5)
+					if p.HasError() {
+						// Recognition error - abort rule
+						goto errorExit
+					}
+				}
+				{
+					p.SetState(233)
+					p.Term()
+				}
+				{
+					p.SetState(234)
+					p.Match(MangleParserCOMMA)
+					if p.HasError() {
+						// Recognition error - abort rule
+						goto errorExit
+					}
+				}
+
+			}
+			p.SetState(240)
+			p.GetErrorHandler().Sync(p)
+			if p.HasError() {
+				goto errorExit
+			}
+			_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 29, p.GetParserRuleContext())
+			if p.HasError() {
+				goto errorExit
+			}
+		}
+		p.SetState(245)
+		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
+		_la = p.GetTokenStream().LA(1)
+
+		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&272129130496000) != 0 {
+			{
+				p.SetState(241)
+				p.Term()
+			}
+			{
+				p.SetState(242)
+				p.Match(MangleParserT__5)
+				if p.HasError() {
+					// Recognition error - abort rule
+					goto errorExit
+				}
+			}
+			{
+				p.SetState(243)
+				p.Term()
+			}
+
+		}
+		{
+			p.SetState(247)
+			p.Match(MangleParserRBRACKET)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+
+	case 9:
+		localctx = NewStructContext(p, localctx)
+		p.EnterOuterAlt(localctx, 9)
+		{
+			p.SetState(248)
+			p.Match(MangleParserLBRACE)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		p.SetState(256)
+		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
+		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 31, p.GetParserRuleContext())
+		if p.HasError() {
+			goto errorExit
+		}
+		for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
+			if _alt == 1 {
+				{
+					p.SetState(249)
+					p.Term()
+				}
+				{
+					p.SetState(250)
+					p.Match(MangleParserT__5)
+					if p.HasError() {
+						// Recognition error - abort rule
+						goto errorExit
+					}
+				}
+				{
+					p.SetState(251)
+					p.Term()
+				}
+				{
+					p.SetState(252)
+					p.Match(MangleParserCOMMA)
+					if p.HasError() {
+						// Recognition error - abort rule
+						goto errorExit
+					}
+				}
+
+			}
+			p.SetState(258)
+			p.GetErrorHandler().Sync(p)
+			if p.HasError() {
+				goto errorExit
+			}
+			_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 31, p.GetParserRuleContext())
+			if p.HasError() {
+				goto errorExit
+			}
+		}
+		p.SetState(263)
+		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
+		_la = p.GetTokenStream().LA(1)
+
+		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&272129130496000) != 0 {
+			{
+				p.SetState(259)
+				p.Term()
+			}
+			{
+				p.SetState(260)
+				p.Match(MangleParserT__5)
+				if p.HasError() {
+					// Recognition error - abort rule
+					goto errorExit
+				}
+			}
+			{
+				p.SetState(261)
+				p.Term()
+			}
+
+		}
+		{
+			p.SetState(265)
+			p.Match(MangleParserRBRACE)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+
+	case 10:
+		localctx = NewDotTypeContext(p, localctx)
+		p.EnterOuterAlt(localctx, 10)
+		{
+			p.SetState(266)
+			p.Match(MangleParserDOT_TYPE)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		{
+			p.SetState(267)
+			p.Match(MangleParserLESS)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		p.SetState(273)
+		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
+		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 33, p.GetParserRuleContext())
+		if p.HasError() {
+			goto errorExit
+		}
+		for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
+			if _alt == 1 {
+				{
+					p.SetState(268)
+					p.Member()
+				}
+				{
+					p.SetState(269)
+					p.Match(MangleParserCOMMA)
+					if p.HasError() {
+						// Recognition error - abort rule
+						goto errorExit
+					}
+				}
+
+			}
+			p.SetState(275)
+			p.GetErrorHandler().Sync(p)
+			if p.HasError() {
+				goto errorExit
+			}
+			_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 33, p.GetParserRuleContext())
+			if p.HasError() {
+				goto errorExit
+			}
+		}
+		p.SetState(280)
+		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
+		_la = p.GetTokenStream().LA(1)
+
+		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&272129130496128) != 0 {
+			{
+				p.SetState(276)
 				p.Member()
 			}
-			p.SetState(233)
+			p.SetState(278)
 			p.GetErrorHandler().Sync(p)
 			if p.HasError() {
 				goto errorExit
@@ -4142,7 +4881,7 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 
 			if _la == MangleParserCOMMA {
 				{
-					p.SetState(232)
+					p.SetState(277)
 					p.Match(MangleParserCOMMA)
 					if p.HasError() {
 						// Recognition error - abort rule
@@ -4154,7 +4893,7 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 
 		}
 		{
-			p.SetState(237)
+			p.SetState(282)
 			p.Match(MangleParserGREATER)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -4166,7 +4905,7 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 		localctx = NewApplContext(p, localctx)
 		p.EnterOuterAlt(localctx, 11)
 		{
-			p.SetState(238)
+			p.SetState(283)
 			p.Match(MangleParserNAME)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -4174,30 +4913,30 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 			}
 		}
 		{
-			p.SetState(239)
+			p.SetState(284)
 			p.Match(MangleParserLPAREN)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
-		p.SetState(245)
+		p.SetState(290)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
 		}
-		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 30, p.GetParserRuleContext())
+		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 36, p.GetParserRuleContext())
 		if p.HasError() {
 			goto errorExit
 		}
 		for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
 			if _alt == 1 {
 				{
-					p.SetState(240)
+					p.SetState(285)
 					p.Term()
 				}
 				{
-					p.SetState(241)
+					p.SetState(286)
 					p.Match(MangleParserCOMMA)
 					if p.HasError() {
 						// Recognition error - abort rule
@@ -4206,32 +4945,32 @@ func (p *MangleParser) Term() (localctx ITermContext) {
 				}
 
 			}
-			p.SetState(247)
+			p.SetState(292)
 			p.GetErrorHandler().Sync(p)
 			if p.HasError() {
 				goto errorExit
 			}
-			_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 30, p.GetParserRuleContext())
+			_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 36, p.GetParserRuleContext())
 			if p.HasError() {
 				goto errorExit
 			}
 		}
-		p.SetState(249)
+		p.SetState(294)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
 		}
 		_la = p.GetTokenStream().LA(1)
 
-		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&2126009335840) != 0 {
+		if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&272129130496000) != 0 {
 			{
-				p.SetState(248)
+				p.SetState(293)
 				p.Term()
 			}
 
 		}
 		{
-			p.SetState(251)
+			p.SetState(296)
 			p.Match(MangleParserRPAREN)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -4376,40 +5115,40 @@ func (s *MemberContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 
 func (p *MangleParser) Member() (localctx IMemberContext) {
 	localctx = NewMemberContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 28, MangleParserRULE_member)
+	p.EnterRule(localctx, 34, MangleParserRULE_member)
 	var _la int
 
-	p.SetState(264)
+	p.SetState(309)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
 
 	switch p.GetTokenStream().LA(1) {
-	case MangleParserT__4, MangleParserLBRACKET, MangleParserNUMBER, MangleParserFLOAT, MangleParserVARIABLE, MangleParserNAME, MangleParserDOT_TYPE, MangleParserCONSTANT, MangleParserSTRING, MangleParserBYTESTRING:
+	case MangleParserLBRACKET, MangleParserLBRACE, MangleParserNUMBER, MangleParserFLOAT, MangleParserVARIABLE, MangleParserNAME, MangleParserDOT_TYPE, MangleParserCONSTANT, MangleParserSTRING, MangleParserBYTESTRING:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(254)
+			p.SetState(299)
 			p.Term()
 		}
-		p.SetState(257)
+		p.SetState(302)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
 		}
 		_la = p.GetTokenStream().LA(1)
 
-		if _la == MangleParserT__3 {
+		if _la == MangleParserT__5 {
 			{
-				p.SetState(255)
-				p.Match(MangleParserT__3)
+				p.SetState(300)
+				p.Match(MangleParserT__5)
 				if p.HasError() {
 					// Recognition error - abort rule
 					goto errorExit
 				}
 			}
 			{
-				p.SetState(256)
+				p.SetState(301)
 				p.Term()
 			}
 
@@ -4418,7 +5157,7 @@ func (p *MangleParser) Member() (localctx IMemberContext) {
 	case MangleParserT__6:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(259)
+			p.SetState(304)
 			p.Match(MangleParserT__6)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -4426,19 +5165,19 @@ func (p *MangleParser) Member() (localctx IMemberContext) {
 			}
 		}
 		{
-			p.SetState(260)
+			p.SetState(305)
 			p.Term()
 		}
 		{
-			p.SetState(261)
-			p.Match(MangleParserT__3)
+			p.SetState(306)
+			p.Match(MangleParserT__5)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
 		{
-			p.SetState(262)
+			p.SetState(307)
 			p.Term()
 		}
 
@@ -4554,10 +5293,10 @@ func (s *AtomContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 
 func (p *MangleParser) Atom() (localctx IAtomContext) {
 	localctx = NewAtomContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 30, MangleParserRULE_atom)
+	p.EnterRule(localctx, 36, MangleParserRULE_atom)
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(266)
+		p.SetState(311)
 		p.Term()
 	}
 
@@ -4714,37 +5453,37 @@ func (s *AtomsContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 
 func (p *MangleParser) Atoms() (localctx IAtomsContext) {
 	localctx = NewAtomsContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 32, MangleParserRULE_atoms)
+	p.EnterRule(localctx, 38, MangleParserRULE_atoms)
 	var _la int
 
 	var _alt int
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(268)
+		p.SetState(313)
 		p.Match(MangleParserLBRACKET)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
 		}
 	}
-	p.SetState(274)
+	p.SetState(319)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
-	_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 35, p.GetParserRuleContext())
+	_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 41, p.GetParserRuleContext())
 	if p.HasError() {
 		goto errorExit
 	}
 	for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
 		if _alt == 1 {
 			{
-				p.SetState(269)
+				p.SetState(314)
 				p.Atom()
 			}
 			{
-				p.SetState(270)
+				p.SetState(315)
 				p.Match(MangleParserCOMMA)
 				if p.HasError() {
 					// Recognition error - abort rule
@@ -4753,32 +5492,32 @@ func (p *MangleParser) Atoms() (localctx IAtomsContext) {
 			}
 
 		}
-		p.SetState(276)
+		p.SetState(321)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
 		}
-		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 35, p.GetParserRuleContext())
+		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 41, p.GetParserRuleContext())
 		if p.HasError() {
 			goto errorExit
 		}
 	}
-	p.SetState(278)
+	p.SetState(323)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&2126009335840) != 0 {
+	if (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&272129130496000) != 0 {
 		{
-			p.SetState(277)
+			p.SetState(322)
 			p.Atom()
 		}
 
 	}
 	{
-		p.SetState(280)
+		p.SetState(325)
 		p.Match(MangleParserRBRACKET)
 		if p.HasError() {
 			// Recognition error - abort rule

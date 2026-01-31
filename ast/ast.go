@@ -1238,15 +1238,21 @@ func (e Ineq) ApplySubst(s Subst) Term {
 
 // Clause represents a clause (a rule of the form "A." or "A :- B1, ..., Bn.").
 // When a clause has a body, the resulting relation can be transformed.
+// Clauses may optionally have a temporal annotation on the head.
 type Clause struct {
 	Head      Atom
+	HeadTime  *Interval // Optional temporal annotation (nil means eternal/timeless)
 	Premises  []Term
 	Transform *Transform
 }
 
 func (c Clause) String() string {
+	headStr := c.Head.String()
+	if c.HeadTime != nil && !c.HeadTime.IsEternal() {
+		headStr += c.HeadTime.String()
+	}
 	if c.Premises == nil {
-		return fmt.Sprintf("%s.", c.Head.String())
+		return fmt.Sprintf("%s.", headStr)
 	}
 	var premises strings.Builder
 	for i, p := range c.Premises {
@@ -1256,9 +1262,9 @@ func (c Clause) String() string {
 		premises.WriteString(p.String())
 	}
 	if c.Transform == nil {
-		return fmt.Sprintf("%s :- %s.", c.Head.String(), premises.String())
+		return fmt.Sprintf("%s :- %s.", headStr, premises.String())
 	}
-	return fmt.Sprintf("%s :- %s |> %s.", c.Head.String(), premises.String(), c.Transform.String())
+	return fmt.Sprintf("%s :- %s |> %s.", headStr, premises.String(), c.Transform.String())
 }
 
 func (t Transform) String() string {
@@ -1295,12 +1301,17 @@ func (c Clause) ReplaceWildcards() Clause {
 	// Wildcards in the rule head are a programmer mistake,
 	// there is no way a wildcard can be bound. This is caught
 	// by validation.
-	return Clause{c.Head, newPremises, c.Transform}
+	return Clause{c.Head, c.HeadTime, newPremises, c.Transform}
 }
 
 // NewClause constructs a new clause.
 func NewClause(head Atom, premises []Term) Clause {
-	return Clause{head, premises, nil}
+	return Clause{head, nil, premises, nil}
+}
+
+// NewTemporalClause constructs a new clause with a temporal annotation.
+func NewTemporalClause(head Atom, headTime *Interval, premises []Term) Clause {
+	return Clause{head, headTime, premises, nil}
 }
 
 func hashTerm(s string, args []BaseTerm) uint64 {

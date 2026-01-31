@@ -1,4 +1,4 @@
-// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
+// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Mangle
 import "github.com/antlr4-go/antlr/v4"
@@ -74,6 +74,18 @@ func (s *BaseMangleListener) EnterClause(ctx *ClauseContext) {}
 // ExitClause is called when production clause is exited.
 func (s *BaseMangleListener) ExitClause(ctx *ClauseContext) {}
 
+// EnterTemporalAnnotation is called when production temporalAnnotation is entered.
+func (s *BaseMangleListener) EnterTemporalAnnotation(ctx *TemporalAnnotationContext) {}
+
+// ExitTemporalAnnotation is called when production temporalAnnotation is exited.
+func (s *BaseMangleListener) ExitTemporalAnnotation(ctx *TemporalAnnotationContext) {}
+
+// EnterTemporalBound is called when production temporalBound is entered.
+func (s *BaseMangleListener) EnterTemporalBound(ctx *TemporalBoundContext) {}
+
+// ExitTemporalBound is called when production temporalBound is exited.
+func (s *BaseMangleListener) ExitTemporalBound(ctx *TemporalBoundContext) {}
+
 // EnterClauseBody is called when production clauseBody is entered.
 func (s *BaseMangleListener) EnterClauseBody(ctx *ClauseBodyContext) {}
 
@@ -97,6 +109,12 @@ func (s *BaseMangleListener) EnterLiteralOrFml(ctx *LiteralOrFmlContext) {}
 
 // ExitLiteralOrFml is called when production literalOrFml is exited.
 func (s *BaseMangleListener) ExitLiteralOrFml(ctx *LiteralOrFmlContext) {}
+
+// EnterTemporalOperator is called when production temporalOperator is entered.
+func (s *BaseMangleListener) EnterTemporalOperator(ctx *TemporalOperatorContext) {}
+
+// ExitTemporalOperator is called when production temporalOperator is exited.
+func (s *BaseMangleListener) ExitTemporalOperator(ctx *TemporalOperatorContext) {}
 
 // EnterVar is called when production Var is entered.
 func (s *BaseMangleListener) EnterVar(ctx *VarContext) {}

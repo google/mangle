@@ -1,4 +1,4 @@
-// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
+// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Mangle
 import "github.com/antlr4-go/antlr/v4"
@@ -34,6 +34,12 @@ type MangleListener interface {
 	// EnterClause is called when entering the clause production.
 	EnterClause(c *ClauseContext)
 
+	// EnterTemporalAnnotation is called when entering the temporalAnnotation production.
+	EnterTemporalAnnotation(c *TemporalAnnotationContext)
+
+	// EnterTemporalBound is called when entering the temporalBound production.
+	EnterTemporalBound(c *TemporalBoundContext)
+
 	// EnterClauseBody is called when entering the clauseBody production.
 	EnterClauseBody(c *ClauseBodyContext)
 
@@ -45,6 +51,9 @@ type MangleListener interface {
 
 	// EnterLiteralOrFml is called when entering the literalOrFml production.
 	EnterLiteralOrFml(c *LiteralOrFmlContext)
+
+	// EnterTemporalOperator is called when entering the temporalOperator production.
+	EnterTemporalOperator(c *TemporalOperatorContext)
 
 	// EnterVar is called when entering the Var production.
 	EnterVar(c *VarContext)
@@ -115,6 +124,12 @@ type MangleListener interface {
 	// ExitClause is called when exiting the clause production.
 	ExitClause(c *ClauseContext)
 
+	// ExitTemporalAnnotation is called when exiting the temporalAnnotation production.
+	ExitTemporalAnnotation(c *TemporalAnnotationContext)
+
+	// ExitTemporalBound is called when exiting the temporalBound production.
+	ExitTemporalBound(c *TemporalBoundContext)
+
 	// ExitClauseBody is called when exiting the clauseBody production.
 	ExitClauseBody(c *ClauseBodyContext)
 
@@ -126,6 +141,9 @@ type MangleListener interface {
 
 	// ExitLiteralOrFml is called when exiting the literalOrFml production.
 	ExitLiteralOrFml(c *LiteralOrFmlContext)
+
+	// ExitTemporalOperator is called when exiting the temporalOperator production.
+	ExitTemporalOperator(c *TemporalOperatorContext)
 
 	// ExitVar is called when exiting the Var production.
 	ExitVar(c *VarContext)

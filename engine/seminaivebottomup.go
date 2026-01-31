@@ -47,6 +47,8 @@ type Stats struct {
 type engine struct {
 	store         factstore.FactStore
 	deltaStore    factstore.FactStore
+	temporalStore factstore.TemporalFactStore // Optional temporal store
+	evalTime      time.Time                   // Evaluation time for temporal queries
 	programInfo   *analysis.ProgramInfo
 	strata        []analysis.Nodeset
 	predToStratum map[ast.PredicateSym]int
@@ -95,6 +97,9 @@ type EvalOptions struct {
 	// if non-nil, only predicates in this allowlist get evaluated.
 	predicateAllowList *func(ast.PredicateSym) bool
 	externalPredicates map[ast.PredicateSym]ExternalPredicateCallback
+	// Temporal evaluation options
+	temporalStore factstore.TemporalFactStore
+	evalTime      time.Time
 }
 
 // EvalOption affects the way the evaluation is performed.
@@ -109,6 +114,16 @@ func WithCreatedFactLimit(limit int) EvalOption {
 func WithExternalPredicates(
 	callbacks map[ast.PredicateSym]ExternalPredicateCallback) EvalOption {
 	return func(o *EvalOptions) { o.externalPredicates = callbacks }
+}
+
+// WithTemporalStore configures a temporal fact store for temporal reasoning.
+func WithTemporalStore(store factstore.TemporalFactStore) EvalOption {
+	return func(o *EvalOptions) { o.temporalStore = store }
+}
+
+// WithEvaluationTime sets the evaluation time for temporal queries.
+func WithEvaluationTime(t time.Time) EvalOption {
+	return func(o *EvalOptions) { o.evalTime = t }
 }
 
 // EvalProgram evaluates a given program on the given facts, modifying the fact store in the process.
@@ -181,8 +196,24 @@ func EvalStratifiedProgramWithStats(programInfo *analysis.ProgramInfo,
 	if opts.createdFactLimit > 0 {
 		opts.totalFactLimit = store.EstimateFactCount() + opts.createdFactLimit
 	}
-	e := &engine{store, factstore.NewMultiIndexedArrayInMemoryStore(), programInfo, strata,
-		predToStratum, predToRules, predToDecl, stats, opts}
+	// Set default evaluation time if not specified
+	evalTime := opts.evalTime
+	if evalTime.IsZero() {
+		evalTime = time.Now()
+	}
+	e := &engine{
+		store:         store,
+		deltaStore:    factstore.NewMultiIndexedArrayInMemoryStore(),
+		temporalStore: opts.temporalStore,
+		evalTime:      evalTime,
+		programInfo:   programInfo,
+		strata:        strata,
+		predToStratum: predToStratum,
+		predToRules:   predToRules,
+		predToDecl:    predToDecl,
+		stats:         stats,
+		options:       opts,
+	}
 	if err := e.evalStrata(); err != nil {
 		return Stats{}, err
 	}
@@ -222,6 +253,8 @@ func (e *engine) evalStrata() error {
 		e := engine{
 			store:         e.store,
 			deltaStore:    factstore.NewMultiIndexedArrayInMemoryStore(),
+			temporalStore: e.temporalStore,
+			evalTime:      e.evalTime,
 			programInfo:   &analysis.ProgramInfo{stratifiedProgram.EdbPredicates, stratifiedProgram.IdbPredicates, nil, stratifiedProgram.Rules, stratumDecls},
 			predToStratum: e.predToStratum,
 			predToRules:   e.predToRules,
@@ -597,6 +630,19 @@ func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind,
 	case ast.Ineq:
 		return premiseIneq(p.Left, p.Right, subst)
 
+	case ast.TemporalLiteral:
+		if e.temporalStore == nil {
+			return nil, fmt.Errorf("temporal literal encountered but no temporal store configured")
+		}
+		return premiseTemporalLiteral(p, e.temporalStore, e.evalTime, subst)
+
+	case ast.TemporalAtom:
+		if e.temporalStore == nil {
+			return nil, fmt.Errorf("temporal atom encountered but no temporal store configured")
+		}
+		// Convert TemporalAtom to TemporalLiteral for evaluation
+		tl := ast.TemporalLiteral{Literal: p.Atom, Operator: nil, IntervalVar: nil}
+		return premiseTemporalLiteral(tl, e.temporalStore, e.evalTime, subst)
 	}
 	return nil, nil
 }

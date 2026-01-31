@@ -484,7 +484,7 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		}
 		return ast.Constant{}, fmt.Errorf("key does not exist: %v", lookupField)
 
-	// Time functions
+// Time functions
 	case symbols.TimeNow.Symbol:
 		return ast.Time(time.Now().UnixNano()), nil
 
@@ -854,6 +854,61 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 			return ast.Constant{}, fmt.Errorf("fn:duration:parse failed: %w", err)
 		}
 		return ast.Duration(int64(d)), nil
+
+	// Interval functions - work with intervals represented as pairs of time values
+	case symbols.IntervalStart.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 interval argument, got %d argument(s)", l)
+		}
+		interval := evaluatedArgs[0]
+		if interval.Type != ast.PairShape {
+			return ast.Constant{}, fmt.Errorf("expected pair (interval), got %v", interval.Type)
+		}
+		start, _, err := interval.PairValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("invalid interval: %w", err)
+		}
+		return start, nil
+
+	case symbols.IntervalEnd.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 interval argument, got %d argument(s)", l)
+		}
+		interval := evaluatedArgs[0]
+		if interval.Type != ast.PairShape {
+			return ast.Constant{}, fmt.Errorf("expected pair (interval), got %v", interval.Type)
+		}
+		_, end, err := interval.PairValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("invalid interval: %w", err)
+		}
+		return end, nil
+
+	case symbols.IntervalDuration.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("expected 1 interval argument, got %d argument(s)", l)
+		}
+		interval := evaluatedArgs[0]
+		if interval.Type != ast.PairShape {
+			return ast.Constant{}, fmt.Errorf("expected pair (interval), got %v", interval.Type)
+		}
+		start, end, err := interval.PairValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("invalid interval: %w", err)
+		}
+		startNano, err := start.TimeValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("invalid interval start: %w", err)
+		}
+		endNano, err := end.TimeValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("invalid interval end: %w", err)
+		}
+		// Handle unbounded intervals (represented by special values)
+		if startNano == math.MinInt64 || endNano == math.MaxInt64 {
+			return ast.Constant{}, fmt.Errorf("cannot compute duration of unbounded interval")
+		}
+		return ast.Duration(endNano - startNano), nil
 
 	default:
 		return EvalNumericApplyFn(applyFn, subst)

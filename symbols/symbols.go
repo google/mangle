@@ -91,6 +91,34 @@ var (
 	// WithinDistance is a relation on numbers X, Y, Z satisfying |X - Y| < Z.
 	WithinDistance = ast.PredicateSym{":within_distance", 3}
 
+	// Temporal interval predicates (Allen's interval algebra)
+	// IntervalBefore checks if interval T1 ends before interval T2 starts.
+	IntervalBefore = ast.PredicateSym{":interval:before", 2}
+	// IntervalAfter checks if interval T1 starts after interval T2 ends.
+	IntervalAfter = ast.PredicateSym{":interval:after", 2}
+	// IntervalMeets checks if interval T1 ends exactly when T2 starts.
+	IntervalMeets = ast.PredicateSym{":interval:meets", 2}
+	// IntervalOverlaps checks if intervals T1 and T2 share some time.
+	IntervalOverlaps = ast.PredicateSym{":interval:overlaps", 2}
+	// IntervalDuring checks if interval T1 is contained within T2.
+	IntervalDuring = ast.PredicateSym{":interval:during", 2}
+	// IntervalContains checks if interval T1 contains T2.
+	IntervalContains = ast.PredicateSym{":interval:contains", 2}
+	// IntervalStarts checks if intervals T1 and T2 start at the same time.
+	IntervalStarts = ast.PredicateSym{":interval:starts", 2}
+	// IntervalFinishes checks if intervals T1 and T2 end at the same time.
+	IntervalFinishes = ast.PredicateSym{":interval:finishes", 2}
+	// IntervalEquals checks if intervals T1 and T2 are identical.
+	IntervalEquals = ast.PredicateSym{":interval:equals", 2}
+
+	// Interval functions for extracting components from intervals
+	// IntervalStart extracts the start time from an interval (as nanoseconds).
+	IntervalStart = ast.FunctionSym{"fn:interval:start", 1}
+	// IntervalEnd extracts the end time from an interval (as nanoseconds).
+	IntervalEnd = ast.FunctionSym{"fn:interval:end", 1}
+	// IntervalDuration calculates the duration of an interval in nanoseconds.
+	IntervalDuration = ast.FunctionSym{"fn:interval:duration", 1}
+
 	// Div is a family of functions mapping integer division: X,Y1,.. to (X / Y1) / Y2 ... DIV(X) is 1/x.
 	Div = ast.FunctionSym{"fn:div", -1}
 	// FloatDiv is a family of functions mapping division: X,Y1,.. to (X / Y1) / Y2 ... FloatDiv(X) is 1/x.
@@ -196,7 +224,7 @@ var (
 	// StringReplace replaces old with new in the first n occurrences of a string.
 	StringReplace = ast.FunctionSym{"fn:string:replace", 4}
 
-	// Time functions
+// Time functions
 
 	// TimeNow returns the current time as nanoseconds since Unix epoch.
 	TimeNow = ast.FunctionSym{"fn:time:now", 0}
@@ -258,6 +286,7 @@ var (
 	// Format: [+-]<value><unit>[<value><unit>...]
 	// Units: h (hours), m (minutes), s (seconds), ms (milliseconds), us/µs (microseconds), ns (nanoseconds)
 	DurationParse = ast.FunctionSym{"fn:duration:parse", 1}
+
 
 	// PairType is a constructor for a pair type.
 	PairType = ast.FunctionSym{"fn:Pair", 2}

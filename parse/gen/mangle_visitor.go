@@ -1,4 +1,4 @@
-// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
+// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Mangle
 import "github.com/antlr4-go/antlr/v4"
@@ -34,6 +34,12 @@ type MangleVisitor interface {
 	// Visit a parse tree produced by MangleParser#clause.
 	VisitClause(ctx *ClauseContext) interface{}
 
+	// Visit a parse tree produced by MangleParser#temporalAnnotation.
+	VisitTemporalAnnotation(ctx *TemporalAnnotationContext) interface{}
+
+	// Visit a parse tree produced by MangleParser#temporalBound.
+	VisitTemporalBound(ctx *TemporalBoundContext) interface{}
+
 	// Visit a parse tree produced by MangleParser#clauseBody.
 	VisitClauseBody(ctx *ClauseBodyContext) interface{}
 
@@ -45,6 +51,9 @@ type MangleVisitor interface {
 
 	// Visit a parse tree produced by MangleParser#literalOrFml.
 	VisitLiteralOrFml(ctx *LiteralOrFmlContext) interface{}
+
+	// Visit a parse tree produced by MangleParser#temporalOperator.
+	VisitTemporalOperator(ctx *TemporalOperatorContext) interface{}
 
 	// Visit a parse tree produced by MangleParser#Var.
 	VisitVar(ctx *VarContext) interface{}

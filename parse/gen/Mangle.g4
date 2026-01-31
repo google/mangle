@@ -33,7 +33,7 @@ useDecl
     ;
 
 decl
-    : 'Decl' atom descrBlock? boundsBlock* constraintsBlock? '.';
+    : 'Decl' atom 'temporal'? descrBlock? boundsBlock* constraintsBlock? '.';
 
 descrBlock
     : 'descr' atoms
@@ -48,7 +48,20 @@ constraintsBlock
     ;
 
 clause
-    : atom ((':-'|LONGLEFTDOUBLEARROW) clauseBody)? '.'
+    : atom temporalAnnotation? ((':-'|LONGLEFTDOUBLEARROW) clauseBody)? '.'
+    ;
+
+// Temporal annotation for facts: @[start, end] or @[point]
+temporalAnnotation
+    : '@' '[' temporalBound (',' temporalBound)? ']'
+    ;
+
+// A temporal bound can be a timestamp, duration, variable (including _ for unbounded), or 'now'
+temporalBound
+    : TIMESTAMP           // 2024-01-15 or 2024-01-15T10:30:00
+    | DURATION            // 7d, 24h, 30m, 1s
+    | VARIABLE            // Bind to variable, or _ for unbounded
+    | 'now'               // Current evaluation time
     ;
 
 clauseBody
@@ -65,8 +78,14 @@ letStmt
     ;
     
 literalOrFml
-   : term ((EQ | BANGEQ | LESS | LESSEQ | GREATER | GREATEREQ) term)?
+   : temporalOperator? term temporalAnnotation? ((EQ | BANGEQ | LESS | LESSEQ | GREATER | GREATEREQ) term)?
    | '!'term
+   ;
+
+// Temporal operators for querying the past/future
+temporalOperator
+   : DIAMONDMINUS '[' temporalBound ',' temporalBound ']'   // <-[0d, 7d] - sometime in past
+   | BOXMINUS '[' temporalBound ',' temporalBound ']'       // [-[0d, 7d] - always in past
    ;
 
 term
@@ -114,20 +133,33 @@ LPAREN : '(';
 RPAREN : ')';
 LBRACKET : '[';
 RBRACKET : ']';
+LBRACE : '{';
+RBRACE : '}';
 EQ : '=';
 BANGEQ : '!=';
 COMMA : ',';
 BANG : '!';
+LESSEQ : '<=';        // Must come before LESS
 LESS : '<';
-LESSEQ : '<=';
+GREATEREQ : '>=';     // Must come before GREATER
 GREATER : '>';
-GREATEREQ : '>=';
 COLONDASH : ':-';
 NEWLINE : '\n';
 PIPEGREATER : '|>';
+AT : '@';
+DIAMONDMINUS : '<-';  // Must come before LESS
+BOXMINUS : '[-';      // Must come before LBRACKET
 
 fragment LETTER : 'A'..'Z' | 'a'..'z' ;
 fragment DIGIT  : '0'..'9' ;
+
+// Temporal tokens - must come before NUMBER to take precedence
+// Timestamp: 2024-01-15 or 2024-01-15T10:30:00 or 2024-01-15T10:30:00Z
+TIMESTAMP : DIGIT DIGIT DIGIT DIGIT '-' DIGIT DIGIT '-' DIGIT DIGIT
+            ('T' DIGIT DIGIT ':' DIGIT DIGIT ':' DIGIT DIGIT ('.' DIGIT+)? 'Z'?)? ;
+
+// Duration: 7d, 24h, 30m, 1s, 500ms
+DURATION : DIGIT+ ('d' | 'h' | 'm' | 's' | 'ms') ;
 
 NUMBER : '-'? DIGIT (DIGIT)*;
 FLOAT : '-'? (DIGIT)+ '.' (DIGIT)+ EXPONENT?
@@ -191,6 +223,4 @@ fragment STRING_ESCAPE_SEQ
  ;
 
 fragment HEXDIGIT : 'a'..'f' | '0'..'9';
-
-
 

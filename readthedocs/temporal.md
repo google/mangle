@@ -218,6 +218,42 @@ store.GetFactsDuring(query ast.Atom, interval ast.Interval, callback) error
 store.Coalesce(predicate ast.PredicateSym) error
 ```
 
+### Time and Interval Helpers
+
+The `ast` package provides convenience functions to reduce verbosity when creating times and intervals:
+
+```go
+// Create dates without typing all the zeros
+t := ast.Date(2024, 1, 15)                    // midnight UTC
+t := ast.DateTime(2024, 1, 15, 10, 30)        // with hour and minute
+t := ast.DateTimeSec(2024, 1, 15, 10, 30, 45) // with seconds
+
+// Create intervals concisely
+interval := ast.TimeInterval(startTime, endTime)
+interval := ast.DateInterval(2023, 1, 1, 2024, 12, 31)  // most concise
+```
+
+**Before** (verbose):
+```go
+store.Add(atom, ast.NewInterval(
+    ast.NewTimestampBound(time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)),
+    ast.NewTimestampBound(time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)),
+))
+```
+
+**After** (concise):
+```go
+store.Add(atom, ast.DateInterval(2023, 1, 1, 2024, 12, 31))
+```
+
+| Helper | Example | Purpose |
+|--------|---------|---------|
+| `ast.Date(y, m, d)` | `ast.Date(2024, 1, 15)` | Date at midnight UTC |
+| `ast.DateTime(y, m, d, h, min)` | `ast.DateTime(2024, 1, 15, 10, 30)` | Date with time |
+| `ast.DateTimeSec(y, m, d, h, min, s)` | `ast.DateTimeSec(2024, 1, 15, 10, 30, 45)` | Date with seconds |
+| `ast.TimeInterval(start, end)` | `ast.TimeInterval(t1, t2)` | Interval from time.Time values |
+| `ast.DateInterval(...)` | `ast.DateInterval(2023, 1, 1, 2024, 12, 31)` | Interval from date components |
+
 ## Time Bridge Functions
 
 When mixing temporal reasoning with regular data columns containing timestamps:

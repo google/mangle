@@ -27,20 +27,14 @@ func name(str string) ast.Constant {
 	return res
 }
 
-func makeInterval(start, end time.Time) ast.Interval {
-	return ast.NewInterval(
-		ast.NewTimestampBound(start),
-		ast.NewTimestampBound(end),
-	)
-}
 
 func TestTemporalStore_Add(t *testing.T) {
 	store := NewTemporalStore()
 
 	atom := ast.NewAtom("employed", name("/alice"))
-	interval := makeInterval(
-		time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2023, 12, 31, 0, 0, 0, 0, time.UTC),
+	interval := ast.TimeInterval(
+		ast.Date(2020, 1, 1),
+		ast.Date(2023, 12, 31),
 	)
 
 	// First add should succeed
@@ -62,9 +56,9 @@ func TestTemporalStore_Add(t *testing.T) {
 	}
 
 	// Adding same atom with different interval should succeed
-	interval2 := makeInterval(
-		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC),
+	interval2 := ast.TimeInterval(
+		ast.Date(2024, 1, 1),
+		ast.Date(2024, 12, 31),
 	)
 	added, err = store.Add(atom, interval2)
 	if err != nil {
@@ -94,9 +88,9 @@ func TestTemporalStore_AddEternal(t *testing.T) {
 
 	// Query at any time should return the fact
 	testTimes := []time.Time{
-		time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC),
-		time.Date(3000, 12, 31, 0, 0, 0, 0, time.UTC),
+		ast.Date(1900, 1, 1),
+		ast.Date(2024, 6, 15),
+		ast.Date(3000, 12, 31),
 	}
 
 	for _, queryTime := range testTimes {
@@ -116,7 +110,7 @@ func TestTemporalStore_IntervalLimit(t *testing.T) {
 	for i := 0; i < customLimit; i++ {
 		start := time.Date(2020, 1, 1, i, 0, 0, 0, time.UTC)
 		end := time.Date(2020, 1, 1, i, 59, 59, 0, time.UTC)
-		added, err := store.Add(atom, makeInterval(start, end))
+		added, err := store.Add(atom, ast.TimeInterval(start, end))
 		if err != nil {
 			t.Fatalf("Add %d returned unexpected error: %v", i, err)
 		}
@@ -128,7 +122,7 @@ func TestTemporalStore_IntervalLimit(t *testing.T) {
 	// Next add should fail with ErrIntervalLimitExceeded
 	start := time.Date(2020, 1, 1, customLimit, 0, 0, 0, time.UTC)
 	end := time.Date(2020, 1, 1, customLimit, 59, 59, 0, time.UTC)
-	added, err := store.Add(atom, makeInterval(start, end))
+	added, err := store.Add(atom, ast.TimeInterval(start, end))
 	if !errors.Is(err, ErrIntervalLimitExceeded) {
 		t.Errorf("Add beyond limit: err = %v, want ErrIntervalLimitExceeded", err)
 	}
@@ -146,7 +140,7 @@ func TestTemporalStore_NoLimit(t *testing.T) {
 	for i := 0; i < DefaultMaxIntervalsPerAtom+10; i++ {
 		start := time.Date(2020, 1, 1, 0, i, 0, 0, time.UTC)
 		end := time.Date(2020, 1, 1, 0, i, 59, 0, time.UTC)
-		_, err := store.Add(atom, makeInterval(start, end))
+		_, err := store.Add(atom, ast.TimeInterval(start, end))
 		if err != nil {
 			t.Fatalf("Add %d returned unexpected error with no limit: %v", i, err)
 		}
@@ -158,16 +152,16 @@ func TestTemporalStore_GetFactsAt(t *testing.T) {
 
 	// Alice employed from 2020-2023
 	aliceEmployed := ast.NewAtom("employed", name("/alice"))
-	store.Add(aliceEmployed, makeInterval(
-		time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2023, 12, 31, 0, 0, 0, 0, time.UTC),
+	store.Add(aliceEmployed, ast.TimeInterval(
+		ast.Date(2020, 1, 1),
+		ast.Date(2023, 12, 31),
 	))
 
 	// Bob employed from 2022 onwards
 	bobEmployed := ast.NewAtom("employed", name("/bob"))
-	store.Add(bobEmployed, makeInterval(
-		time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2099, 12, 31, 0, 0, 0, 0, time.UTC),
+	store.Add(bobEmployed, ast.TimeInterval(
+		ast.Date(2022, 1, 1),
+		ast.Date(2099, 12, 31),
 	))
 
 	tests := []struct {
@@ -177,22 +171,22 @@ func TestTemporalStore_GetFactsAt(t *testing.T) {
 	}{
 		{
 			name:      "before both",
-			queryTime: time.Date(2019, 6, 15, 0, 0, 0, 0, time.UTC),
+			queryTime: ast.Date(2019, 6, 15),
 			wantCount: 0,
 		},
 		{
 			name:      "alice only",
-			queryTime: time.Date(2021, 6, 15, 0, 0, 0, 0, time.UTC),
+			queryTime: ast.Date(2021, 6, 15),
 			wantCount: 1,
 		},
 		{
 			name:      "both employed",
-			queryTime: time.Date(2022, 6, 15, 0, 0, 0, 0, time.UTC),
+			queryTime: ast.Date(2022, 6, 15),
 			wantCount: 2,
 		},
 		{
 			name:      "bob only (after alice left)",
-			queryTime: time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC),
+			queryTime: ast.Date(2024, 6, 15),
 			wantCount: 1,
 		},
 	}
@@ -221,16 +215,16 @@ func TestTemporalStore_GetFactsDuring(t *testing.T) {
 
 	// Event from Jan 1-15
 	event1 := ast.NewAtom("event", name("/conference"))
-	store.Add(event1, makeInterval(
-		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+	store.Add(event1, ast.TimeInterval(
+		ast.Date(2024, 1, 1),
+		ast.Date(2024, 1, 15),
 	))
 
 	// Event from Jan 20-30
 	event2 := ast.NewAtom("event", name("/workshop"))
-	store.Add(event2, makeInterval(
-		time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 30, 0, 0, 0, 0, time.UTC),
+	store.Add(event2, ast.TimeInterval(
+		ast.Date(2024, 1, 20),
+		ast.Date(2024, 1, 30),
 	))
 
 	tests := []struct {
@@ -240,33 +234,33 @@ func TestTemporalStore_GetFactsDuring(t *testing.T) {
 	}{
 		{
 			name: "before all events",
-			interval: makeInterval(
-				time.Date(2023, 12, 1, 0, 0, 0, 0, time.UTC),
-				time.Date(2023, 12, 31, 0, 0, 0, 0, time.UTC),
+			interval: ast.TimeInterval(
+				ast.Date(2023, 12, 1),
+				ast.Date(2023, 12, 31),
 			),
 			wantCount: 0,
 		},
 		{
 			name: "overlaps first event",
-			interval: makeInterval(
-				time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC),
-				time.Date(2024, 1, 18, 0, 0, 0, 0, time.UTC),
+			interval: ast.TimeInterval(
+				ast.Date(2024, 1, 10),
+				ast.Date(2024, 1, 18),
 			),
 			wantCount: 1,
 		},
 		{
 			name: "overlaps both events",
-			interval: makeInterval(
-				time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC),
-				time.Date(2024, 1, 25, 0, 0, 0, 0, time.UTC),
+			interval: ast.TimeInterval(
+				ast.Date(2024, 1, 10),
+				ast.Date(2024, 1, 25),
 			),
 			wantCount: 2,
 		},
 		{
 			name: "between events (no overlap)",
-			interval: makeInterval(
-				time.Date(2024, 1, 16, 0, 0, 0, 0, time.UTC),
-				time.Date(2024, 1, 19, 0, 0, 0, 0, time.UTC),
+			interval: ast.TimeInterval(
+				ast.Date(2024, 1, 16),
+				ast.Date(2024, 1, 19),
 			),
 			wantCount: 0,
 		},
@@ -297,17 +291,17 @@ func TestTemporalStore_Coalesce(t *testing.T) {
 	atom := ast.NewAtom("active", name("/service"))
 
 	// Add overlapping intervals
-	store.Add(atom, makeInterval(
-		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+	store.Add(atom, ast.TimeInterval(
+		ast.Date(2024, 1, 1),
+		ast.Date(2024, 1, 15),
 	))
-	store.Add(atom, makeInterval(
-		time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 25, 0, 0, 0, 0, time.UTC),
+	store.Add(atom, ast.TimeInterval(
+		ast.Date(2024, 1, 10),
+		ast.Date(2024, 1, 25),
 	))
-	store.Add(atom, makeInterval(
-		time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC),
+	store.Add(atom, ast.TimeInterval(
+		ast.Date(2024, 1, 20),
+		ast.Date(2024, 1, 31),
 	))
 
 	// Before coalescing: 3 intervals
@@ -334,8 +328,8 @@ func TestTemporalStore_Coalesce(t *testing.T) {
 		return nil
 	})
 
-	expectedStart := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-	expectedEnd := time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC)
+	expectedStart := ast.Date(2024, 1, 1)
+	expectedEnd := ast.Date(2024, 1, 31)
 
 	// Compare in UTC to avoid timezone issues
 	if !resultInterval.Start.Time().UTC().Equal(expectedStart) {
@@ -352,13 +346,13 @@ func TestTemporalStore_CoalesceAdjacent(t *testing.T) {
 	atom := ast.NewAtom("shift", name("/worker"))
 
 	// Add adjacent intervals (end of one = start of next - 1 nanosecond)
-	store.Add(atom, makeInterval(
+	store.Add(atom, ast.TimeInterval(
 		time.Date(2024, 1, 1, 8, 0, 0, 0, time.UTC),
 		time.Date(2024, 1, 1, 16, 0, 0, 0, time.UTC),
 	))
-	store.Add(atom, makeInterval(
+	store.Add(atom, ast.TimeInterval(
 		time.Date(2024, 1, 1, 16, 0, 0, 1, time.UTC), // 1 nanosecond after
-		time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+		ast.Date(2024, 1, 2),
 	))
 
 	pred := ast.PredicateSym{Symbol: "shift", Arity: 1}
@@ -378,13 +372,13 @@ func TestTemporalStore_CoalesceNonOverlapping(t *testing.T) {
 	atom := ast.NewAtom("vacation", name("/alice"))
 
 	// Add non-overlapping intervals
-	store.Add(atom, makeInterval(
-		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 7, 0, 0, 0, 0, time.UTC),
+	store.Add(atom, ast.TimeInterval(
+		ast.Date(2024, 1, 1),
+		ast.Date(2024, 1, 7),
 	))
-	store.Add(atom, makeInterval(
-		time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 6, 14, 0, 0, 0, 0, time.UTC),
+	store.Add(atom, ast.TimeInterval(
+		ast.Date(2024, 6, 1),
+		ast.Date(2024, 6, 14),
 	))
 
 	pred := ast.PredicateSym{Symbol: "vacation", Arity: 1}
@@ -405,13 +399,13 @@ func TestTemporalFactStoreAdapter(t *testing.T) {
 	alice := ast.NewAtom("employed", name("/alice"))
 	bob := ast.NewAtom("employed", name("/bob"))
 
-	temporal.Add(alice, makeInterval(
-		time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2023, 12, 31, 0, 0, 0, 0, time.UTC),
+	temporal.Add(alice, ast.TimeInterval(
+		ast.Date(2020, 1, 1),
+		ast.Date(2023, 12, 31),
 	))
-	temporal.Add(bob, makeInterval(
-		time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2099, 12, 31, 0, 0, 0, 0, time.UTC),
+	temporal.Add(bob, ast.TimeInterval(
+		ast.Date(2022, 1, 1),
+		ast.Date(2099, 12, 31),
 	))
 
 	// Test adapter without time constraint
@@ -429,7 +423,7 @@ func TestTemporalFactStoreAdapter(t *testing.T) {
 	}
 
 	// Test adapter with time constraint
-	queryTime := time.Date(2021, 6, 15, 0, 0, 0, 0, time.UTC)
+	queryTime := ast.Date(2021, 6, 15)
 	adapterAt := NewTemporalFactStoreAdapterAt(temporal, queryTime)
 
 	count = 0
@@ -455,7 +449,7 @@ func TestTemporalFactStoreAdapter_Add(t *testing.T) {
 	}
 
 	// Should be queryable at any time
-	testTime := time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC)
+	testTime := ast.Date(2024, 6, 15)
 	if !temporal.ContainsAt(atom, testTime) {
 		t.Error("Fact added through adapter should be eternal")
 	}

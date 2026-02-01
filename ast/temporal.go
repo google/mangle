@@ -100,6 +100,41 @@ func (tb TemporalBound) Time() time.Time {
 	return time.Unix(0, tb.Timestamp)
 }
 
+// Date creates a time.Time for the given year, month, and day at midnight UTC.
+// This is a convenience function to avoid typing out all the zeros.
+func Date(year int, month time.Month, day int) time.Time {
+	return time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+}
+
+// DateTime creates a time.Time for the given date and time in UTC.
+// This is a convenience function to avoid typing out zeros for seconds and nanoseconds.
+func DateTime(year int, month time.Month, day, hour, min int) time.Time {
+	return time.Date(year, month, day, hour, min, 0, 0, time.UTC)
+}
+
+// DateTimeSec creates a time.Time for the given date and time with seconds in UTC.
+func DateTimeSec(year int, month time.Month, day, hour, min, sec int) time.Time {
+	return time.Date(year, month, day, hour, min, sec, 0, time.UTC)
+}
+
+// TimeInterval creates an interval from two time.Time values.
+// This is a convenience function for creating intervals without calling NewTimestampBound.
+func TimeInterval(start, end time.Time) Interval {
+	return Interval{
+		Start: NewTimestampBound(start),
+		End:   NewTimestampBound(end),
+	}
+}
+
+// DateInterval creates an interval from two dates (year, month, day).
+// This is the most concise way to create a date-based interval.
+func DateInterval(startYear int, startMonth time.Month, startDay int, endYear int, endMonth time.Month, endDay int) Interval {
+	return TimeInterval(
+		Date(startYear, startMonth, startDay),
+		Date(endYear, endMonth, endDay),
+	)
+}
+
 // String returns a string representation of the temporal bound.
 func (tb TemporalBound) String() string {
 	switch tb.Type {

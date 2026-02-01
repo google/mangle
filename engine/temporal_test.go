@@ -28,25 +28,15 @@ func name(str string) ast.Constant {
 	return res
 }
 
-func makeInterval(start, end time.Time) ast.Interval {
-	return ast.NewInterval(
-		ast.NewTimestampBound(start),
-		ast.NewTimestampBound(end),
-	)
-}
-
 func TestTemporalEvaluator_DiamondMinus(t *testing.T) {
 	store := factstore.NewTemporalStore()
 
 	// Set up test data: employee was active from Jan 1 to Jan 15, 2024
 	activeAtom := ast.NewAtom("active", name("/alice"))
-	store.Add(activeAtom, makeInterval(
-		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
-	))
+	store.Add(activeAtom, ast.DateInterval(2024, 1, 1, 2024, 1, 15))
 
 	// Evaluation time: Jan 20, 2024
-	evalTime := time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC)
+	evalTime := ast.Date(2024, 1, 20)
 	te := NewTemporalEvaluator(store, evalTime)
 
 	tests := []struct {
@@ -109,13 +99,13 @@ func TestTemporalEvaluator_BoxMinus(t *testing.T) {
 
 	// Set up test data: service was running from Dec 1, 2023 to Feb 1, 2024
 	runningAtom := ast.NewAtom("running", name("/service"))
-	store.Add(runningAtom, makeInterval(
-		time.Date(2023, 12, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC),
+	store.Add(runningAtom, ast.TimeInterval(
+		ast.Date(2023, 12, 1),
+		ast.Date(2024, 2, 1),
 	))
 
 	// Evaluation time: Jan 15, 2024
-	evalTime := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	evalTime := ast.Date(2024, 1, 15)
 	te := NewTemporalEvaluator(store, evalTime)
 
 	tests := []struct {
@@ -176,21 +166,21 @@ func TestTemporalEvaluator_WithVariable(t *testing.T) {
 	store := factstore.NewTemporalStore()
 
 	// Add multiple employees with different active periods
-	store.Add(ast.NewAtom("active", name("/alice")), makeInterval(
-		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+	store.Add(ast.NewAtom("active", name("/alice")), ast.TimeInterval(
+		ast.Date(2024, 1, 1),
+		ast.Date(2024, 1, 15),
 	))
-	store.Add(ast.NewAtom("active", name("/bob")), makeInterval(
-		time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 25, 0, 0, 0, 0, time.UTC),
+	store.Add(ast.NewAtom("active", name("/bob")), ast.TimeInterval(
+		ast.Date(2024, 1, 10),
+		ast.Date(2024, 1, 25),
 	))
-	store.Add(ast.NewAtom("active", name("/charlie")), makeInterval(
-		time.Date(2023, 6, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2023, 12, 31, 0, 0, 0, 0, time.UTC),
+	store.Add(ast.NewAtom("active", name("/charlie")), ast.TimeInterval(
+		ast.Date(2023, 6, 1),
+		ast.Date(2023, 12, 31),
 	))
 
 	// Evaluation time: Jan 20, 2024
-	evalTime := time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC)
+	evalTime := ast.Date(2024, 1, 20)
 	te := NewTemporalEvaluator(store, evalTime)
 
 	// Query: <-[0d, 30d] active(X) - find who was active in last 30 days
@@ -227,7 +217,7 @@ func TestTemporalEvaluator_EternalFact(t *testing.T) {
 	// Add an eternal fact (valid for all time)
 	store.AddEternal(ast.NewAtom("admin", name("/root")))
 
-	evalTime := time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC)
+	evalTime := ast.Date(2024, 1, 20)
 	te := NewTemporalEvaluator(store, evalTime)
 
 	// Query with any past operator should succeed for eternal facts
@@ -259,9 +249,9 @@ func TestTemporalEvaluator_NoOperator(t *testing.T) {
 	store := factstore.NewTemporalStore()
 
 	// Add a temporal fact
-	store.Add(ast.NewAtom("status", name("/ok")), makeInterval(
-		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC),
+	store.Add(ast.NewAtom("status", name("/ok")), ast.TimeInterval(
+		ast.Date(2024, 1, 1),
+		ast.Date(2024, 1, 31),
 	))
 
 	tests := []struct {
@@ -271,17 +261,17 @@ func TestTemporalEvaluator_NoOperator(t *testing.T) {
 	}{
 		{
 			name:      "within_validity",
-			evalTime:  time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+			evalTime:  ast.Date(2024, 1, 15),
 			wantSolns: 1,
 		},
 		{
 			name:      "before_validity",
-			evalTime:  time.Date(2023, 12, 15, 0, 0, 0, 0, time.UTC),
+			evalTime:  ast.Date(2023, 12, 15),
 			wantSolns: 0,
 		},
 		{
 			name:      "after_validity",
-			evalTime:  time.Date(2024, 2, 15, 0, 0, 0, 0, time.UTC),
+			evalTime:  ast.Date(2024, 2, 15),
 			wantSolns: 0,
 		},
 	}
@@ -313,13 +303,13 @@ func TestTemporalEvaluator_DiamondPlus(t *testing.T) {
 
 	// Set up test data: scheduled maintenance from Feb 1 to Feb 15, 2024
 	maintenanceAtom := ast.NewAtom("maintenance", name("/server"))
-	store.Add(maintenanceAtom, makeInterval(
-		time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 2, 15, 0, 0, 0, 0, time.UTC),
+	store.Add(maintenanceAtom, ast.TimeInterval(
+		ast.Date(2024, 2, 1),
+		ast.Date(2024, 2, 15),
 	))
 
 	// Evaluation time: Jan 20, 2024
-	evalTime := time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC)
+	evalTime := ast.Date(2024, 1, 20)
 	te := NewTemporalEvaluator(store, evalTime)
 
 	tests := []struct {
@@ -380,13 +370,13 @@ func TestTemporalEvaluator_BoxPlus(t *testing.T) {
 
 	// Set up test data: contract valid from Jan 1, 2024 to Dec 31, 2024
 	contractAtom := ast.NewAtom("contract", name("/customer"))
-	store.Add(contractAtom, makeInterval(
-		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC),
+	store.Add(contractAtom, ast.TimeInterval(
+		ast.Date(2024, 1, 1),
+		ast.Date(2024, 12, 31),
 	))
 
 	// Evaluation time: Jan 15, 2024
-	evalTime := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	evalTime := ast.Date(2024, 1, 15)
 	te := NewTemporalEvaluator(store, evalTime)
 
 	tests := []struct {
@@ -446,11 +436,11 @@ func TestTemporalEvaluator_IntervalVariableBinding(t *testing.T) {
 	store := factstore.NewTemporalStore()
 
 	// Add a fact with a known interval
-	startTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-	endTime := time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC)
-	store.Add(ast.NewAtom("event", name("/meeting")), makeInterval(startTime, endTime))
+	startTime := ast.Date(2024, 1, 1)
+	endTime := ast.Date(2024, 1, 31)
+	store.Add(ast.NewAtom("event", name("/meeting")), ast.TimeInterval(startTime, endTime))
 
-	evalTime := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	evalTime := ast.Date(2024, 1, 15)
 	te := NewTemporalEvaluator(store, evalTime)
 
 	// Query with interval variable binding
@@ -487,11 +477,11 @@ func TestTemporalEvaluator_IntervalVariableBinding(t *testing.T) {
 func TestIntervalContains(t *testing.T) {
 	te := &TemporalEvaluator{}
 
-	jan1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-	jan15 := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
-	jan10 := time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC)
-	jan20 := time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC)
-	jan31 := time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC)
+	jan1 := ast.Date(2024, 1, 1)
+	jan15 := ast.Date(2024, 1, 15)
+	jan10 := ast.Date(2024, 1, 10)
+	jan20 := ast.Date(2024, 1, 20)
+	jan31 := ast.Date(2024, 1, 31)
 
 	tests := []struct {
 		name string
@@ -501,32 +491,32 @@ func TestIntervalContains(t *testing.T) {
 	}{
 		{
 			name: "exact_match",
-			a:    makeInterval(jan1, jan31),
-			b:    makeInterval(jan1, jan31),
+			a:    ast.TimeInterval(jan1, jan31),
+			b:    ast.TimeInterval(jan1, jan31),
 			want: true,
 		},
 		{
 			name: "a_contains_b",
-			a:    makeInterval(jan1, jan31),
-			b:    makeInterval(jan10, jan20),
+			a:    ast.TimeInterval(jan1, jan31),
+			b:    ast.TimeInterval(jan10, jan20),
 			want: true,
 		},
 		{
 			name: "a_does_not_contain_b_start",
-			a:    makeInterval(jan10, jan31),
-			b:    makeInterval(jan1, jan20),
+			a:    ast.TimeInterval(jan10, jan31),
+			b:    ast.TimeInterval(jan1, jan20),
 			want: false,
 		},
 		{
 			name: "a_does_not_contain_b_end",
-			a:    makeInterval(jan1, jan15),
-			b:    makeInterval(jan10, jan31),
+			a:    ast.TimeInterval(jan1, jan15),
+			b:    ast.TimeInterval(jan10, jan31),
 			want: false,
 		},
 		{
 			name: "eternal_contains_any",
 			a:    ast.EternalInterval(),
-			b:    makeInterval(jan1, jan31),
+			b:    ast.TimeInterval(jan1, jan31),
 			want: true,
 		},
 	}
@@ -549,13 +539,13 @@ func BenchmarkTemporalEvaluator_DiamondMinus(b *testing.B) {
 	// Add many facts
 	for i := 0; i < 1000; i++ {
 		atomName, _ := ast.Name("/user" + string(rune('0'+i%10)))
-		store.Add(ast.NewAtom("active", atomName), makeInterval(
+		store.Add(ast.NewAtom("active", atomName), ast.TimeInterval(
 			time.Date(2024, 1, 1+i%28, 0, 0, 0, 0, time.UTC),
 			time.Date(2024, 1, 15+i%15, 0, 0, 0, 0, time.UTC),
 		))
 	}
 
-	evalTime := time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC)
+	evalTime := ast.Date(2024, 1, 20)
 	te := NewTemporalEvaluator(store, evalTime)
 
 	queryAtom := ast.NewAtom("active", ast.Variable{Symbol: "X"})
@@ -587,16 +577,16 @@ func BenchmarkTemporalStore_GetFactsDuring(b *testing.B) {
 	// Add many facts
 	for i := 0; i < 10000; i++ {
 		atomName, _ := ast.Name("/item" + string(rune('0'+i%100)))
-		store.Add(ast.NewAtom("available", atomName), makeInterval(
+		store.Add(ast.NewAtom("available", atomName), ast.TimeInterval(
 			time.Date(2024, 1, 1+i%28, 0, 0, 0, 0, time.UTC),
 			time.Date(2024, 2, 1+i%28, 0, 0, 0, 0, time.UTC),
 		))
 	}
 
 	query := ast.NewAtom("available", ast.Variable{Symbol: "X"})
-	interval := makeInterval(
-		time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC),
+	interval := ast.TimeInterval(
+		ast.Date(2024, 1, 10),
+		ast.Date(2024, 1, 20),
 	)
 
 	b.ResetTimer()
@@ -616,7 +606,7 @@ func BenchmarkIntervalCoalesce(b *testing.B) {
 		// Add overlapping intervals
 		pred, _ := ast.Name("/test")
 		for j := 0; j < 100; j++ {
-			store.Add(ast.NewAtom("status", pred), makeInterval(
+			store.Add(ast.NewAtom("status", pred), ast.TimeInterval(
 				time.Date(2024, 1, 1+j, 0, 0, 0, 0, time.UTC),
 				time.Date(2024, 1, 3+j, 0, 0, 0, 0, time.UTC),
 			))
@@ -629,7 +619,7 @@ func BenchmarkIntervalCoalesce(b *testing.B) {
 // Tests for derived temporal facts (rules that produce temporal facts)
 
 func TestResolveHeadTime_NilHeadTime(t *testing.T) {
-	evalTime := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	evalTime := ast.Date(2024, 1, 15)
 	subst := unionfind.New()
 
 	result, err := ResolveHeadTime(nil, subst, evalTime)
@@ -642,12 +632,12 @@ func TestResolveHeadTime_NilHeadTime(t *testing.T) {
 }
 
 func TestResolveHeadTime_TimestampBounds(t *testing.T) {
-	evalTime := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	evalTime := ast.Date(2024, 1, 15)
 	subst := unionfind.New()
 
 	// Create an interval with timestamp bounds
-	start := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-	end := time.Date(2024, 6, 30, 0, 0, 0, 0, time.UTC)
+	start := ast.Date(2024, 1, 1)
+	end := ast.Date(2024, 6, 30)
 	headTime := ast.NewInterval(
 		ast.NewTimestampBound(start),
 		ast.NewTimestampBound(end),
@@ -670,7 +660,7 @@ func TestResolveHeadTime_NowBound(t *testing.T) {
 	subst := unionfind.New()
 
 	// Create an interval with 'now' as the end bound
-	start := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	start := ast.Date(2024, 1, 1)
 	headTime := ast.NewInterval(
 		ast.NewTimestampBound(start),
 		ast.Now(), // 'now' bound
@@ -692,12 +682,12 @@ func TestResolveHeadTime_NowBound(t *testing.T) {
 }
 
 func TestResolveHeadTime_VariableBound(t *testing.T) {
-	evalTime := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	evalTime := ast.Date(2024, 1, 15)
 
 	// Create a substitution with a bound variable
 	subst := unionfind.New()
-	startTime := time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC)
-	endTime := time.Date(2024, 2, 28, 0, 0, 0, 0, time.UTC)
+	startTime := ast.Date(2024, 2, 1)
+	endTime := ast.Date(2024, 2, 28)
 
 	// Bind T1 and T2 to timestamp values (as nanoseconds)
 	t1Var := ast.Variable{Symbol: "T1"}
@@ -743,7 +733,7 @@ func TestResolveHeadTime_VariableBound(t *testing.T) {
 }
 
 func TestEvalClauseWithTemporalHead(t *testing.T) {
-	evalTime := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	evalTime := ast.Date(2024, 1, 15)
 
 	tests := []struct {
 		name       string
@@ -777,8 +767,8 @@ func TestEvalClauseWithTemporalHead(t *testing.T) {
 			name: "clause_with_temporal_head_timestamp",
 			clause: func() ast.Clause {
 				interval := ast.NewInterval(
-					ast.NewTimestampBound(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
-					ast.NewTimestampBound(time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC)),
+					ast.NewTimestampBound(ast.Date(2024, 1, 1)),
+					ast.NewTimestampBound(ast.Date(2024, 12, 31)),
 				)
 				return ast.Clause{
 					Head:     ast.NewAtom("active", ast.Variable{Symbol: "X"}),
@@ -804,7 +794,7 @@ func TestEvalClauseWithTemporalHead(t *testing.T) {
 			name: "clause_with_temporal_head_now",
 			clause: func() ast.Clause {
 				interval := ast.NewInterval(
-					ast.NewTimestampBound(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
+					ast.NewTimestampBound(ast.Date(2024, 1, 1)),
 					ast.Now(),
 				)
 				return ast.Clause{

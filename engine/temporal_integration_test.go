@@ -192,15 +192,15 @@ func TestIntegration_TemporalStoreAndQuery(t *testing.T) {
 	bobActive := ast.NewAtom("active", name("/bob"))
 
 	// Alice was active from Jan 1-15, 2024
-	store.Add(aliceActive, makeInterval(
-		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+	store.Add(aliceActive, ast.TimeInterval(
+		ast.Date(2024, 1, 1),
+		ast.Date(2024, 1, 15),
 	))
 
 	// Bob is active from Jan 10-31, 2024
-	store.Add(bobActive, makeInterval(
-		time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC),
+	store.Add(bobActive, ast.TimeInterval(
+		ast.Date(2024, 1, 10),
+		ast.Date(2024, 1, 31),
 	))
 
 	tests := []struct {
@@ -210,22 +210,22 @@ func TestIntegration_TemporalStoreAndQuery(t *testing.T) {
 	}{
 		{
 			name:       "Jan 5: only Alice active",
-			evalTime:   time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC),
+			evalTime:   ast.Date(2024, 1, 5),
 			wantActive: []string{"/alice"},
 		},
 		{
 			name:       "Jan 12: both active",
-			evalTime:   time.Date(2024, 1, 12, 0, 0, 0, 0, time.UTC),
+			evalTime:   ast.Date(2024, 1, 12),
 			wantActive: []string{"/alice", "/bob"},
 		},
 		{
 			name:       "Jan 20: only Bob active",
-			evalTime:   time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC),
+			evalTime:   ast.Date(2024, 1, 20),
 			wantActive: []string{"/bob"},
 		},
 		{
 			name:       "Feb 1: no one active",
-			evalTime:   time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC),
+			evalTime:   ast.Date(2024, 2, 1),
 			wantActive: []string{},
 		},
 	}
@@ -270,9 +270,9 @@ func TestIntegration_DiamondMinusQuery(t *testing.T) {
 
 	// Add a fact: employee was on_leave from Jan 5-10, 2024
 	onLeave := ast.NewAtom("on_leave", name("/alice"))
-	store.Add(onLeave, makeInterval(
-		time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC),
+	store.Add(onLeave, ast.TimeInterval(
+		ast.Date(2024, 1, 5),
+		ast.Date(2024, 1, 10),
 	))
 
 	tests := []struct {
@@ -283,25 +283,25 @@ func TestIntegration_DiamondMinusQuery(t *testing.T) {
 	}{
 		{
 			name:       "Jan 15: within 30 day lookback",
-			evalTime:   time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+			evalTime:   ast.Date(2024, 1, 15),
 			lookbackDays: 30,
 			wantMatch:  true,
 		},
 		{
 			name:       "Jan 15: within 10 day lookback (barely)",
-			evalTime:   time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+			evalTime:   ast.Date(2024, 1, 15),
 			lookbackDays: 10,
 			wantMatch:  true,
 		},
 		{
 			name:       "Jan 15: 3 day lookback misses it",
-			evalTime:   time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+			evalTime:   ast.Date(2024, 1, 15),
 			lookbackDays: 3,
 			wantMatch:  false,
 		},
 		{
 			name:       "Feb 15: 30 day lookback misses it",
-			evalTime:   time.Date(2024, 2, 15, 0, 0, 0, 0, time.UTC),
+			evalTime:   ast.Date(2024, 2, 15),
 			lookbackDays: 30,
 			wantMatch:  false,
 		},
@@ -344,9 +344,9 @@ func TestIntegration_BoxMinusQuery(t *testing.T) {
 
 	// Add a fact: employee was employed from Jan 1, 2023 to Dec 31, 2024
 	employed := ast.NewAtom("employed", name("/alice"))
-	store.Add(employed, makeInterval(
-		time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC),
+	store.Add(employed, ast.TimeInterval(
+		ast.Date(2023, 1, 1),
+		ast.Date(2024, 12, 31),
 	))
 
 	tests := []struct {
@@ -357,19 +357,19 @@ func TestIntegration_BoxMinusQuery(t *testing.T) {
 	}{
 		{
 			name:         "Mid-2024: employed continuously for last 365 days",
-			evalTime:     time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC),
+			evalTime:     ast.Date(2024, 6, 15),
 			lookbackDays: 365,
 			wantMatch:    true,
 		},
 		{
 			name:         "Early 2023: employed continuously for last 30 days",
-			evalTime:     time.Date(2023, 2, 15, 0, 0, 0, 0, time.UTC),
+			evalTime:     ast.Date(2023, 2, 15),
 			lookbackDays: 30,
 			wantMatch:    true,
 		},
 		{
 			name:         "Early 2023: NOT employed continuously for last 365 days",
-			evalTime:     time.Date(2023, 2, 15, 0, 0, 0, 0, time.UTC),
+			evalTime:     ast.Date(2023, 2, 15),
 			lookbackDays: 365,
 			wantMatch:    false, // Alice wasn't employed before Jan 1, 2023
 		},
@@ -421,17 +421,17 @@ func TestIntegration_EternalFacts(t *testing.T) {
 	}{
 		{
 			name:      "Past: eternal fact is valid",
-			evalTime:  time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC),
+			evalTime:  ast.Date(1990, 1, 1),
 			wantMatch: true,
 		},
 		{
 			name:      "Present: eternal fact is valid",
-			evalTime:  time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			evalTime:  ast.Date(2024, 1, 1),
 			wantMatch: true,
 		},
 		{
 			name:      "Future: eternal fact is valid",
-			evalTime:  time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC),
+			evalTime:  ast.Date(2100, 1, 1),
 			wantMatch: true,
 		},
 	}
@@ -472,9 +472,9 @@ func TestIntegration_IntervalFunctions(t *testing.T) {
 	}
 
 	// Test interval to constant conversion
-	interval := makeInterval(
-		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC),
+	interval := ast.TimeInterval(
+		ast.Date(2024, 1, 1),
+		ast.Date(2024, 12, 31),
 	)
 
 	intervalConst := intervalToConstant(interval)
@@ -594,17 +594,17 @@ func TestIntegration_TemporalCoalesce(t *testing.T) {
 	status, _ := ast.Name("/active")
 
 	// Add overlapping intervals
-	store.Add(ast.NewAtom("status", status), makeInterval(
-		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+	store.Add(ast.NewAtom("status", status), ast.TimeInterval(
+		ast.Date(2024, 1, 1),
+		ast.Date(2024, 1, 15),
 	))
-	store.Add(ast.NewAtom("status", status), makeInterval(
-		time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 25, 0, 0, 0, 0, time.UTC),
+	store.Add(ast.NewAtom("status", status), ast.TimeInterval(
+		ast.Date(2024, 1, 10),
+		ast.Date(2024, 1, 25),
 	))
-	store.Add(ast.NewAtom("status", status), makeInterval(
-		time.Date(2024, 1, 20, 0, 0, 0, 0, time.UTC),
-		time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC),
+	store.Add(ast.NewAtom("status", status), ast.TimeInterval(
+		ast.Date(2024, 1, 20),
+		ast.Date(2024, 1, 31),
 	))
 
 	// Coalesce
@@ -618,14 +618,14 @@ func TestIntegration_TemporalCoalesce(t *testing.T) {
 		// Verify the coalesced interval spans the full range
 		if tf.Interval.Start.Type == ast.TimestampBound {
 			startTime := time.Unix(0, tf.Interval.Start.Timestamp).UTC()
-			expectedStart := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+			expectedStart := ast.Date(2024, 1, 1)
 			if !startTime.Equal(expectedStart) {
 				t.Errorf("Coalesced start = %v, want %v", startTime, expectedStart)
 			}
 		}
 		if tf.Interval.End.Type == ast.TimestampBound {
 			endTime := time.Unix(0, tf.Interval.End.Timestamp).UTC()
-			expectedEnd := time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC)
+			expectedEnd := ast.Date(2024, 1, 31)
 			if !endTime.Equal(expectedEnd) {
 				t.Errorf("Coalesced end = %v, want %v", endTime, expectedEnd)
 			}

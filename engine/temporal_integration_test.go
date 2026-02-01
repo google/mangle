@@ -185,7 +185,7 @@ func TestIntegration_TemporalOperators(t *testing.T) {
 
 func TestIntegration_TemporalStoreAndQuery(t *testing.T) {
 	// Create a temporal store
-	store := factstore.NewSimpleTemporalStore()
+	store := factstore.NewTemporalStore()
 
 	// Add temporal facts
 	aliceActive := ast.NewAtom("active", name("/alice"))
@@ -266,7 +266,7 @@ func TestIntegration_TemporalStoreAndQuery(t *testing.T) {
 
 func TestIntegration_DiamondMinusQuery(t *testing.T) {
 	// Create a temporal store
-	store := factstore.NewSimpleTemporalStore()
+	store := factstore.NewTemporalStore()
 
 	// Add a fact: employee was on_leave from Jan 5-10, 2024
 	onLeave := ast.NewAtom("on_leave", name("/alice"))
@@ -340,7 +340,7 @@ func TestIntegration_DiamondMinusQuery(t *testing.T) {
 
 func TestIntegration_BoxMinusQuery(t *testing.T) {
 	// Create a temporal store
-	store := factstore.NewSimpleTemporalStore()
+	store := factstore.NewTemporalStore()
 
 	// Add a fact: employee was employed from Jan 1, 2023 to Dec 31, 2024
 	employed := ast.NewAtom("employed", name("/alice"))
@@ -408,7 +408,7 @@ func TestIntegration_BoxMinusQuery(t *testing.T) {
 
 func TestIntegration_EternalFacts(t *testing.T) {
 	// Create a temporal store
-	store := factstore.NewSimpleTemporalStore()
+	store := factstore.NewTemporalStore()
 
 	// Add an eternal fact (valid for all time)
 	admin := ast.NewAtom("admin", name("/root"))
@@ -589,7 +589,7 @@ func TestIntegration_NowKeyword(t *testing.T) {
 
 func TestIntegration_TemporalCoalesce(t *testing.T) {
 	// Test interval coalescing for overlapping facts
-	store := factstore.NewSimpleTemporalStore()
+	store := factstore.NewTemporalStore()
 
 	status, _ := ast.Name("/active")
 

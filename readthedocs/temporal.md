@@ -185,7 +185,7 @@ import (
 )
 
 // Create a temporal store and add facts
-store := factstore.NewSimpleTemporalStore()
+store := factstore.NewTemporalStore()
 store.Add(myAtom, interval)
 
 // Evaluate with temporal support
@@ -278,10 +278,10 @@ will_happen(X) @[now, _] :-
 Configure the interval limit:
 ```go
 // Custom limit
-store := factstore.NewSimpleTemporalStore(factstore.WithMaxIntervalsPerAtom(5000))
+store := factstore.NewTemporalStore(factstore.WithMaxIntervalsPerAtom(5000))
 
 // No limit (use with caution)
-store := factstore.NewSimpleTemporalStore(factstore.WithMaxIntervalsPerAtom(-1))
+store := factstore.NewTemporalStore(factstore.WithMaxIntervalsPerAtom(-1))
 ```
 
 ### Complexity

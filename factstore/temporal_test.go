@@ -34,8 +34,8 @@ func makeInterval(start, end time.Time) ast.Interval {
 	)
 }
 
-func TestSimpleTemporalStore_Add(t *testing.T) {
-	store := NewSimpleTemporalStore()
+func TestTemporalStore_Add(t *testing.T) {
+	store := NewTemporalStore()
 
 	atom := ast.NewAtom("employed", name("/alice"))
 	interval := makeInterval(
@@ -79,8 +79,8 @@ func TestSimpleTemporalStore_Add(t *testing.T) {
 	}
 }
 
-func TestSimpleTemporalStore_AddEternal(t *testing.T) {
-	store := NewSimpleTemporalStore()
+func TestTemporalStore_AddEternal(t *testing.T) {
+	store := NewTemporalStore()
 
 	atom := ast.NewAtom("admin", name("/bob"))
 
@@ -106,10 +106,10 @@ func TestSimpleTemporalStore_AddEternal(t *testing.T) {
 	}
 }
 
-func TestSimpleTemporalStore_IntervalLimit(t *testing.T) {
+func TestTemporalStore_IntervalLimit(t *testing.T) {
 	// Use a small custom limit for faster testing
 	customLimit := 100
-	store := NewSimpleTemporalStore(WithMaxIntervalsPerAtom(customLimit))
+	store := NewTemporalStore(WithMaxIntervalsPerAtom(customLimit))
 	atom := ast.NewAtom("test", name("/foo"))
 
 	// Add intervals up to the limit
@@ -137,9 +137,9 @@ func TestSimpleTemporalStore_IntervalLimit(t *testing.T) {
 	}
 }
 
-func TestSimpleTemporalStore_NoLimit(t *testing.T) {
+func TestTemporalStore_NoLimit(t *testing.T) {
 	// Negative limit means no limit
-	store := NewSimpleTemporalStore(WithMaxIntervalsPerAtom(-1))
+	store := NewTemporalStore(WithMaxIntervalsPerAtom(-1))
 	atom := ast.NewAtom("test", name("/foo"))
 
 	// Should be able to add more than default limit
@@ -153,8 +153,8 @@ func TestSimpleTemporalStore_NoLimit(t *testing.T) {
 	}
 }
 
-func TestSimpleTemporalStore_GetFactsAt(t *testing.T) {
-	store := NewSimpleTemporalStore()
+func TestTemporalStore_GetFactsAt(t *testing.T) {
+	store := NewTemporalStore()
 
 	// Alice employed from 2020-2023
 	aliceEmployed := ast.NewAtom("employed", name("/alice"))
@@ -216,8 +216,8 @@ func TestSimpleTemporalStore_GetFactsAt(t *testing.T) {
 	}
 }
 
-func TestSimpleTemporalStore_GetFactsDuring(t *testing.T) {
-	store := NewSimpleTemporalStore()
+func TestTemporalStore_GetFactsDuring(t *testing.T) {
+	store := NewTemporalStore()
 
 	// Event from Jan 1-15
 	event1 := ast.NewAtom("event", name("/conference"))
@@ -291,8 +291,8 @@ func TestSimpleTemporalStore_GetFactsDuring(t *testing.T) {
 	}
 }
 
-func TestSimpleTemporalStore_Coalesce(t *testing.T) {
-	store := NewSimpleTemporalStore()
+func TestTemporalStore_Coalesce(t *testing.T) {
+	store := NewTemporalStore()
 
 	atom := ast.NewAtom("active", name("/service"))
 
@@ -346,8 +346,8 @@ func TestSimpleTemporalStore_Coalesce(t *testing.T) {
 	}
 }
 
-func TestSimpleTemporalStore_CoalesceAdjacent(t *testing.T) {
-	store := NewSimpleTemporalStore()
+func TestTemporalStore_CoalesceAdjacent(t *testing.T) {
+	store := NewTemporalStore()
 
 	atom := ast.NewAtom("shift", name("/worker"))
 
@@ -372,8 +372,8 @@ func TestSimpleTemporalStore_CoalesceAdjacent(t *testing.T) {
 	}
 }
 
-func TestSimpleTemporalStore_CoalesceNonOverlapping(t *testing.T) {
-	store := NewSimpleTemporalStore()
+func TestTemporalStore_CoalesceNonOverlapping(t *testing.T) {
+	store := NewTemporalStore()
 
 	atom := ast.NewAtom("vacation", name("/alice"))
 
@@ -399,7 +399,7 @@ func TestSimpleTemporalStore_CoalesceNonOverlapping(t *testing.T) {
 }
 
 func TestTemporalFactStoreAdapter(t *testing.T) {
-	temporal := NewSimpleTemporalStore()
+	temporal := NewTemporalStore()
 
 	// Add some temporal facts
 	alice := ast.NewAtom("employed", name("/alice"))
@@ -444,7 +444,7 @@ func TestTemporalFactStoreAdapter(t *testing.T) {
 }
 
 func TestTemporalFactStoreAdapter_Add(t *testing.T) {
-	temporal := NewSimpleTemporalStore()
+	temporal := NewTemporalStore()
 	adapter := NewTemporalFactStoreAdapter(temporal)
 
 	atom := ast.NewAtom("admin", name("/charlie"))
@@ -461,8 +461,8 @@ func TestTemporalFactStoreAdapter_Add(t *testing.T) {
 	}
 }
 
-func TestSimpleTemporalStore_ListPredicates(t *testing.T) {
-	store := NewSimpleTemporalStore()
+func TestTemporalStore_ListPredicates(t *testing.T) {
+	store := NewTemporalStore()
 
 	store.Add(ast.NewAtom("foo", name("/a")), ast.EternalInterval())
 	store.Add(ast.NewAtom("bar", name("/b")), ast.EternalInterval())

@@ -36,7 +36,7 @@ func makeInterval(start, end time.Time) ast.Interval {
 }
 
 func TestTemporalEvaluator_DiamondMinus(t *testing.T) {
-	store := factstore.NewSimpleTemporalStore()
+	store := factstore.NewTemporalStore()
 
 	// Set up test data: employee was active from Jan 1 to Jan 15, 2024
 	activeAtom := ast.NewAtom("active", name("/alice"))
@@ -105,7 +105,7 @@ func TestTemporalEvaluator_DiamondMinus(t *testing.T) {
 }
 
 func TestTemporalEvaluator_BoxMinus(t *testing.T) {
-	store := factstore.NewSimpleTemporalStore()
+	store := factstore.NewTemporalStore()
 
 	// Set up test data: service was running from Dec 1, 2023 to Feb 1, 2024
 	runningAtom := ast.NewAtom("running", name("/service"))
@@ -173,7 +173,7 @@ func TestTemporalEvaluator_BoxMinus(t *testing.T) {
 }
 
 func TestTemporalEvaluator_WithVariable(t *testing.T) {
-	store := factstore.NewSimpleTemporalStore()
+	store := factstore.NewTemporalStore()
 
 	// Add multiple employees with different active periods
 	store.Add(ast.NewAtom("active", name("/alice")), makeInterval(
@@ -222,7 +222,7 @@ func TestTemporalEvaluator_WithVariable(t *testing.T) {
 }
 
 func TestTemporalEvaluator_EternalFact(t *testing.T) {
-	store := factstore.NewSimpleTemporalStore()
+	store := factstore.NewTemporalStore()
 
 	// Add an eternal fact (valid for all time)
 	store.AddEternal(ast.NewAtom("admin", name("/root")))
@@ -256,7 +256,7 @@ func TestTemporalEvaluator_EternalFact(t *testing.T) {
 }
 
 func TestTemporalEvaluator_NoOperator(t *testing.T) {
-	store := factstore.NewSimpleTemporalStore()
+	store := factstore.NewTemporalStore()
 
 	// Add a temporal fact
 	store.Add(ast.NewAtom("status", name("/ok")), makeInterval(
@@ -309,7 +309,7 @@ func TestTemporalEvaluator_NoOperator(t *testing.T) {
 }
 
 func TestTemporalEvaluator_DiamondPlus(t *testing.T) {
-	store := factstore.NewSimpleTemporalStore()
+	store := factstore.NewTemporalStore()
 
 	// Set up test data: scheduled maintenance from Feb 1 to Feb 15, 2024
 	maintenanceAtom := ast.NewAtom("maintenance", name("/server"))
@@ -376,7 +376,7 @@ func TestTemporalEvaluator_DiamondPlus(t *testing.T) {
 }
 
 func TestTemporalEvaluator_BoxPlus(t *testing.T) {
-	store := factstore.NewSimpleTemporalStore()
+	store := factstore.NewTemporalStore()
 
 	// Set up test data: contract valid from Jan 1, 2024 to Dec 31, 2024
 	contractAtom := ast.NewAtom("contract", name("/customer"))
@@ -443,7 +443,7 @@ func TestTemporalEvaluator_BoxPlus(t *testing.T) {
 }
 
 func TestTemporalEvaluator_IntervalVariableBinding(t *testing.T) {
-	store := factstore.NewSimpleTemporalStore()
+	store := factstore.NewTemporalStore()
 
 	// Add a fact with a known interval
 	startTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -544,7 +544,7 @@ func TestIntervalContains(t *testing.T) {
 // Benchmarks
 
 func BenchmarkTemporalEvaluator_DiamondMinus(b *testing.B) {
-	store := factstore.NewSimpleTemporalStore()
+	store := factstore.NewTemporalStore()
 
 	// Add many facts
 	for i := 0; i < 1000; i++ {
@@ -582,7 +582,7 @@ func BenchmarkTemporalEvaluator_DiamondMinus(b *testing.B) {
 }
 
 func BenchmarkTemporalStore_GetFactsDuring(b *testing.B) {
-	store := factstore.NewSimpleTemporalStore()
+	store := factstore.NewTemporalStore()
 
 	// Add many facts
 	for i := 0; i < 10000; i++ {
@@ -611,7 +611,7 @@ func BenchmarkTemporalStore_GetFactsDuring(b *testing.B) {
 
 func BenchmarkIntervalCoalesce(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		store := factstore.NewSimpleTemporalStore()
+		store := factstore.NewTemporalStore()
 
 		// Add overlapping intervals
 		pred, _ := ast.Name("/test")

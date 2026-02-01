@@ -251,8 +251,8 @@ store.Add(atom, ast.DateInterval(2023, 1, 1, 2024, 12, 31))
 | `ast.Date(y, m, d)` | `ast.Date(2024, 1, 15)` | Date at midnight |
 | `ast.DateTime(y, m, d, h, min)` | `ast.DateTime(2024, 1, 15, 10, 30)` | Date with time |
 | `ast.DateTimeSec(y, m, d, h, min, s)` | `ast.DateTimeSec(2024, 1, 15, 10, 30, 45)` | Date with seconds |
-| `ast.DateIn(y, m, d, loc)` | `ast.DateIn(2024, 1, 15, nyc)` | Date in specific timezone |
-| `ast.DateTimeIn(y, m, d, h, min, loc)` | `ast.DateTimeIn(2024, 1, 15, 10, 30, nyc)` | Date+time in specific timezone |
+| `ast.DateIn(y, m, d, tz)` | `ast.DateIn(2024, 1, 15, "PST")` | Date in specific timezone |
+| `ast.DateTimeIn(y, m, d, h, min, tz)` | `ast.DateTimeIn(2024, 1, 15, 10, 30, "EST")` | Date+time in specific timezone |
 | `ast.TimeInterval(start, end)` | `ast.TimeInterval(t1, t2)` | Interval from time.Time values |
 | `ast.DateInterval(...)` | `ast.DateInterval(2023, 1, 1, 2024, 12, 31)` | Interval from date components |
 
@@ -286,6 +286,7 @@ store.Add(event, ast.TimeInterval(
     ast.DateTimeIn(2024, 1, 15, 19, 0, "America/New_York"),  // 7pm NYC
     ast.DateTimeIn(2024, 1, 15, 22, 0, "EST"),               // 10pm EST
 ))
+```
 
 ## Time Bridge Functions
 

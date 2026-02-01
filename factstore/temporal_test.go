@@ -43,12 +43,20 @@ func TestSimpleTemporalStore_Add(t *testing.T) {
 	)
 
 	// First add should succeed
-	if !store.Add(atom, interval) {
+	added, err := store.Add(atom, interval)
+	if err != nil {
+		t.Errorf("First Add returned error: %v", err)
+	}
+	if !added {
 		t.Error("First Add should return true")
 	}
 
 	// Duplicate add should fail
-	if store.Add(atom, interval) {
+	added, err = store.Add(atom, interval)
+	if err != nil {
+		t.Errorf("Duplicate Add returned error: %v", err)
+	}
+	if added {
 		t.Error("Duplicate Add should return false")
 	}
 
@@ -57,7 +65,11 @@ func TestSimpleTemporalStore_Add(t *testing.T) {
 		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC),
 	)
-	if !store.Add(atom, interval2) {
+	added, err = store.Add(atom, interval2)
+	if err != nil {
+		t.Errorf("Add with different interval returned error: %v", err)
+	}
+	if !added {
 		t.Error("Add with different interval should return true")
 	}
 
@@ -71,7 +83,11 @@ func TestSimpleTemporalStore_AddEternal(t *testing.T) {
 
 	atom := ast.NewAtom("admin", name("/bob"))
 
-	if !store.AddEternal(atom) {
+	added, err := store.AddEternal(atom)
+	if err != nil {
+		t.Errorf("AddEternal returned error: %v", err)
+	}
+	if !added {
 		t.Error("AddEternal should return true")
 	}
 
@@ -86,6 +102,35 @@ func TestSimpleTemporalStore_AddEternal(t *testing.T) {
 		if !store.ContainsAt(atom, queryTime) {
 			t.Errorf("ContainsAt(%v) = false, want true for eternal fact", queryTime)
 		}
+	}
+}
+
+func TestSimpleTemporalStore_IntervalLimit(t *testing.T) {
+	store := NewSimpleTemporalStore()
+	atom := ast.NewAtom("test", name("/foo"))
+
+	// Add intervals up to the limit
+	for i := 0; i < MaxIntervalsPerAtom; i++ {
+		start := time.Date(2020, 1, 1, i, 0, 0, 0, time.UTC)
+		end := time.Date(2020, 1, 1, i, 59, 59, 0, time.UTC)
+		added, err := store.Add(atom, makeInterval(start, end))
+		if err != nil {
+			t.Fatalf("Add %d returned unexpected error: %v", i, err)
+		}
+		if !added {
+			t.Fatalf("Add %d should return true", i)
+		}
+	}
+
+	// Next add should fail with ErrIntervalLimitExceeded
+	start := time.Date(2020, 1, 1, MaxIntervalsPerAtom, 0, 0, 0, time.UTC)
+	end := time.Date(2020, 1, 1, MaxIntervalsPerAtom, 59, 59, 0, time.UTC)
+	added, err := store.Add(atom, makeInterval(start, end))
+	if err != ErrIntervalLimitExceeded {
+		t.Errorf("Add beyond limit: err = %v, want ErrIntervalLimitExceeded", err)
+	}
+	if added {
+		t.Error("Add beyond limit should return false")
 	}
 }
 

@@ -15,6 +15,7 @@
 package factstore
 
 import (
+	"fmt"
 	"sort"
 	"time"
 
@@ -53,18 +54,27 @@ type TemporalFactStore interface {
 	ReadOnlyTemporalFactStore
 
 	// Add adds a temporal fact to the store.
-	// Returns true if the fact was added (not a duplicate).
-	Add(atom ast.Atom, interval ast.Interval) bool
+	// Returns (true, nil) if the fact was added, (false, nil) if duplicate.
+	// Returns (false, ErrIntervalLimitExceeded) if the atom has too many intervals.
+	Add(atom ast.Atom, interval ast.Interval) (bool, error)
 
 	// AddEternal adds a fact valid for all time (eternal/timeless).
-	AddEternal(atom ast.Atom) bool
+	AddEternal(atom ast.Atom) (bool, error)
 
 	// Coalesce merges adjacent/overlapping intervals for the same fact.
 	Coalesce(predicate ast.PredicateSym) error
 
 	// Merge merges contents of given store.
-	Merge(ReadOnlyTemporalFactStore)
+	Merge(ReadOnlyTemporalFactStore) error
 }
+
+// MaxIntervalsPerAtom is the maximum number of intervals allowed per atom.
+// This prevents interval explosion in recursive temporal rules.
+// If exceeded, Add will return an error.
+const MaxIntervalsPerAtom = 1000
+
+// ErrIntervalLimitExceeded is returned when an atom has too many intervals.
+var ErrIntervalLimitExceeded = fmt.Errorf("interval limit exceeded: maximum %d intervals per atom", MaxIntervalsPerAtom)
 
 // temporalEntry stores intervals for a single fact (atom).
 type temporalEntry struct {
@@ -95,7 +105,8 @@ func NewSimpleTemporalStore() *SimpleTemporalStore {
 }
 
 // Add adds a temporal fact to the store.
-func (s *SimpleTemporalStore) Add(atom ast.Atom, interval ast.Interval) bool {
+// Returns (true, nil) if added, (false, nil) if duplicate, (false, error) if limit exceeded.
+func (s *SimpleTemporalStore) Add(atom ast.Atom, interval ast.Interval) (bool, error) {
 	hash := atom.Hash()
 
 	// Store the atom
@@ -118,18 +129,23 @@ func (s *SimpleTemporalStore) Add(atom ast.Atom, interval ast.Interval) bool {
 	// Check if this exact interval already exists
 	for _, existing := range entry.intervals {
 		if existing.Equals(interval) {
-			return false
+			return false, nil
 		}
+	}
+
+	// Check interval limit to prevent explosion
+	if len(entry.intervals) >= MaxIntervalsPerAtom {
+		return false, ErrIntervalLimitExceeded
 	}
 
 	// Add the interval
 	entry.intervals = append(entry.intervals, interval)
 	s.count++
-	return true
+	return true, nil
 }
 
 // AddEternal adds a fact valid for all time.
-func (s *SimpleTemporalStore) AddEternal(atom ast.Atom) bool {
+func (s *SimpleTemporalStore) AddEternal(atom ast.Atom) (bool, error) {
 	return s.Add(atom, ast.EternalInterval())
 }
 
@@ -308,14 +324,24 @@ func coalesceIntervals(intervals []ast.Interval) []ast.Interval {
 }
 
 // Merge merges contents of another temporal store into this one.
-func (s *SimpleTemporalStore) Merge(other ReadOnlyTemporalFactStore) {
+// Returns an error if the interval limit is exceeded for any atom.
+func (s *SimpleTemporalStore) Merge(other ReadOnlyTemporalFactStore) error {
+	var mergeErr error
 	for _, pred := range other.ListPredicates() {
 		query := ast.NewQuery(pred)
 		other.GetAllFacts(query, func(tf TemporalFact) error {
-			s.Add(tf.Atom, tf.Interval)
+			_, err := s.Add(tf.Atom, tf.Interval)
+			if err != nil {
+				mergeErr = err
+				return err // Stop iteration on error
+			}
 			return nil
 		})
+		if mergeErr != nil {
+			return mergeErr
+		}
 	}
+	return nil
 }
 
 // TemporalFactStoreAdapter wraps a TemporalFactStore to provide
@@ -343,8 +369,10 @@ func NewTemporalFactStoreAdapterAt(temporal TemporalFactStore, t time.Time) *Tem
 }
 
 // Add adds a fact as eternal (valid for all time).
+// Note: errors from temporal store are logged but not returned per FactStore interface.
 func (a *TemporalFactStoreAdapter) Add(atom ast.Atom) bool {
-	return a.temporal.AddEternal(atom)
+	added, _ := a.temporal.AddEternal(atom)
+	return added
 }
 
 // Contains returns true if the fact exists (respecting queryAt if set).

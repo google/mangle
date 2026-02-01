@@ -202,11 +202,11 @@ stats, err := engine.EvalProgramWithStats(
 The `TemporalFactStore` interface provides these methods:
 
 ```go
-// Add a temporal fact
-store.Add(atom ast.Atom, interval ast.Interval) bool
+// Add a temporal fact (returns added, error)
+store.Add(atom ast.Atom, interval ast.Interval) (bool, error)
 
 // Add a fact that's always true
-store.AddEternal(atom ast.Atom) bool
+store.AddEternal(atom ast.Atom) (bool, error)
 
 // Query facts valid at a specific time
 store.GetFactsAt(query ast.Atom, t time.Time, callback) error
@@ -217,3 +217,67 @@ store.GetFactsDuring(query ast.Atom, interval ast.Interval, callback) error
 // Merge adjacent/overlapping intervals
 store.Coalesce(predicate ast.PredicateSym) error
 ```
+
+## Time Bridge Functions
+
+When mixing temporal reasoning with regular data columns containing timestamps:
+
+| Function | Purpose |
+|----------|---------|
+| `fn:time:from_nanos(N)` | Convert nanoseconds to temporal-compatible value |
+| `fn:time:to_nanos(T)` | Convert temporal bound to nanoseconds |
+| `fn:time:add(T, D)` | Add duration (nanos) to timestamp |
+
+Example:
+```
+# Bridge between a column timestamp and temporal queries
+valid_order(Order) :-
+    order(Order, CreatedAtNanos),
+    Timestamp = fn:time:from_nanos(CreatedAtNanos),
+    fn:time:after(Timestamp, fn:time:add(fn:time:now, -2592000000000000)).  # 30 days in nanos
+```
+
+## Decidability and Termination
+
+Temporal reasoning introduces potential non-termination. The implementation includes
+safeguards, but understanding safe vs dangerous patterns helps avoid issues.
+
+### Safe Patterns (Guaranteed to Terminate)
+
+```
+# SAFE: Past-only lookback, no temporal head
+recent_login(User) :-
+    <-[7d] login(User).
+
+# SAFE: Temporal head but no recursion through temporal predicates
+expires_soon(License) @[now, End] :-
+    license(License) @[_, End],
+    :interval:before(End, fn:time:add(now, 2592000000000000)).
+```
+
+### Dangerous Patterns (May Not Terminate)
+
+```
+# DANGEROUS: Recursive temporal derivation with expanding intervals
+extended(X) @[T1, T2] :-
+    base(X) @[T1, T0],
+    extended(X) @[T0, T2].  # Self-reference extends interval
+
+# DANGEROUS: Unbounded future generation
+will_happen(X) @[now, _] :-
+    trigger(X),
+    [+[1d] will_happen(X).  # Infinite future facts
+```
+
+### Built-in Safeguards
+
+1. **Interval Coalescing**: Adjacent/overlapping intervals are merged automatically
+2. **Interval Limit**: Maximum 1000 intervals per atom (returns `ErrIntervalLimitExceeded`)
+3. **Fact Limits**: Use `engine.WithCreatedFactLimit(n)` to cap total derived facts
+
+### Complexity
+
+Based on DatalogMTL research:
+- Non-recursive temporal queries: AC⁰ data complexity
+- Full DatalogMTL: PSPACE-complete data complexity
+- Forward-propagating programs: May not terminate without coalescing

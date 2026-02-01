@@ -345,6 +345,18 @@ func TestParseTemporalOperator(t *testing.T) {
 			wantOp:  ast.BoxMinus,
 			wantErr: false,
 		},
+		{
+			name:    "diamond plus with durations",
+			str:     "upcoming(X) :- <+[0d, 7d] scheduled(X).",
+			wantOp:  ast.DiamondPlus,
+			wantErr: false,
+		},
+		{
+			name:    "box plus with durations",
+			str:     "guaranteed(X) :- [+[0d, 30d] available(X).",
+			wantOp:  ast.BoxPlus,
+			wantErr: false,
+		},
 	}
 
 	for _, test := range tests {

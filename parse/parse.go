@@ -875,6 +875,10 @@ func (p Parser) VisitTemporalOperator(ctx *gen.TemporalOperatorContext) any {
 		opType = ast.DiamondMinus
 	} else if ctx.BOXMINUS() != nil {
 		opType = ast.BoxMinus
+	} else if ctx.DIAMONDPLUS() != nil {
+		opType = ast.DiamondPlus
+	} else if ctx.BOXPLUS() != nil {
+		opType = ast.BoxPlus
 	} else {
 		p.errors.Add("unknown temporal operator", ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
 		return nil

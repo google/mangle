@@ -86,6 +86,8 @@ literalOrFml
 temporalOperator
    : DIAMONDMINUS '[' temporalBound ',' temporalBound ']'   // <-[0d, 7d] - sometime in past
    | BOXMINUS '[' temporalBound ',' temporalBound ']'       // [-[0d, 7d] - always in past
+   | DIAMONDPLUS '[' temporalBound ',' temporalBound ']'    // <+[0d, 7d] - sometime in future
+   | BOXPLUS '[' temporalBound ',' temporalBound ']'        // [+[0d, 7d] - always in future
    ;
 
 term
@@ -148,7 +150,9 @@ NEWLINE : '\n';
 PIPEGREATER : '|>';
 AT : '@';
 DIAMONDMINUS : '<-';  // Must come before LESS
+DIAMONDPLUS : '<+';   // Must come before LESS
 BOXMINUS : '[-';      // Must come before LBRACKET
+BOXPLUS : '[+';       // Must come before LBRACKET
 
 fragment LETTER : 'A'..'Z' | 'a'..'z' ;
 fragment DIGIT  : '0'..'9' ;

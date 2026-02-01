@@ -18,7 +18,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/mangle/ast"
 	"github.com/google/mangle/parse"
 )
 
@@ -103,76 +102,6 @@ func TestCheckTemporalRecursion(t *testing.T) {
 				if tt.wantMsgContains != "" && !strings.Contains(warnings[0].Message, tt.wantMsgContains) {
 					t.Errorf("warning message %q does not contain %q", warnings[0].Message, tt.wantMsgContains)
 				}
-			}
-		})
-	}
-}
-
-func TestFindSCCs(t *testing.T) {
-	tests := []struct {
-		name     string
-		graph    map[ast.PredicateSym]map[ast.PredicateSym]bool
-		wantSCCs int
-	}{
-		{
-			name: "no cycles",
-			graph: map[ast.PredicateSym]map[ast.PredicateSym]bool{
-				{Symbol: "a", Arity: 1}: {
-					{Symbol: "b", Arity: 1}: true,
-				},
-				{Symbol: "b", Arity: 1}: {
-					{Symbol: "c", Arity: 1}: true,
-				},
-				{Symbol: "c", Arity: 1}: {},
-			},
-			wantSCCs: 3,
-		},
-		{
-			name: "single self-loop",
-			graph: map[ast.PredicateSym]map[ast.PredicateSym]bool{
-				{Symbol: "a", Arity: 1}: {
-					{Symbol: "a", Arity: 1}: true,
-				},
-			},
-			wantSCCs: 1,
-		},
-		{
-			name: "two-node cycle",
-			graph: map[ast.PredicateSym]map[ast.PredicateSym]bool{
-				{Symbol: "a", Arity: 1}: {
-					{Symbol: "b", Arity: 1}: true,
-				},
-				{Symbol: "b", Arity: 1}: {
-					{Symbol: "a", Arity: 1}: true,
-				},
-			},
-			wantSCCs: 1,
-		},
-		{
-			name: "two separate cycles",
-			graph: map[ast.PredicateSym]map[ast.PredicateSym]bool{
-				{Symbol: "a", Arity: 1}: {
-					{Symbol: "b", Arity: 1}: true,
-				},
-				{Symbol: "b", Arity: 1}: {
-					{Symbol: "a", Arity: 1}: true,
-				},
-				{Symbol: "c", Arity: 1}: {
-					{Symbol: "d", Arity: 1}: true,
-				},
-				{Symbol: "d", Arity: 1}: {
-					{Symbol: "c", Arity: 1}: true,
-				},
-			},
-			wantSCCs: 2,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			sccs := findSCCs(tt.graph)
-			if len(sccs) != tt.wantSCCs {
-				t.Errorf("got %d SCCs, want %d", len(sccs), tt.wantSCCs)
 			}
 		})
 	}

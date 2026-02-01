@@ -76,25 +76,28 @@ func CheckTemporalRecursion(programInfo *ProgramInfo) []TemporalWarning {
 		return nil // No temporal predicates, nothing to check
 	}
 
-	// Build dependency graph for IDB predicates
-	depGraph := buildTemporalDepGraph(programInfo, temporalPreds)
+	// Build dependency graph using existing depGraph type from stratification.go
+	dep := buildTemporalDepGraph(programInfo)
 
-	// Find strongly connected components (recursive groups)
-	sccs := findSCCs(depGraph)
+	// Find strongly connected components using existing sccs() method
+	sccs := dep.sccs()
 
 	// Check each SCC for problematic patterns
 	for _, scc := range sccs {
 		if len(scc) == 1 {
 			// Single predicate - check for self-recursion
 			for pred := range scc {
-				if depGraph[pred][pred] {
-					// Self-recursive temporal predicate
-					if temporalPreds[pred] {
-						warnings = append(warnings, TemporalWarning{
-							Predicate: pred,
-							Message:   "self-recursive temporal predicate may cause interval explosion; ensure coalescing or use interval limits",
-							Severity:  SeverityWarning,
-						})
+				// Check if there's a self-loop (edge from pred to itself)
+				if edges, ok := dep[pred]; ok {
+					if _, hasSelfLoop := edges[pred]; hasSelfLoop {
+						// Self-recursive temporal predicate
+						if temporalPreds[pred] {
+							warnings = append(warnings, TemporalWarning{
+								Predicate: pred,
+								Message:   "self-recursive temporal predicate may cause interval explosion; ensure coalescing or use interval limits",
+								Severity:  SeverityWarning,
+							})
+						}
 					}
 				}
 			}
@@ -159,24 +162,19 @@ func CheckTemporalRecursion(programInfo *ProgramInfo) []TemporalWarning {
 	return warnings
 }
 
-// buildTemporalDepGraph builds a dependency graph for the program,
-// focusing on temporal predicate relationships.
-func buildTemporalDepGraph(programInfo *ProgramInfo, temporalPreds map[ast.PredicateSym]bool) map[ast.PredicateSym]map[ast.PredicateSym]bool {
-	graph := make(map[ast.PredicateSym]map[ast.PredicateSym]bool)
+// buildTemporalDepGraph builds a dependency graph for the program using the existing depGraph type.
+func buildTemporalDepGraph(programInfo *ProgramInfo) depGraph {
+	dep := make(depGraph)
 
 	// Initialize nodes for all IDB predicates
 	for pred := range programInfo.IdbPredicates {
-		if graph[pred] == nil {
-			graph[pred] = make(map[ast.PredicateSym]bool)
-		}
+		dep.initNode(pred)
 	}
 
 	// Build edges from rule dependencies
 	for _, rule := range programInfo.Rules {
 		headPred := rule.Head.Predicate
-		if graph[headPred] == nil {
-			graph[headPred] = make(map[ast.PredicateSym]bool)
-		}
+		dep.initNode(headPred)
 
 		for _, premise := range rule.Premises {
 			var bodyPred ast.PredicateSym
@@ -198,84 +196,20 @@ func buildTemporalDepGraph(programInfo *ProgramInfo, temporalPreds map[ast.Predi
 
 			// Only track dependencies to IDB predicates
 			if _, isIDB := programInfo.IdbPredicates[bodyPred]; isIDB {
-				graph[headPred][bodyPred] = true
+				dep.addEdge(headPred, bodyPred, false)
 			}
 		}
 	}
 
-	return graph
-}
-
-// findSCCs finds strongly connected components using Kosaraju's algorithm.
-func findSCCs(graph map[ast.PredicateSym]map[ast.PredicateSym]bool) []map[ast.PredicateSym]bool {
-	// First pass: compute finish order
-	visited := make(map[ast.PredicateSym]bool)
-	var finishOrder []ast.PredicateSym
-
-	var dfs1 func(node ast.PredicateSym)
-	dfs1 = func(node ast.PredicateSym) {
-		if visited[node] {
-			return
-		}
-		visited[node] = true
-		for neighbor := range graph[node] {
-			dfs1(neighbor)
-		}
-		finishOrder = append(finishOrder, node)
-	}
-
-	for node := range graph {
-		dfs1(node)
-	}
-
-	// Build reverse graph
-	reverseGraph := make(map[ast.PredicateSym]map[ast.PredicateSym]bool)
-	for node := range graph {
-		if reverseGraph[node] == nil {
-			reverseGraph[node] = make(map[ast.PredicateSym]bool)
-		}
-	}
-	for src, edges := range graph {
-		for dest := range edges {
-			if reverseGraph[dest] == nil {
-				reverseGraph[dest] = make(map[ast.PredicateSym]bool)
-			}
-			reverseGraph[dest][src] = true
-		}
-	}
-
-	// Second pass: find SCCs in reverse finish order
-	visited = make(map[ast.PredicateSym]bool)
-	var sccs []map[ast.PredicateSym]bool
-
-	var dfs2 func(node ast.PredicateSym, scc map[ast.PredicateSym]bool)
-	dfs2 = func(node ast.PredicateSym, scc map[ast.PredicateSym]bool) {
-		if visited[node] {
-			return
-		}
-		visited[node] = true
-		scc[node] = true
-		for neighbor := range reverseGraph[node] {
-			dfs2(neighbor, scc)
-		}
-	}
-
-	for i := len(finishOrder) - 1; i >= 0; i-- {
-		node := finishOrder[i]
-		if !visited[node] {
-			scc := make(map[ast.PredicateSym]bool)
-			dfs2(node, scc)
-			sccs = append(sccs, scc)
-		}
-	}
-
-	return sccs
+	return dep
 }
 
 // isInSameSCC checks if two predicates are in the same strongly connected component.
-func isInSameSCC(pred1, pred2 ast.PredicateSym, sccs []map[ast.PredicateSym]bool) bool {
+func isInSameSCC(pred1, pred2 ast.PredicateSym, sccs []Nodeset) bool {
 	for _, scc := range sccs {
-		if scc[pred1] && scc[pred2] {
+		_, has1 := scc[pred1]
+		_, has2 := scc[pred2]
+		if has1 && has2 {
 			return true
 		}
 	}

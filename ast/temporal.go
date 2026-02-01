@@ -17,8 +17,119 @@ package ast
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 )
+
+// defaultTimezone is the timezone used by Date, DateTime, and DateInterval helpers.
+// Defaults to UTC. Use SetDefaultTimezone to change it.
+var (
+	defaultTimezone   = time.UTC
+	defaultTimezoneMu sync.RWMutex
+)
+
+// SetTimezone sets the timezone used by Date, DateTime, DateTimeSec,
+// DateInterval, and related helper functions. Defaults to UTC.
+//
+// Accepts timezone names (IANA format), common abbreviations, or special values:
+//   - "UTC", "utc" - Coordinated Universal Time
+//   - "Local", "local" - System local timezone
+//   - "America/New_York", "America/Los_Angeles", etc. - IANA timezone names
+//   - "EST", "PST", "CET", etc. - Common abbreviations (mapped to IANA names)
+//
+// Call this once at program startup to ensure consistent timezone handling.
+//
+// Example:
+//
+//	ast.SetTimezone("UTC")                    // Default
+//	ast.SetTimezone("Local")                  // System timezone
+//	ast.SetTimezone("America/New_York")       // IANA name
+//	ast.SetTimezone("PST")                    // Abbreviation
+func SetTimezone(tz string) error {
+	loc, err := parseTimezone(tz)
+	if err != nil {
+		return err
+	}
+	defaultTimezoneMu.Lock()
+	defaultTimezone = loc
+	defaultTimezoneMu.Unlock()
+	return nil
+}
+
+// MustSetTimezone is like SetTimezone but panics on error.
+// Useful for program initialization where invalid timezone is a fatal error.
+func MustSetTimezone(tz string) {
+	if err := SetTimezone(tz); err != nil {
+		panic(fmt.Sprintf("ast.MustSetTimezone(%q): %v", tz, err))
+	}
+}
+
+// SetDefaultTimezone sets the timezone using a *time.Location directly.
+// Prefer SetTimezone(string) for simpler usage.
+func SetDefaultTimezone(loc *time.Location) {
+	if loc == nil {
+		loc = time.UTC
+	}
+	defaultTimezoneMu.Lock()
+	defaultTimezone = loc
+	defaultTimezoneMu.Unlock()
+}
+
+// GetDefaultTimezone returns the currently configured default timezone.
+func GetDefaultTimezone() *time.Location {
+	defaultTimezoneMu.RLock()
+	defer defaultTimezoneMu.RUnlock()
+	return defaultTimezone
+}
+
+// Common timezone abbreviation mappings
+var timezoneAbbreviations = map[string]string{
+	// US timezones
+	"EST":  "America/New_York",
+	"EDT":  "America/New_York",
+	"CST":  "America/Chicago",
+	"CDT":  "America/Chicago",
+	"MST":  "America/Denver",
+	"MDT":  "America/Denver",
+	"PST":  "America/Los_Angeles",
+	"PDT":  "America/Los_Angeles",
+	"AKST": "America/Anchorage",
+	"AKDT": "America/Anchorage",
+	"HST":  "Pacific/Honolulu",
+	// European timezones
+	"GMT":  "Europe/London",
+	"BST":  "Europe/London",
+	"CET":  "Europe/Paris",
+	"CEST": "Europe/Paris",
+	"EET":  "Europe/Helsinki",
+	"EEST": "Europe/Helsinki",
+	// Asian timezones
+	"JST": "Asia/Tokyo",
+	"KST": "Asia/Seoul",
+	"CST_CHINA": "Asia/Shanghai",
+	"IST": "Asia/Kolkata",
+	// Australian timezones
+	"AEST": "Australia/Sydney",
+	"AEDT": "Australia/Sydney",
+	"AWST": "Australia/Perth",
+}
+
+func parseTimezone(tz string) (*time.Location, error) {
+	switch strings.ToLower(tz) {
+	case "utc", "":
+		return time.UTC, nil
+	case "local":
+		return time.Local, nil
+	}
+
+	// Check abbreviations first
+	if ianaName, ok := timezoneAbbreviations[strings.ToUpper(tz)]; ok {
+		return time.LoadLocation(ianaName)
+	}
+
+	// Try as IANA name directly
+	return time.LoadLocation(tz)
+}
 
 // TemporalBoundType indicates the kind of temporal bound.
 type TemporalBoundType int
@@ -100,21 +211,44 @@ func (tb TemporalBound) Time() time.Time {
 	return time.Unix(0, tb.Timestamp)
 }
 
-// Date creates a time.Time for the given year, month, and day at midnight UTC.
-// This is a convenience function to avoid typing out all the zeros.
+// Date creates a time.Time for the given year, month, and day at midnight.
+// Uses the default timezone (UTC unless changed via SetDefaultTimezone).
 func Date(year int, month time.Month, day int) time.Time {
-	return time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+	return time.Date(year, month, day, 0, 0, 0, 0, GetDefaultTimezone())
 }
 
-// DateTime creates a time.Time for the given date and time in UTC.
-// This is a convenience function to avoid typing out zeros for seconds and nanoseconds.
+// DateTime creates a time.Time for the given date and time.
+// Uses the default timezone (UTC unless changed via SetDefaultTimezone).
 func DateTime(year int, month time.Month, day, hour, min int) time.Time {
-	return time.Date(year, month, day, hour, min, 0, 0, time.UTC)
+	return time.Date(year, month, day, hour, min, 0, 0, GetDefaultTimezone())
 }
 
-// DateTimeSec creates a time.Time for the given date and time with seconds in UTC.
+// DateTimeSec creates a time.Time for the given date and time with seconds.
+// Uses the default timezone (UTC unless changed via SetDefaultTimezone).
 func DateTimeSec(year int, month time.Month, day, hour, min, sec int) time.Time {
-	return time.Date(year, month, day, hour, min, sec, 0, time.UTC)
+	return time.Date(year, month, day, hour, min, sec, 0, GetDefaultTimezone())
+}
+
+// DateIn creates a time.Time for the given year, month, and day in a specific timezone.
+// Accepts timezone names like "America/New_York", "PST", "UTC", "Local".
+// Use this when you need a different timezone than the default for a specific value.
+func DateIn(year int, month time.Month, day int, tz string) time.Time {
+	loc, err := parseTimezone(tz)
+	if err != nil {
+		loc = GetDefaultTimezone()
+	}
+	return time.Date(year, month, day, 0, 0, 0, 0, loc)
+}
+
+// DateTimeIn creates a time.Time for the given date and time in a specific timezone.
+// Accepts timezone names like "America/New_York", "PST", "UTC", "Local".
+// Use this when you need a different timezone than the default for a specific value.
+func DateTimeIn(year int, month time.Month, day, hour, min int, tz string) time.Time {
+	loc, err := parseTimezone(tz)
+	if err != nil {
+		loc = GetDefaultTimezone()
+	}
+	return time.Date(year, month, day, hour, min, 0, 0, loc)
 }
 
 // TimeInterval creates an interval from two time.Time values.

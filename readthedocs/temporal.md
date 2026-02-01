@@ -224,7 +224,7 @@ The `ast` package provides convenience functions to reduce verbosity when creati
 
 ```go
 // Create dates without typing all the zeros
-t := ast.Date(2024, 1, 15)                    // midnight UTC
+t := ast.Date(2024, 1, 15)                    // midnight in default timezone
 t := ast.DateTime(2024, 1, 15, 10, 30)        // with hour and minute
 t := ast.DateTimeSec(2024, 1, 15, 10, 30, 45) // with seconds
 
@@ -248,11 +248,44 @@ store.Add(atom, ast.DateInterval(2023, 1, 1, 2024, 12, 31))
 
 | Helper | Example | Purpose |
 |--------|---------|---------|
-| `ast.Date(y, m, d)` | `ast.Date(2024, 1, 15)` | Date at midnight UTC |
+| `ast.Date(y, m, d)` | `ast.Date(2024, 1, 15)` | Date at midnight |
 | `ast.DateTime(y, m, d, h, min)` | `ast.DateTime(2024, 1, 15, 10, 30)` | Date with time |
 | `ast.DateTimeSec(y, m, d, h, min, s)` | `ast.DateTimeSec(2024, 1, 15, 10, 30, 45)` | Date with seconds |
+| `ast.DateIn(y, m, d, loc)` | `ast.DateIn(2024, 1, 15, nyc)` | Date in specific timezone |
+| `ast.DateTimeIn(y, m, d, h, min, loc)` | `ast.DateTimeIn(2024, 1, 15, 10, 30, nyc)` | Date+time in specific timezone |
 | `ast.TimeInterval(start, end)` | `ast.TimeInterval(t1, t2)` | Interval from time.Time values |
 | `ast.DateInterval(...)` | `ast.DateInterval(2023, 1, 1, 2024, 12, 31)` | Interval from date components |
+
+### Timezone Configuration
+
+All date/time helpers use a configurable default timezone (UTC by default). Set it once at program startup:
+
+```go
+// Default: UTC (no configuration needed)
+
+ast.SetTimezone("UTC")                   // Explicit UTC
+ast.SetTimezone("Local")                 // System timezone
+ast.SetTimezone("America/New_York")      // IANA timezone name
+ast.SetTimezone("PST")                   // Common abbreviations work too
+
+// For init(), use MustSetTimezone (panics on error)
+func init() {
+    ast.MustSetTimezone("America/New_York")
+}
+```
+
+Supported abbreviations: `EST`, `CST`, `MST`, `PST`, `GMT`, `CET`, `JST`, `IST`, and more.
+
+**Important:** Set the timezone once at startup before creating any temporal facts.
+
+For one-off values in a different timezone without changing the default, use `DateIn` or `DateTimeIn`:
+
+```go
+// Default is UTC, but this one event is in NYC time
+store.Add(event, ast.TimeInterval(
+    ast.DateTimeIn(2024, 1, 15, 19, 0, "America/New_York"),  // 7pm NYC
+    ast.DateTimeIn(2024, 1, 15, 22, 0, "EST"),               // 10pm EST
+))
 
 ## Time Bridge Functions
 

@@ -406,3 +406,155 @@ func TestTemporalOperator(t *testing.T) {
 		})
 	}
 }
+
+func TestDateHelpers(t *testing.T) {
+	// Ensure we start with UTC
+	SetDefaultTimezone(time.UTC)
+	defer SetDefaultTimezone(time.UTC) // Reset after test
+
+	t.Run("Date uses default timezone", func(t *testing.T) {
+		d := Date(2024, 1, 15)
+		if d.Location() != time.UTC {
+			t.Errorf("Date() location = %v, want UTC", d.Location())
+		}
+		if d.Year() != 2024 || d.Month() != 1 || d.Day() != 15 {
+			t.Errorf("Date() = %v, want 2024-01-15", d)
+		}
+		if d.Hour() != 0 || d.Minute() != 0 || d.Second() != 0 {
+			t.Errorf("Date() should be midnight, got %v", d)
+		}
+	})
+
+	t.Run("DateTime uses default timezone", func(t *testing.T) {
+		d := DateTime(2024, 1, 15, 10, 30)
+		if d.Hour() != 10 || d.Minute() != 30 {
+			t.Errorf("DateTime() = %v, want 10:30", d)
+		}
+	})
+
+	t.Run("DateTimeSec uses default timezone", func(t *testing.T) {
+		d := DateTimeSec(2024, 1, 15, 10, 30, 45)
+		if d.Second() != 45 {
+			t.Errorf("DateTimeSec() second = %d, want 45", d.Second())
+		}
+	})
+
+	t.Run("SetTimezone with string changes behavior", func(t *testing.T) {
+		err := SetTimezone("America/New_York")
+		if err != nil {
+			t.Skip("Could not load America/New_York timezone")
+		}
+
+		d := Date(2024, 1, 15)
+		if d.Location().String() != "America/New_York" {
+			t.Errorf("After SetTimezone(America/New_York), Date() location = %v, want America/New_York", d.Location())
+		}
+
+		// Reset to UTC
+		SetTimezone("UTC")
+		d = Date(2024, 1, 15)
+		if d.Location() != time.UTC {
+			t.Errorf("After reset, Date() location = %v, want UTC", d.Location())
+		}
+	})
+
+	t.Run("SetTimezone with abbreviations", func(t *testing.T) {
+		err := SetTimezone("PST")
+		if err != nil {
+			t.Skip("Could not load PST timezone")
+		}
+		if GetDefaultTimezone().String() != "America/Los_Angeles" {
+			t.Errorf("SetTimezone(PST) should map to America/Los_Angeles, got %v", GetDefaultTimezone())
+		}
+		SetTimezone("UTC")
+	})
+
+	t.Run("SetTimezone with Local", func(t *testing.T) {
+		err := SetTimezone("Local")
+		if err != nil {
+			t.Fatalf("SetTimezone(Local) failed: %v", err)
+		}
+		if GetDefaultTimezone() != time.Local {
+			t.Errorf("SetTimezone(Local) should use time.Local")
+		}
+		SetTimezone("UTC")
+	})
+
+	t.Run("DateIn with string timezone", func(t *testing.T) {
+		SetDefaultTimezone(time.UTC)
+
+		d := DateIn(2024, 1, 15, "America/New_York")
+		if d.Location().String() != "America/New_York" {
+			t.Errorf("DateIn(..., America/New_York) location = %v, want America/New_York", d.Location())
+		}
+
+		// Default should still be UTC
+		d2 := Date(2024, 1, 15)
+		if d2.Location() != time.UTC {
+			t.Errorf("Date() after DateIn() should still use UTC, got %v", d2.Location())
+		}
+	})
+
+	t.Run("DateIn with abbreviation", func(t *testing.T) {
+		d := DateIn(2024, 1, 15, "PST")
+		if d.Location().String() != "America/Los_Angeles" {
+			t.Errorf("DateIn(..., PST) location = %v, want America/Los_Angeles", d.Location())
+		}
+	})
+
+	t.Run("GetDefaultTimezone returns current setting", func(t *testing.T) {
+		SetDefaultTimezone(time.UTC)
+		if got := GetDefaultTimezone(); got != time.UTC {
+			t.Errorf("GetDefaultTimezone() = %v, want UTC", got)
+		}
+	})
+
+	t.Run("SetDefaultTimezone with nil defaults to UTC", func(t *testing.T) {
+		SetDefaultTimezone(nil)
+		if got := GetDefaultTimezone(); got != time.UTC {
+			t.Errorf("SetDefaultTimezone(nil) should default to UTC, got %v", got)
+		}
+	})
+
+	t.Run("MustSetTimezone panics on invalid", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("MustSetTimezone with invalid tz should panic")
+			}
+			SetTimezone("UTC") // Reset
+		}()
+		MustSetTimezone("Invalid/Timezone")
+	})
+}
+
+func TestDateInterval(t *testing.T) {
+	// Explicitly set UTC to avoid test pollution
+	SetDefaultTimezone(time.UTC)
+	defer SetDefaultTimezone(time.UTC)
+
+	interval := DateInterval(2023, 1, 1, 2024, 12, 31)
+
+	startTime := interval.Start.Time().UTC()
+	endTime := interval.End.Time().UTC()
+
+	if startTime.Year() != 2023 || startTime.Month() != 1 || startTime.Day() != 1 {
+		t.Errorf("DateInterval start = %v, want 2023-01-01", startTime)
+	}
+	if endTime.Year() != 2024 || endTime.Month() != 12 || endTime.Day() != 31 {
+		t.Errorf("DateInterval end = %v, want 2024-12-31", endTime)
+	}
+}
+
+func TestTimeInterval(t *testing.T) {
+	start := time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC)
+	end := time.Date(2024, 1, 1, 18, 0, 0, 0, time.UTC)
+
+	interval := TimeInterval(start, end)
+
+	if !interval.Start.Time().Equal(start) {
+		t.Errorf("TimeInterval start = %v, want %v", interval.Start.Time(), start)
+	}
+	if !interval.End.Time().Equal(end) {
+		t.Errorf("TimeInterval end = %v, want %v", interval.End.Time(), end)
+	}
+}

@@ -272,8 +272,17 @@ will_happen(X) @[now, _] :-
 ### Built-in Safeguards
 
 1. **Interval Coalescing**: Adjacent/overlapping intervals are merged automatically
-2. **Interval Limit**: Maximum 1000 intervals per atom (returns `ErrIntervalLimitExceeded`)
+2. **Interval Limit**: Default 1000 intervals per atom, configurable via `WithMaxIntervalsPerAtom(n)`
 3. **Fact Limits**: Use `engine.WithCreatedFactLimit(n)` to cap total derived facts
+
+Configure the interval limit:
+```go
+// Custom limit
+store := factstore.NewSimpleTemporalStore(factstore.WithMaxIntervalsPerAtom(5000))
+
+// No limit (use with caution)
+store := factstore.NewSimpleTemporalStore(factstore.WithMaxIntervalsPerAtom(-1))
+```
 
 ### Complexity
 

@@ -68,13 +68,12 @@ type TemporalFactStore interface {
 	Merge(ReadOnlyTemporalFactStore) error
 }
 
-// MaxIntervalsPerAtom is the maximum number of intervals allowed per atom.
+// DefaultMaxIntervalsPerAtom is the default maximum number of intervals allowed per atom.
 // This prevents interval explosion in recursive temporal rules.
-// If exceeded, Add will return an error.
-const MaxIntervalsPerAtom = 1000
+const DefaultMaxIntervalsPerAtom = 1000
 
 // ErrIntervalLimitExceeded is returned when an atom has too many intervals.
-var ErrIntervalLimitExceeded = fmt.Errorf("interval limit exceeded: maximum %d intervals per atom", MaxIntervalsPerAtom)
+var ErrIntervalLimitExceeded = fmt.Errorf("interval limit exceeded")
 
 // temporalEntry stores intervals for a single fact (atom).
 type temporalEntry struct {
@@ -90,18 +89,41 @@ type SimpleTemporalStore struct {
 	// Store the actual atoms by hash (for retrieval)
 	atoms map[uint64]ast.Atom
 	count int
+	// maxIntervalsPerAtom is the configurable limit for intervals per atom.
+	// If 0, DefaultMaxIntervalsPerAtom is used. If negative, no limit is enforced.
+	maxIntervalsPerAtom int
 }
 
 // Ensure SimpleTemporalStore implements TemporalFactStore.
 var _ TemporalFactStore = &SimpleTemporalStore{}
 
-// NewSimpleTemporalStore creates a new SimpleTemporalStore.
-func NewSimpleTemporalStore() *SimpleTemporalStore {
-	return &SimpleTemporalStore{
-		facts: make(map[ast.PredicateSym]map[uint64]*temporalEntry),
-		atoms: make(map[uint64]ast.Atom),
-		count: 0,
+// TemporalStoreOption configures a SimpleTemporalStore.
+type TemporalStoreOption func(*SimpleTemporalStore)
+
+// WithMaxIntervalsPerAtom sets the maximum intervals allowed per atom.
+// If limit is 0, DefaultMaxIntervalsPerAtom is used.
+// If limit is negative, no limit is enforced (use with caution).
+func WithMaxIntervalsPerAtom(limit int) TemporalStoreOption {
+	return func(s *SimpleTemporalStore) {
+		if limit == 0 {
+			limit = DefaultMaxIntervalsPerAtom
+		}
+		s.maxIntervalsPerAtom = limit
 	}
+}
+
+// NewSimpleTemporalStore creates a new SimpleTemporalStore.
+func NewSimpleTemporalStore(opts ...TemporalStoreOption) *SimpleTemporalStore {
+	s := &SimpleTemporalStore{
+		facts:               make(map[ast.PredicateSym]map[uint64]*temporalEntry),
+		atoms:               make(map[uint64]ast.Atom),
+		count:               0,
+		maxIntervalsPerAtom: DefaultMaxIntervalsPerAtom,
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // Add adds a temporal fact to the store.
@@ -133,9 +155,9 @@ func (s *SimpleTemporalStore) Add(atom ast.Atom, interval ast.Interval) (bool, e
 		}
 	}
 
-	// Check interval limit to prevent explosion
-	if len(entry.intervals) >= MaxIntervalsPerAtom {
-		return false, ErrIntervalLimitExceeded
+	// Check interval limit to prevent explosion (negative limit means no limit)
+	if s.maxIntervalsPerAtom > 0 && len(entry.intervals) >= s.maxIntervalsPerAtom {
+		return false, fmt.Errorf("%w: maximum %d intervals per atom", ErrIntervalLimitExceeded, s.maxIntervalsPerAtom)
 	}
 
 	// Add the interval

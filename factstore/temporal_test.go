@@ -15,6 +15,7 @@
 package factstore
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -106,11 +107,13 @@ func TestSimpleTemporalStore_AddEternal(t *testing.T) {
 }
 
 func TestSimpleTemporalStore_IntervalLimit(t *testing.T) {
-	store := NewSimpleTemporalStore()
+	// Use a small custom limit for faster testing
+	customLimit := 100
+	store := NewSimpleTemporalStore(WithMaxIntervalsPerAtom(customLimit))
 	atom := ast.NewAtom("test", name("/foo"))
 
 	// Add intervals up to the limit
-	for i := 0; i < MaxIntervalsPerAtom; i++ {
+	for i := 0; i < customLimit; i++ {
 		start := time.Date(2020, 1, 1, i, 0, 0, 0, time.UTC)
 		end := time.Date(2020, 1, 1, i, 59, 59, 0, time.UTC)
 		added, err := store.Add(atom, makeInterval(start, end))
@@ -123,14 +126,30 @@ func TestSimpleTemporalStore_IntervalLimit(t *testing.T) {
 	}
 
 	// Next add should fail with ErrIntervalLimitExceeded
-	start := time.Date(2020, 1, 1, MaxIntervalsPerAtom, 0, 0, 0, time.UTC)
-	end := time.Date(2020, 1, 1, MaxIntervalsPerAtom, 59, 59, 0, time.UTC)
+	start := time.Date(2020, 1, 1, customLimit, 0, 0, 0, time.UTC)
+	end := time.Date(2020, 1, 1, customLimit, 59, 59, 0, time.UTC)
 	added, err := store.Add(atom, makeInterval(start, end))
-	if err != ErrIntervalLimitExceeded {
+	if !errors.Is(err, ErrIntervalLimitExceeded) {
 		t.Errorf("Add beyond limit: err = %v, want ErrIntervalLimitExceeded", err)
 	}
 	if added {
 		t.Error("Add beyond limit should return false")
+	}
+}
+
+func TestSimpleTemporalStore_NoLimit(t *testing.T) {
+	// Negative limit means no limit
+	store := NewSimpleTemporalStore(WithMaxIntervalsPerAtom(-1))
+	atom := ast.NewAtom("test", name("/foo"))
+
+	// Should be able to add more than default limit
+	for i := 0; i < DefaultMaxIntervalsPerAtom+10; i++ {
+		start := time.Date(2020, 1, 1, 0, i, 0, 0, time.UTC)
+		end := time.Date(2020, 1, 1, 0, i, 59, 0, time.UTC)
+		_, err := store.Add(atom, makeInterval(start, end))
+		if err != nil {
+			t.Fatalf("Add %d returned unexpected error with no limit: %v", i, err)
+		}
 	}
 }
 

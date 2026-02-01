@@ -257,8 +257,8 @@ func TestIntervalTree_EternalInterval(t *testing.T) {
 	}
 }
 
-func TestIndexedTemporalStore_Basic(t *testing.T) {
-	store := NewIndexedTemporalStore()
+func TestTemporalStore_WithIntervalTree(t *testing.T) {
+	store := NewTemporalStore()
 
 	atom := ast.Atom{
 		Predicate: ast.PredicateSym{Symbol: "test", Arity: 1},
@@ -303,8 +303,8 @@ func TestIndexedTemporalStore_Basic(t *testing.T) {
 	}
 }
 
-func TestIndexedTemporalStore_IntervalLimit(t *testing.T) {
-	store := NewIndexedTemporalStore(WithMaxIntervalsPerAtom(3))
+func TestTemporalStore_IntervalTreeLimit(t *testing.T) {
+	store := NewTemporalStore(WithMaxIntervalsPerAtom(3))
 
 	atom := ast.Atom{
 		Predicate: ast.PredicateSym{Symbol: "test", Arity: 1},

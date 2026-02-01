@@ -75,49 +75,32 @@ const DefaultMaxIntervalsPerAtom = 1000
 // ErrIntervalLimitExceeded is returned when an atom has too many intervals.
 var ErrIntervalLimitExceeded = fmt.Errorf("interval limit exceeded")
 
-// temporalEntry stores intervals for a single fact (atom).
-type temporalEntry struct {
-	intervals []ast.Interval
-}
-
-// SimpleTemporalStore provides a simple in-memory implementation of TemporalFactStore.
+// TemporalStore is an in-memory implementation of TemporalFactStore.
 // Facts are indexed by predicate symbol and atom hash, with each atom
-// having a list of validity intervals.
-type SimpleTemporalStore struct {
-	// Map from predicate -> atom hash -> temporal entry
-	facts map[ast.PredicateSym]map[uint64]*temporalEntry
-	// Store the actual atoms by hash (for retrieval)
-	atoms map[uint64]ast.Atom
-	count int
-	// maxIntervalsPerAtom is the configurable limit for intervals per atom.
-	// If 0, DefaultMaxIntervalsPerAtom is used. If negative, no limit is enforced.
-	maxIntervalsPerAtom int
+// having an interval tree for O(log n + k) query performance.
+type TemporalStore struct {
+	facts               map[ast.PredicateSym]map[uint64]*IntervalTree
+	atoms               map[uint64]ast.Atom
+	count               int
+	maxIntervalsPerAtom int // negative = no limit, 0 = use default
 }
 
-// Ensure SimpleTemporalStore implements TemporalFactStore.
-var _ TemporalFactStore = &SimpleTemporalStore{}
+var _ TemporalFactStore = &TemporalStore{}
 
-// TemporalStoreOption configures a SimpleTemporalStore.
-type TemporalStoreOption func(*SimpleTemporalStore)
+// TemporalStoreOption configures a TemporalStore.
+type TemporalStoreOption func(*TemporalStore)
 
 // WithMaxIntervalsPerAtom sets the maximum intervals allowed per atom.
-// If limit is 0, DefaultMaxIntervalsPerAtom is used.
-// If limit is negative, no limit is enforced (use with caution).
+// Negative value disables the limit.
 func WithMaxIntervalsPerAtom(limit int) TemporalStoreOption {
-	return func(s *SimpleTemporalStore) {
-		if limit == 0 {
-			limit = DefaultMaxIntervalsPerAtom
-		}
-		s.maxIntervalsPerAtom = limit
-	}
+	return func(s *TemporalStore) { s.maxIntervalsPerAtom = limit }
 }
 
-// NewSimpleTemporalStore creates a new SimpleTemporalStore.
-func NewSimpleTemporalStore(opts ...TemporalStoreOption) *SimpleTemporalStore {
-	s := &SimpleTemporalStore{
-		facts:               make(map[ast.PredicateSym]map[uint64]*temporalEntry),
+// NewTemporalStore creates a new TemporalStore.
+func NewTemporalStore(opts ...TemporalStoreOption) *TemporalStore {
+	s := &TemporalStore{
+		facts:               make(map[ast.PredicateSym]map[uint64]*IntervalTree),
 		atoms:               make(map[uint64]ast.Atom),
-		count:               0,
 		maxIntervalsPerAtom: DefaultMaxIntervalsPerAtom,
 	}
 	for _, opt := range opts {
@@ -128,7 +111,7 @@ func NewSimpleTemporalStore(opts ...TemporalStoreOption) *SimpleTemporalStore {
 
 // Add adds a temporal fact to the store.
 // Returns (true, nil) if added, (false, nil) if duplicate, (false, error) if limit exceeded.
-func (s *SimpleTemporalStore) Add(atom ast.Atom, interval ast.Interval) (bool, error) {
+func (s *TemporalStore) Add(atom ast.Atom, interval ast.Interval) (bool, error) {
 	hash := atom.Hash()
 
 	// Store the atom
@@ -137,133 +120,135 @@ func (s *SimpleTemporalStore) Add(atom ast.Atom, interval ast.Interval) (bool, e
 	// Get or create the predicate map
 	predMap, ok := s.facts[atom.Predicate]
 	if !ok {
-		predMap = make(map[uint64]*temporalEntry)
+		predMap = make(map[uint64]*IntervalTree)
 		s.facts[atom.Predicate] = predMap
 	}
 
-	// Get or create the temporal entry
-	entry, ok := predMap[hash]
+	// Get or create the interval tree
+	tree, ok := predMap[hash]
 	if !ok {
-		entry = &temporalEntry{intervals: make([]ast.Interval, 0, 1)}
-		predMap[hash] = entry
+		tree = NewIntervalTree()
+		predMap[hash] = tree
 	}
 
-	// Check if this exact interval already exists
-	for _, existing := range entry.intervals {
-		if existing.Equals(interval) {
-			return false, nil
-		}
-	}
-
-	// Check interval limit to prevent explosion (negative limit means no limit)
-	if s.maxIntervalsPerAtom > 0 && len(entry.intervals) >= s.maxIntervalsPerAtom {
+	// Check interval limit before inserting (negative limit means no limit)
+	if s.maxIntervalsPerAtom > 0 && tree.Size() >= s.maxIntervalsPerAtom {
 		return false, fmt.Errorf("%w: maximum %d intervals per atom", ErrIntervalLimitExceeded, s.maxIntervalsPerAtom)
 	}
 
-	// Add the interval
-	entry.intervals = append(entry.intervals, interval)
+	// Insert returns false if duplicate
+	if !tree.Insert(interval) {
+		return false, nil
+	}
+
 	s.count++
 	return true, nil
 }
 
 // AddEternal adds a fact valid for all time.
-func (s *SimpleTemporalStore) AddEternal(atom ast.Atom) (bool, error) {
+func (s *TemporalStore) AddEternal(atom ast.Atom) (bool, error) {
 	return s.Add(atom, ast.EternalInterval())
 }
 
 // GetFactsAt returns facts valid at a specific point in time.
-func (s *SimpleTemporalStore) GetFactsAt(query ast.Atom, t time.Time, fn func(TemporalFact) error) error {
+// Uses interval tree for O(log n + k) query performance.
+func (s *TemporalStore) GetFactsAt(query ast.Atom, t time.Time, fn func(TemporalFact) error) error {
 	predMap, ok := s.facts[query.Predicate]
 	if !ok {
 		return nil
 	}
 
-	for hash, entry := range predMap {
+	timestamp := t.UnixNano()
+
+	for hash, tree := range predMap {
 		atom := s.atoms[hash]
 		if !Matches(query.Args, atom.Args) {
 			continue
 		}
 
-		for _, interval := range entry.intervals {
-			if interval.Contains(t) {
-				if err := fn(TemporalFact{Atom: atom, Interval: interval}); err != nil {
-					return err
-				}
-				// Don't break - report all matching intervals
-			}
+		err := tree.QueryPoint(timestamp, func(interval ast.Interval) error {
+			return fn(TemporalFact{Atom: atom, Interval: interval})
+		})
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
 // GetFactsDuring returns facts that overlap with the given interval.
-func (s *SimpleTemporalStore) GetFactsDuring(query ast.Atom, interval ast.Interval, fn func(TemporalFact) error) error {
+// Uses interval tree for O(log n + k) query performance.
+func (s *TemporalStore) GetFactsDuring(query ast.Atom, interval ast.Interval, fn func(TemporalFact) error) error {
 	predMap, ok := s.facts[query.Predicate]
 	if !ok {
 		return nil
 	}
 
-	for hash, entry := range predMap {
+	start := getStartTime(interval)
+	end := getEndTime(interval)
+
+	for hash, tree := range predMap {
 		atom := s.atoms[hash]
 		if !Matches(query.Args, atom.Args) {
 			continue
 		}
 
-		for _, factInterval := range entry.intervals {
-			if factInterval.Overlaps(interval) {
-				if err := fn(TemporalFact{Atom: atom, Interval: factInterval}); err != nil {
-					return err
-				}
-			}
+		err := tree.QueryRange(start, end, func(factInterval ast.Interval) error {
+			return fn(TemporalFact{Atom: atom, Interval: factInterval})
+		})
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
 // GetAllFacts returns all facts matching the query with their intervals.
-func (s *SimpleTemporalStore) GetAllFacts(query ast.Atom, fn func(TemporalFact) error) error {
+func (s *TemporalStore) GetAllFacts(query ast.Atom, fn func(TemporalFact) error) error {
 	predMap, ok := s.facts[query.Predicate]
 	if !ok {
 		return nil
 	}
 
-	for hash, entry := range predMap {
+	for hash, tree := range predMap {
 		atom := s.atoms[hash]
 		if !Matches(query.Args, atom.Args) {
 			continue
 		}
 
-		for _, interval := range entry.intervals {
-			if err := fn(TemporalFact{Atom: atom, Interval: interval}); err != nil {
-				return err
-			}
+		err := tree.All(func(interval ast.Interval) error {
+			return fn(TemporalFact{Atom: atom, Interval: interval})
+		})
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
 // ContainsAt returns true if the atom is valid at the given time.
-func (s *SimpleTemporalStore) ContainsAt(atom ast.Atom, t time.Time) bool {
+func (s *TemporalStore) ContainsAt(atom ast.Atom, t time.Time) bool {
 	predMap, ok := s.facts[atom.Predicate]
 	if !ok {
 		return false
 	}
 
-	entry, ok := predMap[atom.Hash()]
+	tree, ok := predMap[atom.Hash()]
 	if !ok {
 		return false
 	}
 
-	for _, interval := range entry.intervals {
-		if interval.Contains(t) {
-			return true
-		}
-	}
-	return false
+	found := false
+	timestamp := t.UnixNano()
+	tree.QueryPoint(timestamp, func(interval ast.Interval) error {
+		found = true
+		return nil
+	})
+	return found
 }
 
 // ListPredicates returns all predicates in the store.
-func (s *SimpleTemporalStore) ListPredicates() []ast.PredicateSym {
+func (s *TemporalStore) ListPredicates() []ast.PredicateSym {
 	result := make([]ast.PredicateSym, 0, len(s.facts))
 	for pred := range s.facts {
 		result = append(result, pred)
@@ -272,26 +257,36 @@ func (s *SimpleTemporalStore) ListPredicates() []ast.PredicateSym {
 }
 
 // EstimateFactCount returns the number of temporal facts (atom + interval pairs).
-func (s *SimpleTemporalStore) EstimateFactCount() int {
+func (s *TemporalStore) EstimateFactCount() int {
 	return s.count
 }
 
 // Coalesce merges adjacent or overlapping intervals for the same fact.
 // This helps prevent interval explosion in recursive rules.
-func (s *SimpleTemporalStore) Coalesce(predicate ast.PredicateSym) error {
+func (s *TemporalStore) Coalesce(predicate ast.PredicateSym) error {
 	predMap, ok := s.facts[predicate]
 	if !ok {
 		return nil
 	}
 
-	for hash, entry := range predMap {
-		if len(entry.intervals) <= 1 {
+	for _, tree := range predMap {
+		if tree.Size() <= 1 {
 			continue
 		}
 
-		coalesced := coalesceIntervals(entry.intervals)
-		s.count -= len(entry.intervals) - len(coalesced)
-		predMap[hash].intervals = coalesced
+		// Collect all intervals
+		var intervals []ast.Interval
+		tree.All(func(interval ast.Interval) error {
+			intervals = append(intervals, interval)
+			return nil
+		})
+
+		// Coalesce them
+		coalesced := coalesceIntervals(intervals)
+
+		// Rebuild the tree with coalesced intervals
+		s.count -= len(intervals) - len(coalesced)
+		tree.Rebuild(coalesced)
 	}
 	return nil
 }
@@ -347,7 +342,7 @@ func coalesceIntervals(intervals []ast.Interval) []ast.Interval {
 
 // Merge merges contents of another temporal store into this one.
 // Returns an error if the interval limit is exceeded for any atom.
-func (s *SimpleTemporalStore) Merge(other ReadOnlyTemporalFactStore) error {
+func (s *TemporalStore) Merge(other ReadOnlyTemporalFactStore) error {
 	var mergeErr error
 	for _, pred := range other.ListPredicates() {
 		query := ast.NewQuery(pred)

@@ -141,12 +141,12 @@ func TestIntegration_TemporalOperators(t *testing.T) {
 	}{
 		{
 			name:      "diamond minus operator",
-			program:   "recently_active(X) :- <-[0d, 7d] active(X).",
+			program:   "recently_active(X) :- <-[0s, 168h] active(X).",
 			wantOpType: ast.DiamondMinus,
 		},
 		{
 			name:      "box minus operator",
-			program:   "stable(X) :- [-[0d, 30d] employed(X).",
+			program:   "stable(X) :- [-[0s, 720h] employed(X).",
 			wantOpType: ast.BoxMinus,
 		},
 	}

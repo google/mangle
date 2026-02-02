@@ -866,6 +866,20 @@ func (p Parser) VisitTemporalOperator(ctx *gen.TemporalOperatorContext) any {
 		return nil
 	}
 
+	// Check for negative durations in temporal operator bounds.
+	// The temporal operator determines direction (past/future), not the duration sign.
+	// Negative durations are rejected to avoid confusion.
+	for _, boundCtx := range bounds {
+		if dur := boundCtx.(*gen.TemporalBoundContext).DURATION(); dur != nil {
+			text := dur.GetText()
+			if strings.HasPrefix(text, "-") {
+				p.errors.Add(
+					fmt.Sprintf("negative duration %q not allowed in temporal operator; use the operator type to indicate direction (e.g., <-[...] for past, <+[...] for future)", text),
+					boundCtx.GetStart().GetLine(), boundCtx.GetStart().GetColumn())
+			}
+		}
+	}
+
 	start := p.Visit(bounds[0]).(ast.TemporalBound)
 	end := p.Visit(bounds[1]).(ast.TemporalBound)
 	interval := ast.NewInterval(start, end)
@@ -909,39 +923,13 @@ func parseTimestamp(s string) (time.Time, error) {
 }
 
 // parseDuration parses a duration string like "7d", "24h", "30m", "1s", "500ms".
+// parseDuration parses a Go-style duration string.
+// Supported units: h (hours), m (minutes), s (seconds), ms (milliseconds), us/µs (microseconds), ns (nanoseconds)
+// Examples: "1h30m", "500ms", "2h45m30s"
+// Note: Days ('d') are NOT supported - use hours instead (e.g., "168h" for 7 days).
 func parseDuration(s string) (time.Duration, error) {
-	if len(s) < 2 {
-		return 0, fmt.Errorf("duration too short: %s", s)
+	if s == "" {
+		return 0, fmt.Errorf("empty duration string")
 	}
-
-	// Handle "ms" suffix specially
-	if strings.HasSuffix(s, "ms") {
-		numStr := s[:len(s)-2]
-		num, err := strconv.ParseInt(numStr, 10, 64)
-		if err != nil {
-			return 0, err
-		}
-		return time.Duration(num) * time.Millisecond, nil
-	}
-
-	// Single character suffix
-	suffix := s[len(s)-1]
-	numStr := s[:len(s)-1]
-	num, err := strconv.ParseInt(numStr, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	switch suffix {
-	case 'd':
-		return time.Duration(num) * 24 * time.Hour, nil
-	case 'h':
-		return time.Duration(num) * time.Hour, nil
-	case 'm':
-		return time.Duration(num) * time.Minute, nil
-	case 's':
-		return time.Duration(num) * time.Second, nil
-	default:
-		return 0, fmt.Errorf("unknown duration suffix: %c", suffix)
-	}
+	return time.ParseDuration(s)
 }

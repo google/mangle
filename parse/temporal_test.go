@@ -272,10 +272,9 @@ func TestParseDuration(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "days",
+			name:    "days not supported",
 			input:   "7d",
-			want:    7 * 24 * time.Hour,
-			wantErr: false,
+			wantErr: true, // Go's time.ParseDuration doesn't support days
 		},
 		{
 			name:    "hours",
@@ -335,27 +334,32 @@ func TestParseTemporalOperator(t *testing.T) {
 	}{
 		{
 			name:    "diamond minus with durations",
-			str:     "recently_active(X) :- <-[0d, 7d] active(X).",
+			str:     "recently_active(X) :- <-[0s, 168h] active(X).",
 			wantOp:  ast.DiamondMinus,
 			wantErr: false,
 		},
 		{
 			name:    "box minus with durations",
-			str:     "stable(X) :- [-[0d, 365d] employed(X).",
+			str:     "stable(X) :- [-[0s, 8760h] employed(X).",
 			wantOp:  ast.BoxMinus,
 			wantErr: false,
 		},
 		{
 			name:    "diamond plus with durations",
-			str:     "upcoming(X) :- <+[0d, 7d] scheduled(X).",
+			str:     "upcoming(X) :- <+[0s, 168h] scheduled(X).",
 			wantOp:  ast.DiamondPlus,
 			wantErr: false,
 		},
 		{
 			name:    "box plus with durations",
-			str:     "guaranteed(X) :- [+[0d, 30d] available(X).",
+			str:     "guaranteed(X) :- [+[0s, 720h] available(X).",
 			wantOp:  ast.BoxPlus,
 			wantErr: false,
+		},
+		{
+			name:    "negative duration rejected",
+			str:     "bad(X) :- <-[-30m, 1h] foo(X).",
+			wantErr: true,
 		},
 	}
 

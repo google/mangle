@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/parse"
@@ -1494,6 +1495,64 @@ func TestDurationFromUnits(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			expr := ast.ApplyFn{test.fn, []ast.BaseTerm{test.arg}}
 			got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+			if err != nil {
+				t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+			}
+			if !got.Equals(test.want) {
+				t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, test.want)
+			}
+		})
+	}
+}
+
+func TestDurationParse(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    ast.Constant
+		wantErr bool
+	}{
+		// Basic single-unit durations
+		{"hours", "2h", ast.Duration(2 * int64(time.Hour)), false},
+		{"minutes", "30m", ast.Duration(30 * int64(time.Minute)), false},
+		{"seconds", "45s", ast.Duration(45 * int64(time.Second)), false},
+		{"milliseconds", "500ms", ast.Duration(500 * int64(time.Millisecond)), false},
+		{"microseconds_us", "100us", ast.Duration(100 * int64(time.Microsecond)), false},
+		{"microseconds_µs", "100µs", ast.Duration(100 * int64(time.Microsecond)), false},
+		{"nanoseconds", "1000ns", ast.Duration(1000), false},
+
+		// Combined durations (Go-style)
+		{"hours_minutes", "1h30m", ast.Duration(int64(time.Hour) + 30*int64(time.Minute)), false},
+		{"hours_minutes_seconds", "2h45m30s", ast.Duration(2*int64(time.Hour) + 45*int64(time.Minute) + 30*int64(time.Second)), false},
+		{"minutes_seconds", "5m30s", ast.Duration(5*int64(time.Minute) + 30*int64(time.Second)), false},
+
+		// Decimal values
+		{"decimal_hours", "1.5h", ast.Duration(int64(1.5 * float64(time.Hour))), false},
+		{"decimal_seconds", "2.5s", ast.Duration(int64(2.5 * float64(time.Second))), false},
+
+		// Negative durations
+		{"negative_hours", "-2h", ast.Duration(-2 * int64(time.Hour)), false},
+		{"negative_combined", "-1h30m", ast.Duration(-int64(time.Hour) - 30*int64(time.Minute)), false},
+
+		// Zero
+		{"zero", "0s", ast.Duration(0), false},
+
+		// Error cases
+		{"invalid_unit", "5d", ast.Duration(0), true}, // 'd' (days) not supported by Go
+		{"invalid_format", "abc", ast.Duration(0), true},
+		{"empty_string", "", ast.Duration(0), true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			expr := ast.ApplyFn{symbols.DurationParse, []ast.BaseTerm{ast.String(test.input)}}
+			got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+			if test.wantErr {
+				if err == nil {
+					t.Errorf("EvalApplyFn(%v) expected error, got %v", expr, got)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
 			}

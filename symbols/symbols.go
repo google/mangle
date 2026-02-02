@@ -52,6 +52,24 @@ var (
 	// Ge is the greater-than-or-equal relation on numbers.
 	Ge = ast.PredicateSym{":ge", 2}
 
+	// TimeLt is the less-than relation on time instants.
+	TimeLt = ast.PredicateSym{":time:lt", 2}
+	// TimeLe is the less-than-or-equal relation on time instants.
+	TimeLe = ast.PredicateSym{":time:le", 2}
+	// TimeGt is the greater-than relation on time instants.
+	TimeGt = ast.PredicateSym{":time:gt", 2}
+	// TimeGe is the greater-than-or-equal relation on time instants.
+	TimeGe = ast.PredicateSym{":time:ge", 2}
+
+	// DurationLt is the less-than relation on durations.
+	DurationLt = ast.PredicateSym{":duration:lt", 2}
+	// DurationLe is the less-than-or-equal relation on durations.
+	DurationLe = ast.PredicateSym{":duration:le", 2}
+	// DurationGt is the greater-than relation on durations.
+	DurationGt = ast.PredicateSym{":duration:gt", 2}
+	// DurationGe is the greater-than-or-equal relation on durations.
+	DurationGe = ast.PredicateSym{":duration:ge", 2}
+
 	// MatchPair mode(+, -, -) matches a pair to its elements.
 	MatchPair = ast.PredicateSym{":match_pair", 3}
 
@@ -177,6 +195,66 @@ var (
 	StringConcatenate = ast.FunctionSym{"fn:string:concat", -1}
 	// StringReplace replaces old with new in the first n occurrences of a string.
 	StringReplace = ast.FunctionSym{"fn:string:replace", 4}
+
+	// Time functions
+
+	// TimeNow returns the current time as nanoseconds since Unix epoch.
+	TimeNow = ast.FunctionSym{"fn:time:now", 0}
+	// TimeAdd adds a duration to a time instant: fn:time:add(Time, Duration) -> Time
+	TimeAdd = ast.FunctionSym{"fn:time:add", 2}
+	// TimeSub subtracts two time instants: fn:time:sub(Time1, Time2) -> Duration
+	TimeSub = ast.FunctionSym{"fn:time:sub", 2}
+	// TimeFormat formats a time instant using a pattern: fn:time:format(Time, Pattern) -> String
+	// Pattern uses Go time format (e.g., "2006-01-02T15:04:05Z07:00" for RFC3339)
+	TimeFormat = ast.FunctionSym{"fn:time:format", 2}
+	// TimeFormatCivil formats a time instant in a given timezone: fn:time:format_civil(Time, TimeZone, Pattern) -> String
+	TimeFormatCivil = ast.FunctionSym{"fn:time:format_civil", 3}
+	// TimeParseRFC3339 parses a string into a time instant: fn:time:parse_rfc3339(String) -> Time
+	TimeParseRFC3339 = ast.FunctionSym{"fn:time:parse_rfc3339", 1}
+	// TimeParseCivil parses a civil time string in a given timezone: fn:time:parse_civil(String, TimeZone) -> Time
+	TimeParseCivil = ast.FunctionSym{"fn:time:parse_civil", 2}
+	// TimeYear extracts the year from a time instant.
+	TimeYear = ast.FunctionSym{"fn:time:year", 1}
+	// TimeMonth extracts the month (1-12) from a time instant.
+	TimeMonth = ast.FunctionSym{"fn:time:month", 1}
+	// TimeDay extracts the day of month (1-31) from a time instant.
+	TimeDay = ast.FunctionSym{"fn:time:day", 1}
+	// TimeHour extracts the hour (0-23) from a time instant.
+	TimeHour = ast.FunctionSym{"fn:time:hour", 1}
+	// TimeMinute extracts the minute (0-59) from a time instant.
+	TimeMinute = ast.FunctionSym{"fn:time:minute", 1}
+	// TimeSecond extracts the second (0-59) from a time instant.
+	TimeSecond = ast.FunctionSym{"fn:time:second", 1}
+	// TimeFromUnixNanos converts nanoseconds since epoch to a time instant.
+	TimeFromUnixNanos = ast.FunctionSym{"fn:time:from_unix_nanos", 1}
+	// TimeToUnixNanos converts a time instant to nanoseconds since epoch.
+	TimeToUnixNanos = ast.FunctionSym{"fn:time:to_unix_nanos", 1}
+	// TimeTrunc truncates a time to a given unit.
+	TimeTrunc = ast.FunctionSym{"fn:time:trunc", 2}
+
+	// Duration functions
+
+	// DurationAdd adds two durations: fn:duration:add(D1, D2) -> Duration
+	DurationAdd = ast.FunctionSym{"fn:duration:add", 2}
+	// DurationMult multiplies a duration by a number: fn:duration:mult(Duration, Number) -> Duration
+	DurationMult = ast.FunctionSym{"fn:duration:mult", 2}
+	// DurationHours returns the duration as floating-point hours.
+	DurationHours = ast.FunctionSym{"fn:duration:hours", 1}
+	// DurationMinutes returns the duration as floating-point minutes.
+	DurationMinutes = ast.FunctionSym{"fn:duration:minutes", 1}
+	// DurationSeconds returns the duration as floating-point seconds.
+	DurationSeconds = ast.FunctionSym{"fn:duration:seconds", 1}
+	// DurationNanos returns the duration as nanoseconds (int64).
+	DurationNanos = ast.FunctionSym{"fn:duration:nanos", 1}
+	// DurationFromNanos creates a duration from nanoseconds.
+	DurationFromNanos = ast.FunctionSym{"fn:duration:from_nanos", 1}
+	// DurationFromHours creates a duration from hours.
+	DurationFromHours = ast.FunctionSym{"fn:duration:from_hours", 1}
+	// DurationFromMinutes creates a duration from minutes.
+	DurationFromMinutes = ast.FunctionSym{"fn:duration:from_minutes", 1}
+	// DurationFromSeconds creates a duration from seconds.
+	DurationFromSeconds = ast.FunctionSym{"fn:duration:from_seconds", 1}
+
 	// PairType is a constructor for a pair type.
 	PairType = ast.FunctionSym{"fn:Pair", 2}
 	// TupleType is a type-level function that returns a tuple type out of pair types.
@@ -229,11 +307,21 @@ var (
 		Contains:    NewRelType(ast.StringBound, ast.StringBound),
 		Filter:      NewRelType(BoolType()),
 		// TODO: support float64
-		Lt:       NewRelType(ast.NumberBound, ast.NumberBound),
-		Le:       NewRelType(ast.NumberBound, ast.NumberBound),
-		Gt:       NewRelType(ast.NumberBound, ast.NumberBound),
-		Ge:       NewRelType(ast.NumberBound, ast.NumberBound),
-		MatchNil: NewRelType(NewListType(ast.Variable{"X"})),
+		Lt: NewRelType(ast.NumberBound, ast.NumberBound),
+		Le: NewRelType(ast.NumberBound, ast.NumberBound),
+		Gt: NewRelType(ast.NumberBound, ast.NumberBound),
+		Ge: NewRelType(ast.NumberBound, ast.NumberBound),
+		// Time comparisons
+		TimeLt: NewRelType(ast.TimeBound, ast.TimeBound),
+		TimeLe: NewRelType(ast.TimeBound, ast.TimeBound),
+		TimeGt: NewRelType(ast.TimeBound, ast.TimeBound),
+		TimeGe: NewRelType(ast.TimeBound, ast.TimeBound),
+		// Duration comparisons
+		DurationLt: NewRelType(ast.DurationBound, ast.DurationBound),
+		DurationLe: NewRelType(ast.DurationBound, ast.DurationBound),
+		DurationGt: NewRelType(ast.DurationBound, ast.DurationBound),
+		DurationGe: NewRelType(ast.DurationBound, ast.DurationBound),
+		MatchNil:   NewRelType(NewListType(ast.Variable{"X"})),
 		MatchCons: NewRelType(
 			NewListType(ast.Variable{"X"}), ast.Variable{"X"}, NewListType(ast.Variable{"X"})),
 		MatchPair: NewRelType(
@@ -403,6 +491,10 @@ func hasBaseType(typeExpr ast.Constant, c ast.Constant) bool {
 		return c.Type == ast.NumberType
 	case ast.StringBound:
 		return c.Type == ast.StringType
+	case ast.TimeBound:
+		return c.Type == ast.TimeType
+	case ast.DurationBound:
+		return c.Type == ast.DurationType
 	default:
 		return typeExpr.Type == ast.NameType && c.Type == ast.NameType && strings.HasPrefix(c.Symbol, typeExpr.Symbol+"/")
 	}

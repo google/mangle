@@ -22,6 +22,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/mangle/ast"
 	"github.com/google/mangle/symbols"
@@ -72,6 +73,31 @@ func EvalExprs(args []ast.BaseTerm, subst ast.Subst) ([]ast.Constant, error) {
 		res[i] = c
 	}
 	return res, nil
+}
+
+func getTimeLayout(precision string) (string, error) {
+	switch precision {
+	case "/year":
+		return "2006", nil
+	case "/month":
+		return "2006-01", nil
+	case "/day":
+		return "2006-01-02", nil
+	case "/hour":
+		return "2006-01-02T15Z07:00", nil
+	case "/minute":
+		return "2006-01-02T15:04Z07:00", nil
+	case "/second":
+		return "2006-01-02T15:04:05Z07:00", nil
+	case "/millisecond":
+		return "2006-01-02T15:04:05.000Z07:00", nil
+	case "/microsecond":
+		return "2006-01-02T15:04:05.000000Z07:00", nil
+	case "/nanosecond":
+		return time.RFC3339Nano, nil
+	default:
+		return "", fmt.Errorf("unknown precision %q", precision)
+	}
 }
 
 // EvalApplyFn evaluates a built-in function application.
@@ -457,6 +483,361 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 			return *res, nil
 		}
 		return ast.Constant{}, fmt.Errorf("key does not exist: %v", lookupField)
+
+	// Time functions
+	case symbols.TimeNow.Symbol:
+		return ast.Time(time.Now().UnixNano()), nil
+
+	case symbols.TimeAdd.Symbol:
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("fn:time:add expected 2 arguments, got %d", l)
+		}
+		t, err := evaluatedArgs[0].TimeValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:add first argument must be time: %w", err)
+		}
+		d, err := evaluatedArgs[1].DurationValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:add second argument must be duration: %w", err)
+		}
+		return ast.Time(t + d), nil
+
+	case symbols.TimeSub.Symbol:
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("fn:time:sub expected 2 arguments, got %d", l)
+		}
+		t1, err := evaluatedArgs[0].TimeValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:sub first argument must be time: %w", err)
+		}
+		t2, err := evaluatedArgs[1].TimeValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:sub second argument must be time: %w", err)
+		}
+		return ast.Duration(t1 - t2), nil
+
+	case symbols.TimeFormat.Symbol:
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("fn:time:format expected 2 arguments, got %d", l)
+		}
+		t, err := evaluatedArgs[0].TimeValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:format first argument must be time: %w", err)
+		}
+		precision, err := evaluatedArgs[1].NameValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:format second argument must be a name constant: %w", err)
+		}
+		tm := time.Unix(0, t).UTC()
+
+		pattern, err := getTimeLayout(precision)
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:format %w", err)
+		}
+
+		return ast.String(tm.Format(pattern)), nil
+
+	case symbols.TimeFormatCivil.Symbol:
+		if l := len(evaluatedArgs); l != 3 {
+			return ast.Constant{}, fmt.Errorf("fn:time:format_civil expected 3 arguments, got %d", l)
+		}
+		t, err := evaluatedArgs[0].TimeValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:format_civil first argument must be time: %w", err)
+		}
+		tz, err := evaluatedArgs[1].StringValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:format_civil second argument must be string: %w", err)
+		}
+		precision, err := evaluatedArgs[2].NameValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:format_civil third argument must be name constant: %w", err)
+		}
+
+		loc, err := time.LoadLocation(tz)
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:format_civil unknown timezone %q: %w", tz, err)
+		}
+
+		tm := time.Unix(0, t).In(loc)
+
+		pattern, err := getTimeLayout(precision)
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:format_civil %w", err)
+		}
+
+		return ast.String(tm.Format(pattern)), nil
+
+	case symbols.TimeParseRFC3339.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:time:parse_rfc3339 expected 1 argument, got %d", l)
+		}
+		s, err := evaluatedArgs[0].StringValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:parse_rfc3339 argument must be string: %w", err)
+		}
+		tm, err := time.Parse(time.RFC3339, s)
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:parse_rfc3339 failed: %w", err)
+		}
+		return ast.Time(tm.UTC().UnixNano()), nil
+
+	case symbols.TimeParseCivil.Symbol:
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("fn:time:parse_civil expected 2 arguments, got %d", l)
+		}
+		s, err := evaluatedArgs[0].StringValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:parse_civil first argument must be string: %w", err)
+		}
+		tz, err := evaluatedArgs[1].StringValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:parse_civil second argument must be string: %w", err)
+		}
+		loc, err := time.LoadLocation(tz)
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:parse_civil unknown timezone %q: %w", tz, err)
+		}
+		// Try parsing with nanoseconds first
+		tm, err := time.ParseInLocation("2006-01-02T15:04:05.000000000", s, loc)
+		if err != nil {
+			// Fallback to seconds
+			tm, err = time.ParseInLocation("2006-01-02T15:04:05", s, loc)
+			if err != nil {
+				return ast.Constant{}, fmt.Errorf("fn:time:parse_civil failed: %w", err)
+			}
+		}
+		return ast.Time(tm.UTC().UnixNano()), nil
+
+	case symbols.TimeYear.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:time:year expected 1 argument, got %d", l)
+		}
+		t, err := evaluatedArgs[0].TimeValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:year argument must be time: %w", err)
+		}
+		return ast.Number(int64(time.Unix(0, t).UTC().Year())), nil
+
+	case symbols.TimeMonth.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:time:month expected 1 argument, got %d", l)
+		}
+		t, err := evaluatedArgs[0].TimeValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:month argument must be time: %w", err)
+		}
+		return ast.Number(int64(time.Unix(0, t).UTC().Month())), nil
+
+	case symbols.TimeDay.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:time:day expected 1 argument, got %d", l)
+		}
+		t, err := evaluatedArgs[0].TimeValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:day argument must be time: %w", err)
+		}
+		return ast.Number(int64(time.Unix(0, t).UTC().Day())), nil
+
+	case symbols.TimeHour.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:time:hour expected 1 argument, got %d", l)
+		}
+		t, err := evaluatedArgs[0].TimeValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:hour argument must be time: %w", err)
+		}
+		return ast.Number(int64(time.Unix(0, t).UTC().Hour())), nil
+
+	case symbols.TimeMinute.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:time:minute expected 1 argument, got %d", l)
+		}
+		t, err := evaluatedArgs[0].TimeValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:minute argument must be time: %w", err)
+		}
+		return ast.Number(int64(time.Unix(0, t).UTC().Minute())), nil
+
+	case symbols.TimeSecond.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:time:second expected 1 argument, got %d", l)
+		}
+		t, err := evaluatedArgs[0].TimeValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:second argument must be time: %w", err)
+		}
+		return ast.Number(int64(time.Unix(0, t).UTC().Second())), nil
+
+	case symbols.TimeFromUnixNanos.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:time:from_unix_nanos expected 1 argument, got %d", l)
+		}
+		n, err := evaluatedArgs[0].NumberValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:from_unix_nanos argument must be number: %w", err)
+		}
+		return ast.Time(n), nil
+
+	case symbols.TimeToUnixNanos.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:time:to_unix_nanos expected 1 argument, got %d", l)
+		}
+		t, err := evaluatedArgs[0].TimeValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:to_unix_nanos argument must be time: %w", err)
+		}
+		return ast.Number(t), nil
+
+	case symbols.TimeTrunc.Symbol:
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("fn:time:trunc expected 2 arguments, got %d", l)
+		}
+		t, err := evaluatedArgs[0].TimeValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:trunc first argument must be time: %w", err)
+		}
+		unitName, err := evaluatedArgs[1].NameValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:trunc second argument must be a name constant: %w", err)
+		}
+
+		var d time.Duration
+		switch unitName {
+		case "/hour":
+			d = time.Hour
+		case "/minute":
+			d = time.Minute
+		case "/second":
+			d = time.Second
+		case "/millisecond":
+			d = time.Millisecond
+		case "/microsecond":
+			d = time.Microsecond
+		case "/nanosecond":
+			d = time.Nanosecond
+		default:
+			// "day", "month", "year" are not fixed durations, so Truncate doesn't support them directly in the same way.
+			// However, for "day" we can use 24 * time.Hour if we assume UTC day boundaries.
+			// Let's support /day for convenience, assuming standard 24h days.
+			if unitName == "/day" {
+				d = 24 * time.Hour
+			} else {
+				return ast.Constant{}, fmt.Errorf("fn:time:trunc unknown unit %q", unitName)
+			}
+		}
+
+		tm := time.Unix(0, t).UTC()
+		return ast.Time(tm.Truncate(d).UnixNano()), nil
+
+	// Duration functions
+	case symbols.DurationAdd.Symbol:
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("fn:duration:add expected 2 arguments, got %d", l)
+		}
+		d1, err := evaluatedArgs[0].DurationValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:duration:add first argument must be duration: %w", err)
+		}
+		d2, err := evaluatedArgs[1].DurationValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:duration:add second argument must be duration: %w", err)
+		}
+		return ast.Duration(d1 + d2), nil
+
+	case symbols.DurationMult.Symbol:
+		if l := len(evaluatedArgs); l != 2 {
+			return ast.Constant{}, fmt.Errorf("fn:duration:mult expected 2 arguments, got %d", l)
+		}
+		d, err := evaluatedArgs[0].DurationValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:duration:mult first argument must be duration: %w", err)
+		}
+		n, err := evaluatedArgs[1].NumberValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:duration:mult second argument must be number: %w", err)
+		}
+		return ast.Duration(d * n), nil
+
+	case symbols.DurationHours.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:duration:hours expected 1 argument, got %d", l)
+		}
+		d, err := evaluatedArgs[0].DurationValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:duration:hours argument must be duration: %w", err)
+		}
+		return ast.Float64(time.Duration(d).Hours()), nil
+
+	case symbols.DurationMinutes.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:duration:minutes expected 1 argument, got %d", l)
+		}
+		d, err := evaluatedArgs[0].DurationValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:duration:minutes argument must be duration: %w", err)
+		}
+		return ast.Float64(time.Duration(d).Minutes()), nil
+
+	case symbols.DurationSeconds.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:duration:seconds expected 1 argument, got %d", l)
+		}
+		d, err := evaluatedArgs[0].DurationValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:duration:seconds argument must be duration: %w", err)
+		}
+		return ast.Float64(time.Duration(d).Seconds()), nil
+
+	case symbols.DurationNanos.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:duration:nanos expected 1 argument, got %d", l)
+		}
+		d, err := evaluatedArgs[0].DurationValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:duration:nanos argument must be duration: %w", err)
+		}
+		return ast.Number(d), nil
+
+	case symbols.DurationFromNanos.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:duration:from_nanos expected 1 argument, got %d", l)
+		}
+		n, err := evaluatedArgs[0].NumberValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:duration:from_nanos argument must be number: %w", err)
+		}
+		return ast.Duration(n), nil
+
+	case symbols.DurationFromHours.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:duration:from_hours expected 1 argument, got %d", l)
+		}
+		h, err := valueAsFloat(evaluatedArgs[0])
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:duration:from_hours argument must be number: %w", err)
+		}
+		return ast.Duration(int64(h * float64(time.Hour))), nil
+
+	case symbols.DurationFromMinutes.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:duration:from_minutes expected 1 argument, got %d", l)
+		}
+		m, err := valueAsFloat(evaluatedArgs[0])
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:duration:from_minutes argument must be number: %w", err)
+		}
+		return ast.Duration(int64(m * float64(time.Minute))), nil
+
+	case symbols.DurationFromSeconds.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:duration:from_seconds expected 1 argument, got %d", l)
+		}
+		s, err := valueAsFloat(evaluatedArgs[0])
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:duration:from_seconds argument must be number: %w", err)
+		}
+		return ast.Duration(int64(s * float64(time.Second))), nil
 
 	default:
 		return EvalNumericApplyFn(applyFn, subst)

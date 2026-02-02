@@ -283,7 +283,11 @@ func (sc SimpleColumn) WriteTo(store ReadOnlyFactStore, w io.Writer) error {
 		}
 		if sc.Deterministic {
 			sort.Slice(facts, func(i, j int) bool {
-				return facts[i].Hash() < facts[j].Hash()
+				h1, h2 := facts[i].Hash(), facts[j].Hash()
+				if h1 == h2 {
+					return facts[i].String() < facts[j].String()
+				}
+				return h1 < h2
 			})
 		}
 		for i := 0; i < p.Arity; i++ {

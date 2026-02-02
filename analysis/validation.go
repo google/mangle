@@ -1273,8 +1273,14 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 		switch z.Type {
 		case ast.NumberType:
 			return ast.NumberBound
+		case ast.Float64Type:
+			return ast.Float64Bound
 		case ast.StringType:
 			return ast.StringBound
+		case ast.TimeType:
+			return ast.TimeBound
+		case ast.DurationType:
+			return ast.DurationBound
 		case ast.NameType:
 			// Find a name prefix type, or fall back to /name.
 			return nameTrie.PrefixName(z.Symbol)

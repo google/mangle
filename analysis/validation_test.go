@@ -976,3 +976,42 @@ func TestBoundsAnalyzerWithNamesNegative(t *testing.T) {
 		t.Errorf("BoundsCheck(%v, %v) should have returned error but did not", test.programInfo, test.rulesMap)
 	}
 }
+func TestBoundOfArgTimeDuration(t *testing.T) {
+	// Setup a minimal analyzer/context if needed, or just test boundOfArg directly if possible.
+	// boundOfArg is private, so we need to test it via exported function or be in the same package.
+	// We are in 'analysis' package.
+
+	// Helper to create a dummy name trie
+	nameTrie := symbols.NewNameTrie()
+
+	tests := []struct {
+		name string
+		arg  ast.BaseTerm
+		want ast.BaseTerm
+	}{
+		{
+			name: "Time constant",
+			arg:  ast.Time(123456789),
+			want: ast.TimeBound,
+		},
+		{
+			name: "Duration constant",
+			arg:  ast.Duration(1000),
+			want: ast.DurationBound,
+		},
+		{
+			name: "Float64 constant",
+			arg:  ast.Float64(3.14),
+			want: ast.Float64Bound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := boundOfArg(tt.arg, nil, nameTrie)
+			if !got.Equals(tt.want) {
+				t.Errorf("boundOfArg(%v) = %v, want %v", tt.arg, got, tt.want)
+			}
+		})
+	}
+}

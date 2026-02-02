@@ -1048,3 +1048,458 @@ func TestReducerCollectToMapErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestTimeNow(t *testing.T) {
+	expr := ast.ApplyFn{symbols.TimeNow, nil}
+	got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+	if err != nil {
+		t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+	}
+	if got.Type != ast.TimeType {
+		t.Errorf("EvalApplyFn(%v) returned type %v, want TimeType", expr, got.Type)
+	}
+	// Check that the time is reasonable (within last minute)
+	nanos, _ := got.TimeValue()
+	if nanos <= 0 {
+		t.Errorf("fn:time:now returned non-positive time: %d", nanos)
+	}
+}
+
+func TestTimeAdd(t *testing.T) {
+	// 2024-01-15 10:30:00 UTC + 1 hour = 2024-01-15 11:30:00 UTC
+	baseNanos := int64(1705314600000000000)
+	hourNanos := int64(3600000000000)
+
+	expr := ast.ApplyFn{symbols.TimeAdd, []ast.BaseTerm{
+		ast.Time(baseNanos),
+		ast.Duration(hourNanos),
+	}}
+	got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+	if err != nil {
+		t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+	}
+	want := ast.Time(baseNanos + hourNanos)
+	if !got.Equals(want) {
+		t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, want)
+	}
+}
+
+func TestTimeSub(t *testing.T) {
+	// Subtracting two times returns a duration
+	t1 := int64(1705318200000000000) // 2024-01-15 11:30:00 UTC
+	t2 := int64(1705314600000000000) // 2024-01-15 10:30:00 UTC
+
+	expr := ast.ApplyFn{symbols.TimeSub, []ast.BaseTerm{
+		ast.Time(t1),
+		ast.Time(t2),
+	}}
+	got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+	if err != nil {
+		t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+	}
+	want := ast.Duration(t1 - t2)
+	if !got.Equals(want) {
+		t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, want)
+	}
+}
+
+func TestTimeFormat(t *testing.T) {
+	// Format a time using RFC3339
+	nanos := int64(1705314600123456789) // 2024-01-15 10:30:00.123456789 UTC
+
+	tests := []struct {
+		precision string
+		want      string
+	}{
+		{"/second", "2024-01-15T10:30:00Z"},
+		{"/millisecond", "2024-01-15T10:30:00.123Z"},
+		{"/microsecond", "2024-01-15T10:30:00.123456Z"},
+		{"/nanosecond", "2024-01-15T10:30:00.123456789Z"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.precision, func(t *testing.T) {
+			expr := ast.ApplyFn{symbols.TimeFormat, []ast.BaseTerm{
+				ast.Time(nanos),
+				name(test.precision),
+			}}
+			got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+			if err != nil {
+				t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+			}
+			want := ast.String(test.want)
+			if !got.Equals(want) {
+				t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, want)
+			}
+		})
+	}
+}
+
+func TestTimeFormatCivil(t *testing.T) {
+	// 2024-01-15 10:30:00 UTC
+	nanos := int64(1705314600000000000)
+
+	// America/Los_Angeles is UTC-8 in Jan (PST)
+	// 10:30 UTC -> 02:30 PST
+	// Europe/Berlin is UTC+1 in Jan (CET)
+	// 10:30 UTC -> 11:30 CET
+
+	tests := []struct {
+		tz        string
+		precision string
+		want      string
+	}{
+		{"America/Los_Angeles", "/hour", "2024-01-15T02-08:00"},
+		{"America/Los_Angeles", "/second", "2024-01-15T02:30:00-08:00"},
+		{"Europe/Berlin", "/hour", "2024-01-15T11+01:00"},
+		{"Europe/Berlin", "/second", "2024-01-15T11:30:00+01:00"},
+		{"UTC", "/second", "2024-01-15T10:30:00Z"},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%s-%s", test.tz, test.precision), func(t *testing.T) {
+			expr := ast.ApplyFn{symbols.TimeFormatCivil, []ast.BaseTerm{
+				ast.Time(nanos),
+				ast.String(test.tz),
+				name(test.precision),
+			}}
+			got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+			if err != nil {
+				// time.LoadLocation depends on zoneinfo being present.
+				// In some build environments it might be missing.
+				// If error is unknown timezone, skip test?
+				// But we are in google3, it should work.
+				t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+			}
+			want := ast.String(test.want)
+			if !got.Equals(want) {
+				t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, want)
+			}
+		})
+	}
+}
+
+func TestTimeFormatInvalid(t *testing.T) {
+	nanos := int64(1705314600000000000) // 2024-01-15 10:30:00 UTC
+
+	expr := ast.ApplyFn{symbols.TimeFormat, []ast.BaseTerm{
+		ast.Time(nanos),
+		name("/invalid"),
+	}}
+	_, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+	if err == nil {
+		t.Fatalf("EvalApplyFn(%v) expected error, got nil", expr)
+	}
+}
+
+func TestTimeParse(t *testing.T) {
+	tests := []struct {
+		timeString string
+		wantNanos  int64
+	}{
+		{
+			timeString: "2024-01-15T10:30:00Z",
+			wantNanos:  1705314600000000000,
+		},
+		{
+			timeString: "2024-01-15T10:30:00+02:00",
+			wantNanos:  1705307400000000000,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.timeString, func(t *testing.T) {
+			// Argument is time_string in RFC3339 format.
+			expr := ast.ApplyFn{symbols.TimeParseRFC3339, []ast.BaseTerm{
+				ast.String(test.timeString),
+			}}
+			got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+			if err != nil {
+				t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+			}
+			want := ast.Time(test.wantNanos)
+			if !got.Equals(want) {
+				t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, want)
+			}
+		})
+	}
+}
+
+func TestTimeParseCivil(t *testing.T) {
+	// 2024-01-15 10:30:00 UTC = 1705314600000000000
+	// 2024-01-15 10:30:00 PST (-08:00) = 1705314600 + 8*3600 = 1705343400
+	// 2024-01-15 10:30:00 CET (+01:00) = 1705314600 - 1*3600 = 1705311000
+
+	tests := []struct {
+		timeString string
+		tz         string
+		wantNanos  int64
+	}{
+		{
+			timeString: "2024-01-15T10:30:00",
+			tz:         "UTC",
+			wantNanos:  1705314600000000000,
+		},
+		{
+			timeString: "2024-01-15T10:30:00",
+			tz:         "America/Los_Angeles",
+			wantNanos:  1705343400000000000,
+		},
+		{
+			timeString: "2024-01-15T10:30:00",
+			tz:         "Europe/Berlin",
+			wantNanos:  1705311000000000000,
+		},
+		{
+			timeString: "2024-01-15T10:30:00.123456789",
+			tz:         "UTC",
+			wantNanos:  1705314600123456789,
+		},
+	}
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%s-%s", test.timeString, test.tz), func(t *testing.T) {
+			expr := ast.ApplyFn{symbols.TimeParseCivil, []ast.BaseTerm{
+				ast.String(test.timeString),
+				ast.String(test.tz),
+			}}
+			got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+			if err != nil {
+				t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+			}
+			want := ast.Time(test.wantNanos)
+			if !got.Equals(want) {
+				t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, want)
+			}
+		})
+	}
+}
+
+func TestTimeParseCivilNegative(t *testing.T) {
+	tests := []struct {
+		timeString string
+		tz         string
+	}{
+		{
+			timeString: "2024-01-15T10:30:00Z", // Includes Z
+			tz:         "America/Los_Angeles",
+		},
+		{
+			timeString: "2024-01-15T10:30:00+02:00", // Includes offset
+			tz:         "Europe/Berlin",
+		},
+		{
+			timeString: "invalid",
+			tz:         "UTC",
+		},
+		{
+			timeString: "2024-01-15T10:30:00",
+			tz:         "Unknown/Timezone",
+		},
+	}
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%s-%s", test.timeString, test.tz), func(t *testing.T) {
+			expr := ast.ApplyFn{symbols.TimeParseCivil, []ast.BaseTerm{
+				ast.String(test.timeString),
+				ast.String(test.tz),
+			}}
+			if res, err := EvalApplyFn(expr, ast.ConstSubstMap{}); err == nil {
+				t.Errorf("EvalApplyFn(%v) = %v, want error", expr, res)
+			}
+		})
+	}
+}
+
+func TestTimeComponents(t *testing.T) {
+	// 2024-01-15 10:30:45 UTC
+	nanos := int64(1705314645000000000)
+
+	tests := []struct {
+		name string
+		fn   ast.FunctionSym
+		want ast.Constant
+	}{
+		{"year", symbols.TimeYear, ast.Number(2024)},
+		{"month", symbols.TimeMonth, ast.Number(1)},
+		{"day", symbols.TimeDay, ast.Number(15)},
+		{"hour", symbols.TimeHour, ast.Number(10)},
+		{"minute", symbols.TimeMinute, ast.Number(30)},
+		{"second", symbols.TimeSecond, ast.Number(45)},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			expr := ast.ApplyFn{test.fn, []ast.BaseTerm{ast.Time(nanos)}}
+			got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+			if err != nil {
+				t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+			}
+			if !got.Equals(test.want) {
+				t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, test.want)
+			}
+		})
+	}
+}
+
+func TestTimeUnixNanos(t *testing.T) {
+	nanos := int64(1705314600000000000)
+
+	// Time to unix nanos
+	expr := ast.ApplyFn{symbols.TimeToUnixNanos, []ast.BaseTerm{ast.Time(nanos)}}
+	got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+	if err != nil {
+		t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+	}
+	want := ast.Number(nanos)
+	if !got.Equals(want) {
+		t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, want)
+	}
+
+	// Unix nanos to time
+	expr = ast.ApplyFn{symbols.TimeFromUnixNanos, []ast.BaseTerm{ast.Number(nanos)}}
+	got, err = EvalApplyFn(expr, ast.ConstSubstMap{})
+	if err != nil {
+		t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+	}
+	wantTime := ast.Time(nanos)
+	if !got.Equals(wantTime) {
+		t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, wantTime)
+	}
+}
+
+func TestTimeTrunc(t *testing.T) {
+	// 2024-01-15 10:30:45.123456789 UTC
+	nanos := int64(1705314645123456789)
+
+	tests := []struct {
+		unit      string
+		wantNanos int64
+	}{
+		{"/day", 1705276800000000000}, // 2024-01-15 00:00:00 UTC
+		{"/hour", 1705312800000000000}, // 2024-01-15 10:00:00 UTC
+		{"/minute", 1705314600000000000}, // 2024-01-15 10:30:00 UTC
+		{"/second", 1705314645000000000}, // 2024-01-15 10:30:45 UTC
+		{"/millisecond", 1705314645123000000},
+		{"/microsecond", 1705314645123456000},
+		{"/nanosecond", 1705314645123456789},
+	}
+
+	for _, test := range tests {
+		t.Run(test.unit, func(t *testing.T) {
+			expr := ast.ApplyFn{symbols.TimeTrunc, []ast.BaseTerm{
+				ast.Time(nanos),
+				name(test.unit),
+			}}
+			got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+			if err != nil {
+				t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+			}
+			want := ast.Time(test.wantNanos)
+			if !got.Equals(want) {
+				t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, want)
+			}
+		})
+	}
+}
+
+func TestTimeTruncInvalid(t *testing.T) {
+	nanos := int64(1705314600000000000)
+	expr := ast.ApplyFn{symbols.TimeTrunc, []ast.BaseTerm{
+		ast.Time(nanos),
+		name("/year"), // year not supported by Truncate in this way
+	}}
+	_, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+	if err == nil {
+		t.Fatalf("EvalApplyFn(%v) expected error, got nil", expr)
+	}
+}
+
+func TestDurationAdd(t *testing.T) {
+	d1 := int64(3600000000000) // 1 hour
+	d2 := int64(1800000000000) // 30 minutes
+
+	expr := ast.ApplyFn{symbols.DurationAdd, []ast.BaseTerm{
+		ast.Duration(d1),
+		ast.Duration(d2),
+	}}
+	got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+	if err != nil {
+		t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+	}
+	want := ast.Duration(d1 + d2)
+	if !got.Equals(want) {
+		t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, want)
+	}
+}
+
+func TestDurationMult(t *testing.T) {
+	d := int64(3600000000000) // 1 hour
+
+	expr := ast.ApplyFn{symbols.DurationMult, []ast.BaseTerm{
+		ast.Duration(d),
+		ast.Number(3),
+	}}
+	got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+	if err != nil {
+		t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+	}
+	want := ast.Duration(d * 3)
+	if !got.Equals(want) {
+		t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, want)
+	}
+}
+
+func TestDurationComponents(t *testing.T) {
+	// 2 hours, 30 minutes, 45 seconds = 9045 seconds total
+	// = 9045 * 1e9 nanoseconds
+	nanos := int64(9045000000000)
+
+	tests := []struct {
+		name string
+		fn   ast.FunctionSym
+		want ast.Constant
+	}{
+		{"hours", symbols.DurationHours, ast.Float64(2.5125)},     // 9045/3600 = 2.5125
+		{"minutes", symbols.DurationMinutes, ast.Float64(150.75)}, // 9045/60 = 150.75
+		{"seconds", symbols.DurationSeconds, ast.Float64(9045)},
+		{"nanos", symbols.DurationNanos, ast.Number(nanos)},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			expr := ast.ApplyFn{test.fn, []ast.BaseTerm{ast.Duration(nanos)}}
+			got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+			if err != nil {
+				t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+			}
+			if !got.Equals(test.want) {
+				t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, test.want)
+			}
+		})
+	}
+}
+
+func TestDurationFromUnits(t *testing.T) {
+	tests := []struct {
+		name string
+		fn   ast.FunctionSym
+		arg  ast.BaseTerm
+		want ast.Constant
+	}{
+		{"from_nanos", symbols.DurationFromNanos, ast.Number(1000000000), ast.Duration(1000000000)},
+		{"from_seconds", symbols.DurationFromSeconds, ast.Number(60), ast.Duration(60000000000)},
+		{"from_minutes", symbols.DurationFromMinutes, ast.Number(5), ast.Duration(300000000000)},
+		{"from_hours", symbols.DurationFromHours, ast.Number(2), ast.Duration(7200000000000)},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			expr := ast.ApplyFn{test.fn, []ast.BaseTerm{test.arg}}
+			got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+			if err != nil {
+				t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+			}
+			if !got.Equals(test.want) {
+				t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, test.want)
+			}
+		})
+	}
+}

@@ -673,3 +673,214 @@ func TestModeCheck(t *testing.T) {
 		}
 	}
 }
+
+func TestTimeConstant(t *testing.T) {
+	// Unix epoch
+	epoch := Time(0)
+	v, err := epoch.TimeValue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v != 0 {
+		t.Errorf("Time(0).TimeValue() = %d, want 0", v)
+	}
+
+	// Specific timestamp: 2024-01-15 10:30:00 UTC
+	// = 1705315800 seconds * 1e9 nanoseconds
+	nanos := int64(1705315800) * int64(1e9)
+	ts := Time(nanos)
+	v, err = ts.TimeValue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v != nanos {
+		t.Errorf("Time(%d).TimeValue() = %d, want %d", nanos, v, nanos)
+	}
+
+	// Negative time (before Unix epoch)
+	negNanos := int64(-1000000000) // 1 second before epoch
+	negTs := Time(negNanos)
+	v, err = negTs.TimeValue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v != negNanos {
+		t.Errorf("Time(%d).TimeValue() = %d, want %d", negNanos, v, negNanos)
+	}
+}
+
+func TestTimeConstantEquality(t *testing.T) {
+	t1 := Time(1705315800000000000)
+	t2 := Time(1705315800000000000)
+	t3 := Time(1705315801000000000)
+
+	if !t1.Equals(t2) {
+		t.Errorf("Time constants with same value should be equal")
+	}
+	if t1.Equals(t3) {
+		t.Errorf("Time constants with different values should not be equal")
+	}
+	// Time should not equal Number with same numeric value
+	n := Number(1705315800000000000)
+	if t1.Equals(n) {
+		t.Errorf("Time constant should not equal Number constant")
+	}
+	// Time should not equal *Number with same numeric value
+	if t1.Equals(&n) {
+		t.Errorf("Time constant should not equal pointer to Number constant")
+	}
+}
+
+func TestTimeConstantString(t *testing.T) {
+	// Unix epoch
+	epoch := Time(0)
+	str := epoch.String()
+	if str != "1970-01-01T00:00:00Z" {
+		t.Errorf("Time(0).String() = %q, want %q", str, "1970-01-01T00:00:00Z")
+	}
+
+	// Time with nanoseconds: 2024-01-15T10:30:00.123456789Z
+	nanos := int64(1705314600123456789)
+	ts := Time(nanos)
+	str = ts.String()
+	expected := "2024-01-15T10:30:00.123456789Z"
+	if str != expected {
+		t.Errorf("Time(%d).String() = %q, want %q", nanos, str, expected)
+	}
+}
+
+func TestTimeValueError(t *testing.T) {
+	// TimeValue should fail on non-time constants
+	n := Number(42)
+	_, err := n.TimeValue()
+	if err == nil {
+		t.Error("TimeValue() on Number should return error")
+	}
+
+	s := String("2024-01-15T10:30:00Z")
+	_, err = s.TimeValue()
+	if err == nil {
+		t.Error("TimeValue() on String should return error")
+	}
+}
+
+func TestDurationConstant(t *testing.T) {
+	// Zero duration
+	zero := Duration(0)
+	v, err := zero.DurationValue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v != 0 {
+		t.Errorf("Duration(0).DurationValue() = %d, want 0", v)
+	}
+
+	// 1 hour = 3600 * 1e9 nanoseconds
+	hourNanos := int64(3600) * int64(1e9)
+	hour := Duration(hourNanos)
+	v, err = hour.DurationValue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v != hourNanos {
+		t.Errorf("Duration(%d).DurationValue() = %d, want %d", hourNanos, v, hourNanos)
+	}
+
+	// Negative duration
+	negDur := Duration(-1000000000)
+	v, err = negDur.DurationValue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v != -1000000000 {
+		t.Errorf("Duration(-1000000000).DurationValue() = %d, want -1000000000", v)
+	}
+}
+
+func TestDurationConstantEquality(t *testing.T) {
+	d1 := Duration(3600000000000) // 1 hour
+	d2 := Duration(3600000000000)
+	d3 := Duration(7200000000000) // 2 hours
+
+	if !d1.Equals(d2) {
+		t.Errorf("Duration constants with same value should be equal")
+	}
+	if d1.Equals(d3) {
+		t.Errorf("Duration constants with different values should not be equal")
+	}
+	// Duration should not equal Number or Time with same numeric value
+	n := Number(3600000000000)
+	if d1.Equals(n) {
+		t.Errorf("Duration constant should not equal Number constant")
+	}
+	ts := Time(3600000000000)
+	if d1.Equals(ts) {
+		t.Errorf("Duration constant should not equal Time constant")
+	}
+}
+
+func TestDurationConstantString(t *testing.T) {
+	tests := []struct {
+		nanos int64
+		want  string
+	}{
+		{0, "0s"},
+		{1000000000, "1s"},         // 1 second
+		{60000000000, "1m0s"},      // 1 minute
+		{3600000000000, "1h0m0s"},  // 1 hour
+		{5400000000000, "1h30m0s"}, // 1.5 hours
+		{-1000000000, "-1s"},       // negative 1 second
+		{1500000, "1.5ms"},         // 1.5 milliseconds
+		{1500, "1.5µs"},            // 1.5 microseconds
+		{150, "150ns"},             // 150 nanoseconds
+	}
+	for _, test := range tests {
+		d := Duration(test.nanos)
+		got := d.String()
+		if got != test.want {
+			t.Errorf("Duration(%d).String() = %q, want %q", test.nanos, got, test.want)
+		}
+	}
+}
+
+func TestDurationValueError(t *testing.T) {
+	// DurationValue should fail on non-duration constants
+	n := Number(42)
+	_, err := n.DurationValue()
+	if err == nil {
+		t.Error("DurationValue() on Number should return error")
+	}
+
+	ts := Time(1705315800000000000)
+	_, err = ts.DurationValue()
+	if err == nil {
+		t.Error("DurationValue() on Time should return error")
+	}
+}
+
+func TestTimeDurationHash(t *testing.T) {
+	// Same values should have same hash
+	t1 := Time(1705314600000000000)
+	t2 := Time(1705314600000000000)
+	if t1.Hash() != t2.Hash() {
+		t.Errorf("Time constants with same value should have same hash")
+	}
+
+	d1 := Duration(3600000000000)
+	d2 := Duration(3600000000000)
+	if d1.Hash() != d2.Hash() {
+		t.Errorf("Duration constants with same value should have same hash")
+	}
+
+	// Different time values should have different hash
+	t3 := Time(1705314601000000000)
+	if t1.Hash() == t3.Hash() {
+		t.Errorf("Time constants with different values should have different hash")
+	}
+
+	// Different duration values should have different hash
+	d3 := Duration(7200000000000)
+	if d1.Hash() == d3.Hash() {
+		t.Errorf("Duration constants with different values should have different hash")
+	}
+}

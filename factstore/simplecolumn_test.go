@@ -57,19 +57,19 @@ qaz 3 2
 "\n/bar"
 /zzz
 /g
-[/abc]
 /t
 /r
+[/abc]
 [/abc, /def]
 3
-4
 2
 1
+4
 5
 /h
-/def
 "\u{01f624}"
 /z
+/def
 /def
 [/def : 345, /abc : 123]
 {/def : 678, /abc : 456}

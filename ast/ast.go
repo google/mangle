@@ -25,6 +25,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // AnyBound is a type expression that has all values as elements.
@@ -48,6 +49,12 @@ var BytesBound Constant
 // NumberBound is a type expression that has all numbers as elements.
 var NumberBound Constant
 
+// TimeBound is a type expression that has all time instants as elements.
+var TimeBound Constant
+
+// DurationBound is a type expression that has all durations as elements.
+var DurationBound Constant
+
 // TruePredicate is a predicate symbol to represent an
 // "unconditionally true" proposition.
 var TruePredicate = PredicateSym{"true", 0}
@@ -70,6 +77,8 @@ func init() {
 	NumberBound, _ = Name("/number")
 	StringBound, _ = Name("/string")
 	BytesBound, _ = Name("/bytes")
+	TimeBound, _ = Name("/time")
+	DurationBound, _ = Name("/duration")
 	TrueConstant, _ = Name("/true")
 	FalseConstant, _ = Name("/false")
 }
@@ -82,6 +91,20 @@ func FormatNumber(num int64) string {
 // FormatFloat64 turns a float64 constant into a string.
 func FormatFloat64(floatNum float64) string {
 	return strconv.FormatFloat(floatNum, 'f', -1, 64)
+}
+
+// FormatTime formats a time instant (nanoseconds since Unix epoch) as an ISO 8601 string.
+func FormatTime(nanos int64) string {
+	t := time.Unix(0, nanos).UTC()
+	return t.Format(time.RFC3339Nano)
+}
+
+// FormatDuration formats a duration (nanoseconds) as a human-readable string.
+// Uses the most appropriate unit: ns, us, ms, s, m, h, or combinations.
+func FormatDuration(nanos int64) string {
+	d := time.Duration(nanos)
+	// Use Go's standard duration formatting for precision
+	return d.String()
 }
 
 // Term represents the building blocks of datalog programs, namely constants, variables, atoms,
@@ -212,6 +235,10 @@ const (
 	NumberType
 	// Float64Type is the type of float64 constants.
 	Float64Type
+	// TimeType is the type of time instant constants (nanoseconds since Unix epoch UTC).
+	TimeType
+	// DurationType is the type of duration constants (nanoseconds).
+	DurationType
 	// PairShape indicates that the constant is a pair.
 	PairShape
 	// ListShape indicates that the constant is a list.
@@ -290,6 +317,18 @@ func Number(num int64) Constant {
 // Float64 constructs a constant symbol that contains a float64.
 func Float64(floatNum float64) Constant {
 	return Constant{Float64Type, "", int64(math.Float64bits(floatNum)), nil, nil}
+}
+
+// Time constructs a time instant constant from nanoseconds since Unix epoch (1970-01-01 00:00:00 UTC).
+// The valid range is approximately 1678 to 2262 CE.
+func Time(nanos int64) Constant {
+	return Constant{TimeType, "", nanos, nil, nil}
+}
+
+// Duration constructs a duration constant from nanoseconds.
+// Positive values represent forward durations, negative values represent backward durations.
+func Duration(nanos int64) Constant {
+	return Constant{DurationType, "", nanos, nil, nil}
 }
 
 // Pair constructs a pair constant. Parts can only be accessed in transforms.
@@ -420,6 +459,22 @@ func (c Constant) Float64Value() (float64, error) {
 	return math.Float64frombits(uint64(c.NumValue)), nil
 }
 
+// TimeValue returns the time value (nanoseconds since Unix epoch) of this constant.
+func (c Constant) TimeValue() (int64, error) {
+	if c.Type != TimeType {
+		return 0, fmt.Errorf("not a time constant %v", c)
+	}
+	return c.NumValue, nil
+}
+
+// DurationValue returns the duration value (nanoseconds) of this constant.
+func (c Constant) DurationValue() (int64, error) {
+	if c.Type != DurationType {
+		return 0, fmt.Errorf("not a duration constant %v", c)
+	}
+	return c.NumValue, nil
+}
+
 // PairValue returns the two constants that make up this pair.
 func (c Constant) PairValue() (Constant, Constant, error) {
 	if c.Type != PairShape {
@@ -524,6 +579,10 @@ func (c Constant) String() string {
 		return FormatNumber(c.NumValue)
 	case Float64Type:
 		return FormatFloat64(math.Float64frombits(uint64(c.NumValue)))
+	case TimeType:
+		return FormatTime(c.NumValue)
+	case DurationType:
+		return FormatDuration(c.NumValue)
 	case PairShape:
 		fst := *c.fst
 		snd := *c.snd
@@ -602,6 +661,10 @@ func (c Constant) DisplayString() string {
 		return FormatNumber(c.NumValue)
 	case Float64Type:
 		return FormatFloat64(math.Float64frombits(uint64(c.NumValue)))
+	case TimeType:
+		return FormatTime(c.NumValue)
+	case DurationType:
+		return FormatDuration(c.NumValue)
 	case PairShape:
 		fst := *c.fst
 		snd := *c.snd
@@ -684,10 +747,12 @@ func (c Constant) Equals(u Term) bool {
 	var uconst Constant
 	if v, ok := u.(*Constant); ok {
 		uconst = *v
-	} else if uconst, ok = u.(Constant); !ok || c.Type != uconst.Type {
+	} else if v, ok := u.(Constant); ok {
+		uconst = v
+	} else {
 		return false
 	}
-	if c.NumValue != uconst.NumValue {
+	if c.Type != uconst.Type || c.NumValue != uconst.NumValue {
 		return false
 	}
 	// At this point, we know that constants have the same hash.
@@ -701,6 +766,10 @@ func (c Constant) Equals(u Term) bool {
 	case NumberType:
 		fallthrough
 	case Float64Type:
+		fallthrough
+	case TimeType:
+		fallthrough
+	case DurationType:
 		return true
 	case PairShape:
 		return c.fst.Equals(uconst.fst) && c.snd.Equals(uconst.snd)

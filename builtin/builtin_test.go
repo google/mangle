@@ -609,6 +609,225 @@ func evAtom(s string) ast.Atom {
 	return eval
 }
 
+func TestTimeLessThan(t *testing.T) {
+	t1 := ast.Time(1705314600000000000) // Earlier
+	t2 := ast.Time(1705314601000000000) // 1 second later
+
+	tests := []struct {
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
+	}{
+		{t1, t2, true},  // earlier < later
+		{t2, t1, false}, // later < earlier
+		{t1, t1, false}, // same time
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":time:lt", test.left, test.right)
+		got, nsubst, err := Decide(atom, &emptySubst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(nsubst) != 1 || nsubst[0] != &emptySubst {
+			t.Errorf("TimeLt: expected same subst %v %v %v", atom, nsubst, &emptySubst)
+		}
+		if got != test.want {
+			t.Errorf("TimeLt: for atom %v got %v want %v.", atom, got, test.want)
+		}
+	}
+}
+
+func TestTimeLessThanOrEqual(t *testing.T) {
+	t1 := ast.Time(1705314600000000000)
+	t2 := ast.Time(1705314601000000000)
+
+	tests := []struct {
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
+	}{
+		{t1, t2, true},  // earlier <= later
+		{t2, t1, false}, // later <= earlier
+		{t1, t1, true},  // same time
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":time:le", test.left, test.right)
+		got, _, err := Decide(atom, &emptySubst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("TimeLe: for atom %v got %v want %v.", atom, got, test.want)
+		}
+	}
+}
+
+func TestTimeGreaterThan(t *testing.T) {
+	t1 := ast.Time(1705314600000000000)
+	t2 := ast.Time(1705314601000000000)
+
+	tests := []struct {
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
+	}{
+		{t2, t1, true},  // later > earlier
+		{t1, t2, false}, // earlier > later
+		{t1, t1, false}, // same time
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":time:gt", test.left, test.right)
+		got, _, err := Decide(atom, &emptySubst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("TimeGt: for atom %v got %v want %v.", atom, got, test.want)
+		}
+	}
+}
+
+func TestTimeGreaterThanOrEqual(t *testing.T) {
+	t1 := ast.Time(1705314600000000000)
+	t2 := ast.Time(1705314601000000000)
+
+	tests := []struct {
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
+	}{
+		{t2, t1, true},  // later >= earlier
+		{t1, t2, false}, // earlier >= later
+		{t1, t1, true},  // same time
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":time:ge", test.left, test.right)
+		got, _, err := Decide(atom, &emptySubst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("TimeGe: for atom %v got %v want %v.", atom, got, test.want)
+		}
+	}
+}
+
+func TestTimeComparisonError(t *testing.T) {
+	// Should fail when comparing time with non-time
+	atom := ast.NewAtom(":time:lt", ast.Time(1705314600000000000), ast.Number(1705314601000000000))
+	if got, _, err := Decide(atom, &emptySubst); err == nil {
+		t.Errorf("Decide(%v) = %v want error", atom, got)
+	}
+}
+
+func TestDurationLessThan(t *testing.T) {
+	d1 := ast.Duration(3600000000000) // 1 hour
+	d2 := ast.Duration(7200000000000) // 2 hours
+
+	tests := []struct {
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
+	}{
+		{d1, d2, true},  // shorter < longer
+		{d2, d1, false}, // longer < shorter
+		{d1, d1, false}, // same duration
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":duration:lt", test.left, test.right)
+		got, _, err := Decide(atom, &emptySubst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("DurationLt: for atom %v got %v want %v.", atom, got, test.want)
+		}
+	}
+}
+
+func TestDurationLessThanOrEqual(t *testing.T) {
+	d1 := ast.Duration(3600000000000)
+	d2 := ast.Duration(7200000000000)
+
+	tests := []struct {
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
+	}{
+		{d1, d2, true},
+		{d2, d1, false},
+		{d1, d1, true},
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":duration:le", test.left, test.right)
+		got, _, err := Decide(atom, &emptySubst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("DurationLe: for atom %v got %v want %v.", atom, got, test.want)
+		}
+	}
+}
+
+func TestDurationGreaterThan(t *testing.T) {
+	d1 := ast.Duration(3600000000000)
+	d2 := ast.Duration(7200000000000)
+
+	tests := []struct {
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
+	}{
+		{d2, d1, true},
+		{d1, d2, false},
+		{d1, d1, false},
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":duration:gt", test.left, test.right)
+		got, _, err := Decide(atom, &emptySubst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("DurationGt: for atom %v got %v want %v.", atom, got, test.want)
+		}
+	}
+}
+
+func TestDurationGreaterThanOrEqual(t *testing.T) {
+	d1 := ast.Duration(3600000000000)
+	d2 := ast.Duration(7200000000000)
+
+	tests := []struct {
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
+	}{
+		{d2, d1, true},
+		{d1, d2, false},
+		{d1, d1, true},
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":duration:ge", test.left, test.right)
+		got, _, err := Decide(atom, &emptySubst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("DurationGe: for atom %v got %v want %v.", atom, got, test.want)
+		}
+	}
+}
+
+func TestDurationComparisonError(t *testing.T) {
+	// Should fail when comparing duration with non-duration
+	atom := ast.NewAtom(":duration:lt", ast.Duration(3600000000000), ast.Number(7200000000000))
+	if got, _, err := Decide(atom, &emptySubst); err == nil {
+		t.Errorf("Decide(%v) = %v want error", atom, got)
+	}
+}
+
 func TestExpand(t *testing.T) {
 	tests := []struct {
 		atom      ast.Atom

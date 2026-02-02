@@ -39,6 +39,14 @@ var (
 		symbols.Le:             {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Gt:             {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Ge:             {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.TimeLt:         {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.TimeLe:         {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.TimeGt:         {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.TimeGe:         {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.DurationLt:     {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.DurationLe:     {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.DurationGt:     {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.DurationGe:     {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.ListMember:     {ast.ArgModeOutput, ast.ArgModeInput},
 		symbols.WithinDistance: {ast.ArgModeInput, ast.ArgModeInput, ast.ArgModeInput},
 		symbols.MatchPair:      {ast.ArgModeInput, ast.ArgModeOutput, ast.ArgModeOutput},
@@ -95,6 +103,36 @@ var (
 		symbols.Map:    emptyType,
 		symbols.Tuple:  emptyType,
 		symbols.Struct: emptyType,
+
+		// Time functions
+		symbols.TimeNow:           symbols.NewFunType(ast.TimeBound /* <= */),
+		symbols.TimeAdd:           symbols.NewFunType(ast.TimeBound /* <= */, ast.TimeBound, ast.DurationBound),
+		symbols.TimeSub:           symbols.NewFunType(ast.DurationBound /* <= */, ast.TimeBound, ast.TimeBound),
+		symbols.TimeFormat:        symbols.NewFunType(ast.StringBound /* <= */, ast.TimeBound, ast.StringBound),
+		symbols.TimeFormatCivil:   symbols.NewFunType(ast.StringBound /* <= */, ast.TimeBound, ast.StringBound, ast.NameBound),
+		symbols.TimeParseRFC3339:  symbols.NewFunType(ast.TimeBound /* <= */, ast.StringBound),
+		symbols.TimeParseCivil:    symbols.NewFunType(ast.TimeBound /* <= */, ast.StringBound, ast.StringBound),
+		symbols.TimeYear:          symbols.NewFunType(ast.NumberBound /* <= */, ast.TimeBound),
+		symbols.TimeMonth:         symbols.NewFunType(ast.NumberBound /* <= */, ast.TimeBound),
+		symbols.TimeDay:           symbols.NewFunType(ast.NumberBound /* <= */, ast.TimeBound),
+		symbols.TimeHour:          symbols.NewFunType(ast.NumberBound /* <= */, ast.TimeBound),
+		symbols.TimeMinute:        symbols.NewFunType(ast.NumberBound /* <= */, ast.TimeBound),
+		symbols.TimeSecond:        symbols.NewFunType(ast.NumberBound /* <= */, ast.TimeBound),
+		symbols.TimeFromUnixNanos: symbols.NewFunType(ast.TimeBound /* <= */, ast.NumberBound),
+		symbols.TimeToUnixNanos:   symbols.NewFunType(ast.NumberBound /* <= */, ast.TimeBound),
+		symbols.TimeTrunc:         symbols.NewFunType(ast.TimeBound /* <= */, ast.TimeBound, ast.NameBound),
+
+		// Duration functions
+		symbols.DurationAdd:         symbols.NewFunType(ast.DurationBound /* <= */, ast.DurationBound, ast.DurationBound),
+		symbols.DurationMult:        symbols.NewFunType(ast.DurationBound /* <= */, ast.DurationBound, ast.NumberBound),
+		symbols.DurationHours:       symbols.NewFunType(ast.Float64Bound /* <= */, ast.DurationBound),
+		symbols.DurationMinutes:     symbols.NewFunType(ast.Float64Bound /* <= */, ast.DurationBound),
+		symbols.DurationSeconds:     symbols.NewFunType(ast.Float64Bound /* <= */, ast.DurationBound),
+		symbols.DurationNanos:       symbols.NewFunType(ast.NumberBound /* <= */, ast.DurationBound),
+		symbols.DurationFromNanos:   symbols.NewFunType(ast.DurationBound /* <= */, ast.NumberBound),
+		symbols.DurationFromHours:   symbols.NewFunType(ast.DurationBound /* <= */, ast.Float64Bound),
+		symbols.DurationFromMinutes: symbols.NewFunType(ast.DurationBound /* <= */, ast.Float64Bound),
+		symbols.DurationFromSeconds: symbols.NewFunType(ast.DurationBound /* <= */, ast.Float64Bound),
 	}
 
 	// ReducerFunctions has those built-in functions with are reducers.
@@ -238,6 +276,82 @@ func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, []*unionfind.Union
 			return false, nil, err
 		}
 		return nums[0] >= nums[1], []*unionfind.UnionFind{subst}, nil
+
+	// Time comparisons
+	case symbols.TimeLt.Symbol:
+		if len(atom.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':time:lt': %v", atom.Args)
+		}
+		times, err := getTimeValues(atom.Args)
+		if err != nil {
+			return false, nil, err
+		}
+		return times[0] < times[1], []*unionfind.UnionFind{subst}, nil
+	case symbols.TimeLe.Symbol:
+		if len(atom.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':time:le': %v", atom.Args)
+		}
+		times, err := getTimeValues(atom.Args)
+		if err != nil {
+			return false, nil, err
+		}
+		return times[0] <= times[1], []*unionfind.UnionFind{subst}, nil
+	case symbols.TimeGt.Symbol:
+		if len(atom.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':time:gt': %v", atom.Args)
+		}
+		times, err := getTimeValues(atom.Args)
+		if err != nil {
+			return false, nil, err
+		}
+		return times[0] > times[1], []*unionfind.UnionFind{subst}, nil
+	case symbols.TimeGe.Symbol:
+		if len(atom.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':time:ge': %v", atom.Args)
+		}
+		times, err := getTimeValues(atom.Args)
+		if err != nil {
+			return false, nil, err
+		}
+		return times[0] >= times[1], []*unionfind.UnionFind{subst}, nil
+
+	// Duration comparisons
+	case symbols.DurationLt.Symbol:
+		if len(atom.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':duration:lt': %v", atom.Args)
+		}
+		durations, err := getDurationValues(atom.Args)
+		if err != nil {
+			return false, nil, err
+		}
+		return durations[0] < durations[1], []*unionfind.UnionFind{subst}, nil
+	case symbols.DurationLe.Symbol:
+		if len(atom.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':duration:le': %v", atom.Args)
+		}
+		durations, err := getDurationValues(atom.Args)
+		if err != nil {
+			return false, nil, err
+		}
+		return durations[0] <= durations[1], []*unionfind.UnionFind{subst}, nil
+	case symbols.DurationGt.Symbol:
+		if len(atom.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':duration:gt': %v", atom.Args)
+		}
+		durations, err := getDurationValues(atom.Args)
+		if err != nil {
+			return false, nil, err
+		}
+		return durations[0] > durations[1], []*unionfind.UnionFind{subst}, nil
+	case symbols.DurationGe.Symbol:
+		if len(atom.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':duration:ge': %v", atom.Args)
+		}
+		durations, err := getDurationValues(atom.Args)
+		if err != nil {
+			return false, nil, err
+		}
+		return durations[0] >= durations[1], []*unionfind.UnionFind{subst}, nil
 
 	case symbols.ListMember.Symbol: // :list:member(Member, List)
 		evaluatedArg, err := functional.EvalExpr(atom.Args[1], subst)
@@ -539,6 +653,52 @@ func getNumberValues[T ast.BaseTerm](cs []T) ([]int64, error) {
 		nums = append(nums, num)
 	}
 	return nums, nil
+}
+
+func getTimeValue(b ast.BaseTerm) (int64, error) {
+	c, ok := b.(ast.Constant)
+	if !ok {
+		return 0, fmt.Errorf("not a value %v (%T)", b, b)
+	}
+	if c.Type != ast.TimeType {
+		return 0, fmt.Errorf("value %v (%v) is not a time", c, c.Type)
+	}
+	return c.TimeValue()
+}
+
+func getTimeValues[T ast.BaseTerm](cs []T) ([]int64, error) {
+	var times []int64
+	for _, c := range cs {
+		t, err := getTimeValue(c)
+		if err != nil {
+			return nil, err
+		}
+		times = append(times, t)
+	}
+	return times, nil
+}
+
+func getDurationValue(b ast.BaseTerm) (int64, error) {
+	c, ok := b.(ast.Constant)
+	if !ok {
+		return 0, fmt.Errorf("not a value %v (%T)", b, b)
+	}
+	if c.Type != ast.DurationType {
+		return 0, fmt.Errorf("value %v (%v) is not a duration", c, c.Type)
+	}
+	return c.DurationValue()
+}
+
+func getDurationValues[T ast.BaseTerm](cs []T) ([]int64, error) {
+	var durations []int64
+	for _, c := range cs {
+		d, err := getDurationValue(c)
+		if err != nil {
+			return nil, err
+		}
+		durations = append(durations, d)
+	}
+	return durations, nil
 }
 
 // Abs returns the absolute value of x.

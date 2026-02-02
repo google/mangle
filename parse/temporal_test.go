@@ -99,7 +99,7 @@ func TestParseTemporalFact(t *testing.T) {
 		{
 			name:     "fact with variable bounds",
 			str:      "active(X)@[T1, T2].",
-			wantHead: ast.NewAtom("active", ast.Variable{"X"}),
+			wantHead: ast.NewAtom("active", ast.Variable{Symbol: "X"}),
 			wantTime: func() *ast.Interval {
 				start := ast.NewVariableBound(ast.Variable{Symbol: "T1"})
 				end := ast.NewVariableBound(ast.Variable{Symbol: "T2"})
@@ -173,14 +173,14 @@ func TestParseTemporalRule(t *testing.T) {
 		{
 			name:     "rule without temporal annotation",
 			str:      "foo(X) :- bar(X).",
-			wantHead: ast.NewAtom("foo", ast.Variable{"X"}),
+			wantHead: ast.NewAtom("foo", ast.Variable{Symbol: "X"}),
 			wantTime: nil,
 			wantErr:  false,
 		},
 		{
 			name:     "rule with temporal annotation on head",
 			str:      "active(X)@[T, T] :- login(X).",
-			wantHead: ast.NewAtom("active", ast.Variable{"X"}),
+			wantHead: ast.NewAtom("active", ast.Variable{Symbol: "X"}),
 			wantTime: func() *ast.Interval {
 				bound := ast.NewVariableBound(ast.Variable{Symbol: "T"})
 				i := ast.NewInterval(bound, bound)

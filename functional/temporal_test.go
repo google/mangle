@@ -51,8 +51,8 @@ func TestIntervalStart(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			startConst := ast.Number(tc.start)
-			endConst := ast.Number(tc.end)
+			startConst := ast.Time(tc.start)
+			endConst := ast.Time(tc.end)
 			interval := ast.Pair(&startConst, &endConst)
 
 			result, err := EvalApplyFn(ast.ApplyFn{
@@ -67,9 +67,9 @@ func TestIntervalStart(t *testing.T) {
 				return
 			}
 
-			got, err := result.NumberValue()
+			got, err := result.TimeValue()
 			if err != nil {
-				t.Fatalf("result.NumberValue() error = %v", err)
+				t.Fatalf("result.TimeValue() error = %v", err)
 			}
 			if got != tc.want {
 				t.Errorf("fn:interval:start got %d, want %d", got, tc.want)
@@ -102,8 +102,8 @@ func TestIntervalEnd(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			startConst := ast.Number(tc.start)
-			endConst := ast.Number(tc.end)
+			startConst := ast.Time(tc.start)
+			endConst := ast.Time(tc.end)
 			interval := ast.Pair(&startConst, &endConst)
 
 			result, err := EvalApplyFn(ast.ApplyFn{
@@ -118,9 +118,9 @@ func TestIntervalEnd(t *testing.T) {
 				return
 			}
 
-			got, err := result.NumberValue()
+			got, err := result.TimeValue()
 			if err != nil {
-				t.Fatalf("result.NumberValue() error = %v", err)
+				t.Fatalf("result.TimeValue() error = %v", err)
 			}
 			if got != tc.want {
 				t.Errorf("fn:interval:end got %d, want %d", got, tc.want)
@@ -159,8 +159,8 @@ func TestIntervalDuration(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			startConst := ast.Number(tc.start)
-			endConst := ast.Number(tc.end)
+			startConst := ast.Time(tc.start)
+			endConst := ast.Time(tc.end)
 			interval := ast.Pair(&startConst, &endConst)
 
 			result, err := EvalApplyFn(ast.ApplyFn{
@@ -175,9 +175,9 @@ func TestIntervalDuration(t *testing.T) {
 				return
 			}
 
-			got, err := result.NumberValue()
+			got, err := result.DurationValue()
 			if err != nil {
-				t.Fatalf("result.NumberValue() error = %v", err)
+				t.Fatalf("result.DurationValue() error = %v", err)
 			}
 			if got != tc.want {
 				t.Errorf("fn:interval:duration got %d, want %d", got, tc.want)
@@ -191,7 +191,7 @@ func TestIntervalFunctionsErrors(t *testing.T) {
 	t.Run("wrong arg count for start", func(t *testing.T) {
 		_, err := EvalApplyFn(ast.ApplyFn{
 			Function: symbols.IntervalStart,
-			Args:     []ast.BaseTerm{ast.Number(1), ast.Number(2)},
+			Args:     []ast.BaseTerm{ast.Time(1), ast.Time(2)},
 		}, nil)
 		if err == nil {
 			t.Error("expected error for wrong argument count")
@@ -202,7 +202,7 @@ func TestIntervalFunctionsErrors(t *testing.T) {
 	t.Run("wrong type for interval", func(t *testing.T) {
 		_, err := EvalApplyFn(ast.ApplyFn{
 			Function: symbols.IntervalStart,
-			Args:     []ast.BaseTerm{ast.Number(1)},
+			Args:     []ast.BaseTerm{ast.Time(1)},
 		}, nil)
 		if err == nil {
 			t.Error("expected error for non-pair argument")

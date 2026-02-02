@@ -112,22 +112,12 @@ var (
 	IntervalEquals = ast.PredicateSym{":interval:equals", 2}
 
 	// Interval functions for extracting components from intervals
-	// IntervalStart extracts the start time from an interval (as nanoseconds).
+	// IntervalStart extracts the start time from an interval.
 	IntervalStart = ast.FunctionSym{"fn:interval:start", 1}
-	// IntervalEnd extracts the end time from an interval (as nanoseconds).
+	// IntervalEnd extracts the end time from an interval.
 	IntervalEnd = ast.FunctionSym{"fn:interval:end", 1}
-	// IntervalDuration calculates the duration of an interval in nanoseconds.
+	// IntervalDuration calculates the duration of an interval.
 	IntervalDuration = ast.FunctionSym{"fn:interval:duration", 1}
-
-	// Time bridge functions for converting between regular columns and temporal values
-	// TimeFromNanos converts a number (nanoseconds since epoch) to a temporal bound.
-	TimeFromNanos = ast.FunctionSym{"fn:time:from_nanos", 1}
-	// TimeToNanos converts a temporal bound to nanoseconds since epoch.
-	TimeToNanos = ast.FunctionSym{"fn:time:to_nanos", 1}
-	// TimeAdd adds a duration to a timestamp. Returns nanoseconds.
-	TimeAdd = ast.FunctionSym{"fn:time:add", 2}
-	// TimeNow returns the current evaluation time as nanoseconds.
-	TimeNow = ast.FunctionSym{"fn:time:now", 0}
 
 	// Div is a family of functions mapping integer division: X,Y1,.. to (X / Y1) / Y2 ... DIV(X) is 1/x.
 	Div = ast.FunctionSym{"fn:div", -1}

@@ -910,46 +910,6 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		}
 		return ast.Duration(endNano - startNano), nil
 
-	// Time bridge functions for converting between regular columns and temporal values
-	case symbols.TimeFromNanos.Symbol:
-		// fn:time:from_nanos(N) - converts nanoseconds to a temporal-compatible number
-		// This is essentially an identity function but marks the intent for temporal use
-		if l := len(evaluatedArgs); l != 1 {
-			return ast.Constant{}, fmt.Errorf("fn:time:from_nanos expected 1 argument, got %d", l)
-		}
-		nanos, err := evaluatedArgs[0].NumberValue()
-		if err != nil {
-			return ast.Constant{}, fmt.Errorf("fn:time:from_nanos expected number, got %v: %w", evaluatedArgs[0], err)
-		}
-		return ast.Number(nanos), nil
-
-	case symbols.TimeToNanos.Symbol:
-		// fn:time:to_nanos(T) - converts a temporal bound to nanoseconds
-		// For now, this is an identity function since we store as nanos internally
-		if l := len(evaluatedArgs); l != 1 {
-			return ast.Constant{}, fmt.Errorf("fn:time:to_nanos expected 1 argument, got %d", l)
-		}
-		nanos, err := evaluatedArgs[0].NumberValue()
-		if err != nil {
-			return ast.Constant{}, fmt.Errorf("fn:time:to_nanos expected number, got %v: %w", evaluatedArgs[0], err)
-		}
-		return ast.Number(nanos), nil
-
-	case symbols.TimeAdd.Symbol:
-		// fn:time:add(T, Duration) - adds duration (in nanos) to timestamp
-		if l := len(evaluatedArgs); l != 2 {
-			return ast.Constant{}, fmt.Errorf("fn:time:add expected 2 arguments, got %d", l)
-		}
-		timestamp, err := evaluatedArgs[0].NumberValue()
-		if err != nil {
-			return ast.Constant{}, fmt.Errorf("fn:time:add expected number for timestamp, got %v: %w", evaluatedArgs[0], err)
-		}
-		duration, err := evaluatedArgs[1].NumberValue()
-		if err != nil {
-			return ast.Constant{}, fmt.Errorf("fn:time:add expected number for duration, got %v: %w", evaluatedArgs[1], err)
-		}
-		return ast.Number(timestamp + duration), nil
-
 	default:
 		return EvalNumericApplyFn(applyFn, subst)
 	}

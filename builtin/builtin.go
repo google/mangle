@@ -133,6 +133,7 @@ var (
 		symbols.DurationFromHours:   symbols.NewFunType(ast.DurationBound /* <= */, ast.Float64Bound),
 		symbols.DurationFromMinutes: symbols.NewFunType(ast.DurationBound /* <= */, ast.Float64Bound),
 		symbols.DurationFromSeconds: symbols.NewFunType(ast.DurationBound /* <= */, ast.Float64Bound),
+		symbols.DurationParse:       symbols.NewFunType(ast.DurationBound /* <= */, ast.StringBound),
 	}
 
 	// ReducerFunctions has those built-in functions with are reducers.

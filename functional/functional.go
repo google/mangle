@@ -839,6 +839,22 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		}
 		return ast.Duration(int64(s * float64(time.Second))), nil
 
+	case symbols.DurationParse.Symbol:
+		if l := len(evaluatedArgs); l != 1 {
+			return ast.Constant{}, fmt.Errorf("fn:duration:parse expected 1 argument, got %d", l)
+		}
+		str, err := evaluatedArgs[0].StringValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:duration:parse argument must be string: %w", err)
+		}
+		// Go's time.ParseDuration supports: h, m, s, ms, us (or µs), ns
+		// Examples: "1h30m", "500ms", "-2h45m30s", "1.5h"
+		d, err := time.ParseDuration(str)
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:duration:parse failed: %w", err)
+		}
+		return ast.Duration(int64(d)), nil
+
 	default:
 		return EvalNumericApplyFn(applyFn, subst)
 	}

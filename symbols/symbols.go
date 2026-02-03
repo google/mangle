@@ -254,6 +254,10 @@ var (
 	DurationFromMinutes = ast.FunctionSym{"fn:duration:from_minutes", 1}
 	// DurationFromSeconds creates a duration from seconds.
 	DurationFromSeconds = ast.FunctionSym{"fn:duration:from_seconds", 1}
+	// DurationParse parses a Go-style duration string like "1h30m", "500ms", "2h45m30s".
+	// Format: [+-]<value><unit>[<value><unit>...]
+	// Units: h (hours), m (minutes), s (seconds), ms (milliseconds), us/µs (microseconds), ns (nanoseconds)
+	DurationParse = ast.FunctionSym{"fn:duration:parse", 1}
 
 	// PairType is a constructor for a pair type.
 	PairType = ast.FunctionSym{"fn:Pair", 2}

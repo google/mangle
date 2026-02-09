@@ -54,6 +54,16 @@ var (
 		symbols.MatchNil:       {ast.ArgModeInput},
 		symbols.MatchField:     {ast.ArgModeInput, ast.ArgModeInput, ast.ArgModeOutput},
 		symbols.MatchEntry:     {ast.ArgModeInput, ast.ArgModeInput, ast.ArgModeOutput},
+		// Temporal interval predicates (Allen's interval algebra)
+		symbols.IntervalBefore:   {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.IntervalAfter:    {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.IntervalMeets:    {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.IntervalOverlaps: {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.IntervalDuring:   {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.IntervalContains: {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.IntervalStarts:   {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.IntervalFinishes: {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.IntervalEquals:   {ast.ArgModeInput, ast.ArgModeInput},
 	}
 
 	varX              = ast.Variable{"X"}
@@ -108,7 +118,7 @@ var (
 		symbols.TimeNow:           symbols.NewFunType(ast.TimeBound /* <= */),
 		symbols.TimeAdd:           symbols.NewFunType(ast.TimeBound /* <= */, ast.TimeBound, ast.DurationBound),
 		symbols.TimeSub:           symbols.NewFunType(ast.DurationBound /* <= */, ast.TimeBound, ast.TimeBound),
-		symbols.TimeFormat:        symbols.NewFunType(ast.StringBound /* <= */, ast.TimeBound, ast.StringBound),
+		symbols.TimeFormat:        symbols.NewFunType(ast.StringBound /* <= */, ast.TimeBound, ast.NameBound),
 		symbols.TimeFormatCivil:   symbols.NewFunType(ast.StringBound /* <= */, ast.TimeBound, ast.StringBound, ast.NameBound),
 		symbols.TimeParseRFC3339:  symbols.NewFunType(ast.TimeBound /* <= */, ast.StringBound),
 		symbols.TimeParseCivil:    symbols.NewFunType(ast.TimeBound /* <= */, ast.StringBound, ast.StringBound),
@@ -134,6 +144,11 @@ var (
 		symbols.DurationFromMinutes: symbols.NewFunType(ast.DurationBound /* <= */, ast.Float64Bound),
 		symbols.DurationFromSeconds: symbols.NewFunType(ast.DurationBound /* <= */, ast.Float64Bound),
 		symbols.DurationParse:       symbols.NewFunType(ast.DurationBound /* <= */, ast.StringBound),
+
+		// Interval functions - work with intervals represented as pairs of time values
+		symbols.IntervalStart:    symbols.NewFunType(ast.TimeBound /* <= */, symbols.NewPairType(ast.TimeBound, ast.TimeBound)),
+		symbols.IntervalEnd:      symbols.NewFunType(ast.TimeBound /* <= */, symbols.NewPairType(ast.TimeBound, ast.TimeBound)),
+		symbols.IntervalDuration: symbols.NewFunType(ast.DurationBound /* <= */, symbols.NewPairType(ast.TimeBound, ast.TimeBound)),
 	}
 
 	// ReducerFunctions has those built-in functions with are reducers.
@@ -199,6 +214,11 @@ func IsReducerFunction(sym ast.FunctionSym) bool {
 // Decide evaluates an atom of a built-in predicate. The atom must no longer contain any
 // apply-expressions or variables.
 func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, []*unionfind.UnionFind, error) {
+	// Check for temporal predicates first
+	if IsTemporalPredicate(atom.Predicate) {
+		return DecideTemporalPredicate(atom, subst)
+	}
+
 	switch atom.Predicate.Symbol {
 	case symbols.StartsWith.Symbol:
 		fallthrough

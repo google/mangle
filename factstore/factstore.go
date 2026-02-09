@@ -223,6 +223,14 @@ func (s MergedStore) Add(atom ast.Atom) bool {
 	return s.writeStore.Add(atom)
 }
 
+// Remove implementation that removes from the write store.
+func (s MergedStore) Remove(atom ast.Atom) bool {
+	if remover, ok := s.writeStore.(FactStoreWithRemove); ok {
+		return remover.Remove(atom)
+	}
+	return false
+}
+
 // Contains implementation that checks all stores.
 func (s MergedStore) Contains(atom ast.Atom) bool {
 	for _, store := range s.readStore {

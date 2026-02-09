@@ -54,10 +54,14 @@ type ProgramInfo struct {
 	IdbPredicates map[ast.PredicateSym]struct{}
 	// Heads of rules without a body.
 	InitialFacts []ast.Atom
+	// Validity intervals for InitialFacts (parallel slice, nil for eternal facts).
+	InitialFactTimes []*ast.Interval
 	// Rules that have a body.
 	Rules []ast.Clause
 	// Desugared declarations for all predicates, possibly synthetic.
 	Decls map[ast.PredicateSym]*ast.Decl
+	// Warnings collected during analysis.
+	Warnings []TemporalWarning
 }
 
 // Analyzer is a struct providing built-in predicates and functions for name analysis.
@@ -146,6 +150,27 @@ func AnalyzeAndCheckBounds(program []parse.SourceUnit, extraPredicates map[ast.P
 	if err := analyzer.EnsureDecl(clauses); err != nil {
 		return nil, err
 	}
+
+	// Resolve "MaybeTemporal" declarations.
+	// If a synthetic declaration is marked MaybeTemporal, it means we saw at least
+	// one temporal usage. We promote it to Temporal.
+	// We also filter out the internal MaybeTemporal descriptor.
+	for pred, decl := range analyzer.decl {
+		if decl.IsMaybeTemporal() {
+			// Remove MaybeTemporal descriptor
+			var newDescr []ast.Atom
+			for _, d := range decl.Descr {
+				if d.Predicate.Symbol != ast.DescrMaybeTemporal {
+					newDescr = append(newDescr, d)
+				}
+			}
+			// Add Temporal descriptor
+			newDescr = append(newDescr, ast.NewAtom(ast.DescrTemporal))
+			decl.Descr = newDescr
+			analyzer.decl[pred] = decl
+		}
+	}
+
 	return analyzer.Analyze(clauses)
 }
 
@@ -187,8 +212,8 @@ func New(extraPredicates map[ast.PredicateSym]ast.Decl, decls []ast.Decl, bounds
 	return &Analyzer{extraPredicates, nil /* extraFunctions */, declMap, boundsChecking}, nil
 }
 
-// EnsureDecl will ensure there is a declaration for each head of a rule,
-// creating one if necessary.
+// EnsureDecl ensures that every predicate in the program is declared.
+// It also ensures consistency of temporal usage.
 func (a *Analyzer) EnsureDecl(clauses []ast.Clause) error {
 	extraByName := byName(a.extraPredicates)
 	declByName := byName(a.decl)
@@ -207,13 +232,24 @@ func (a *Analyzer) EnsureDecl(clauses []ast.Clause) error {
 			return fmt.Errorf(
 				"predicate %v was defined previously", decl.DeclaredAtom.Predicate)
 		}
-		if _, ok := a.decl[pred]; ok {
+
+		// If we already have a declaration, check if it is compatible.
+		// Note that we may have multiple declarations for the same predicate
+		// (e.g. one from use and one from package).
+		if decl, ok := a.decl[pred]; ok {
+			// If we have an existing declaration, check for temporal consistency
+			if c.HeadTime != nil && !c.HeadTime.IsEternal() {
+				if !decl.IsTemporal() && !decl.IsMaybeTemporal() {
+					return fmt.Errorf("predicate %v is not declared temporal but used with temporal annotation in %v", pred, c)
+				}
+			}
 			continue
 		}
 		// Check that the name was not defined in the same source with a different arity.
 		if decl, ok := declByName[name]; ok {
 			return fmt.Errorf("%v does not match arity of %v", c.Head, decl.DeclaredAtom)
 		}
+
 		var (
 			synthDecl ast.Decl
 			err       error
@@ -226,6 +262,13 @@ func (a *Analyzer) EnsureDecl(clauses []ast.Clause) error {
 		if err != nil {
 			return err
 		}
+
+		// If this is a synthetic declaration and we have a temporal annotation,
+		// mark it as "MaybeTemporal" so we can check consistency later.
+		if c.HeadTime != nil && !c.HeadTime.IsEternal() {
+			synthDecl.Descr = append(synthDecl.Descr, ast.NewAtom(ast.DescrMaybeTemporal))
+		}
+
 		a.decl[pred] = synthDecl
 		declByName[pred.Symbol] = a.decl[pred]
 	}
@@ -235,6 +278,25 @@ func (a *Analyzer) EnsureDecl(clauses []ast.Clause) error {
 // Analyze identifies the extensional and intensional predicates of a program, checks every rule and that
 // all references to built-in predicates and functions used in transforms are valid.
 func (a *Analyzer) Analyze(program []ast.Clause) (*ProgramInfo, error) {
+	if err := a.EnsureDecl(program); err != nil {
+		return nil, err
+	}
+	// Resolve MaybeTemporal descriptors to Temporal.
+	for sym, decl := range a.decl {
+		if decl.IsMaybeTemporal() {
+			newDescr := make([]ast.Atom, 0, len(decl.Descr))
+			temporalAtom := ast.NewAtom(ast.DescrTemporal)
+			maybeTemporalAtom := ast.NewAtom(ast.DescrMaybeTemporal)
+			for _, d := range decl.Descr {
+				if !d.Equals(maybeTemporalAtom) {
+					newDescr = append(newDescr, d)
+				}
+			}
+			newDescr = append(newDescr, temporalAtom)
+			decl.Descr = newDescr
+			a.decl[sym] = decl
+		}
+	}
 	globalDecls := make(map[ast.PredicateSym]ast.Decl)
 	for p, d := range a.extraPredicates {
 		globalDecls[p] = d
@@ -252,10 +314,28 @@ func (a *Analyzer) Analyze(program []ast.Clause) (*ProgramInfo, error) {
 	edbSymbols := make(map[ast.PredicateSym]struct{})
 	idbSymbols := make(map[ast.PredicateSym]struct{})
 	var initialFacts []ast.Atom
+	var initialFactTimes []*ast.Interval
 	var rules []ast.Clause
 	rulesMap := make(map[ast.PredicateSym][]ast.Clause)
 	for _, clause := range program {
 		clause = RewriteClause(desugaredDecls, clause)
+
+		// Normalize TemporalAtom to TemporalLiteral (or bare Atom) for consistent analysis
+		if clause.Premises != nil {
+			for i, premise := range clause.Premises {
+				if ta, ok := premise.(ast.TemporalAtom); ok {
+					if ta.Interval == nil {
+						clause.Premises[i] = ta.Atom
+					} else {
+						clause.Premises[i] = ast.TemporalLiteral{
+							Literal:  ta.Atom,
+							Interval: ta.Interval,
+						}
+					}
+				}
+			}
+		}
+
 		// Check each rule.
 		if err := a.CheckRule(clause); err != nil {
 			return nil, err
@@ -267,6 +347,7 @@ func (a *Analyzer) Analyze(program []ast.Clause) (*ProgramInfo, error) {
 				return nil, err
 			}
 			initialFacts = append(initialFacts, head)
+			initialFactTimes = append(initialFactTimes, clause.HeadTime)
 			edbSymbols[clause.Head.Predicate] = struct{}{}
 		} else {
 			rules = append(rules, clause)
@@ -290,7 +371,23 @@ func (a *Analyzer) Analyze(program []ast.Clause) (*ProgramInfo, error) {
 		delete(edbSymbols, s)
 	}
 
-	programInfo := ProgramInfo{edbSymbols, idbSymbols, initialFacts, rules, desugaredDecls}
+	programInfo := ProgramInfo{edbSymbols, idbSymbols, initialFacts, initialFactTimes, rules, desugaredDecls, nil}
+
+	// Check for temporal recursion issues
+	if warnings := CheckTemporalRecursion(&programInfo); len(warnings) > 0 {
+		var errs error
+		for _, w := range warnings {
+			if w.Severity == SeverityCritical {
+				errs = multierr.Append(errs, fmt.Errorf("temporal analysis error: %v", w))
+			} else {
+				programInfo.Warnings = append(programInfo.Warnings, w)
+			}
+		}
+		if errs != nil {
+			return nil, errs
+		}
+	}
+
 	if a.boundsCheckingMode != NoBoundsChecking {
 		nameTrie := collectNames(a.extraPredicates, programInfo.Decls)
 		bc, err := newBoundsAnalyzer(&programInfo, nameTrie, initialFacts, rulesMap)
@@ -426,6 +523,23 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 	)
 	ast.AddVars(clause.Head, headVars)
 	ast.AddVars(clause.Head, seenVars)
+	// Check that if the head predicate is temporal, the clause has a temporal annotation.
+	if decl, ok := a.decl[clause.Head.Predicate]; ok {
+		if (decl.IsTemporal() || decl.IsMaybeTemporal()) && clause.HeadTime == nil {
+			return fmt.Errorf("temporal predicate %v defined without temporal annotation", clause.Head.Predicate)
+		}
+	}
+
+	if clause.HeadTime != nil {
+		if clause.HeadTime.Start.Type == ast.VariableBound {
+			headVars[clause.HeadTime.Start.Variable] = true
+			seenVars[clause.HeadTime.Start.Variable] = true
+		}
+		if clause.HeadTime.End.Type == ast.VariableBound {
+			headVars[clause.HeadTime.End.Variable] = true
+			seenVars[clause.HeadTime.End.Variable] = true
+		}
+	}
 	uf := unionfind.New()
 
 	if decl, ok := a.decl[clause.Head.Predicate]; ok {
@@ -454,6 +568,14 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 					} else {
 						ast.AddVars(p, boundVars)
 					}
+
+					// Validate that if the predicate is temporal, it is not used as a bare atom here.
+					if decl, ok := a.decl[p.Predicate]; ok {
+						if decl.IsTemporal() || decl.IsMaybeTemporal() {
+							return fmt.Errorf("temporal predicate %v used without temporal annotation", p.Predicate)
+						}
+					}
+
 					continue
 				}
 				// For builtin predicates, there is exactly one mode.
@@ -469,6 +591,29 @@ func (a *Analyzer) CheckRule(clause ast.Clause) error {
 				for v := range builtinVars {
 					if !boundVars[v] {
 						return fmt.Errorf("variable %v in %v will not have a value yet; move the subgoal to the right", v, p)
+					}
+				}
+			case ast.TemporalLiteral:
+				// Variables in the underlying literal are bound if it's an Atom
+				if atom, ok := p.Literal.(ast.Atom); ok {
+					ast.AddVars(atom, boundVars)
+
+					// Validate that the predicate is temporal
+					if !atom.Predicate.IsBuiltin() {
+						if decl, ok := a.decl[atom.Predicate]; ok {
+							if !decl.IsTemporal() && !decl.IsMaybeTemporal() {
+								return fmt.Errorf("predicate %v is not declared temporal but used with temporal annotation in %v", atom.Predicate, p)
+							}
+						}
+					}
+				}
+				// Variables in the interval annotation are also bound (output/binding)
+				if p.Interval != nil {
+					if p.Interval.Start.Type == ast.VariableBound {
+						boundVars[p.Interval.Start.Variable] = true
+					}
+					if p.Interval.End.Type == ast.VariableBound {
+						boundVars[p.Interval.End.Variable] = true
 					}
 				}
 			case ast.Eq:

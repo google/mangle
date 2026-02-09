@@ -58,7 +58,8 @@ func EvalProgramNaive(program []ast.Clause, store factstore.SimpleInMemoryStore)
 
 func (e naiveEngine) evalStrata() {
 	for _, fact := range e.programInfo.InitialFacts {
-		e.store.Add(fact)
+		f, _ := functional.EvalAtom(fact, nil)
+		e.store.Add(f)
 	}
 	for i := 0; i < len(e.strata); i++ {
 		stratumEdbPredicates := make(map[ast.PredicateSym]struct{})
@@ -81,7 +82,7 @@ func (e naiveEngine) evalStrata() {
 		}
 		naiveEngine{
 			store:       e.store,
-			programInfo: analysis.ProgramInfo{stratumEdbPredicates, stratumIdbPredicates, nil, stratumRules, stratumDecls},
+			programInfo: analysis.ProgramInfo{stratumEdbPredicates, stratumIdbPredicates, nil, nil, stratumRules, stratumDecls, nil},
 		}.eval()
 	}
 }

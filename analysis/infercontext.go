@@ -220,6 +220,33 @@ func (ic *inferContext) inferRelTypesFromPremise(premises []ast.Term, state *inf
 		}
 		return nextStates, nil
 
+	case ast.TemporalLiteral:
+		// We process the inner literal.
+		// Construct a temporary state for the inner literal (index 0).
+		tempState := &inferState{0, state.usedVars, state.varTpe}
+		tempNextStates, err := ic.inferRelTypesFromPremise([]ast.Term{t.Literal}, tempState)
+		if err != nil {
+			return nil, err
+		}
+		// Fix up the indices in the result states to match the original sequence.
+		for _, s := range tempNextStates {
+			s.index = state.index + 1
+			// Bind interval variables if present
+			if t.Interval != nil {
+				if t.Interval.Start.Type == ast.VariableBound {
+					if err := s.addOrRefine(t.Interval.Start.Variable, ast.TimeBound); err != nil {
+						return nil, err
+					}
+				}
+				if t.Interval.End.Type == ast.VariableBound {
+					if err := s.addOrRefine(t.Interval.End.Variable, ast.TimeBound); err != nil {
+						return nil, err
+					}
+				}
+			}
+		}
+		return tempNextStates, nil
+
 	case ast.Eq:
 		nextState := state.makeNext()
 		varRanges := nextState.asMap()
@@ -307,6 +334,37 @@ func (ic *inferContext) inferRelTypesFromClause() (ast.BaseTerm, error) {
 		if len(levels[i+1]) == 0 {
 			return nil, fmt.Errorf("type mismatch: cannot find assignment that works for premise %v", clause.Premises[i])
 		}
+	}
+
+	// Constrain variables used in HeadTime to be of type Time.
+	if clause.HeadTime != nil {
+		var nextStates []*inferState
+		var lastErr error
+		for _, s := range levels[len(clause.Premises)] {
+			valid := true
+			if clause.HeadTime.Start.Type == ast.VariableBound {
+				if err := s.addOrRefine(clause.HeadTime.Start.Variable, ast.TimeBound); err != nil {
+					valid = false
+					lastErr = err
+				}
+			}
+			if valid && clause.HeadTime.End.Type == ast.VariableBound {
+				if err := s.addOrRefine(clause.HeadTime.End.Variable, ast.TimeBound); err != nil {
+					valid = false
+					lastErr = err
+				}
+			}
+			if valid {
+				nextStates = append(nextStates, s)
+			}
+		}
+		if len(nextStates) == 0 {
+			if lastErr != nil {
+				return nil, fmt.Errorf("HeadTime variables must be of type Time: %w", lastErr)
+			}
+			return nil, fmt.Errorf("HeadTime variables must be of type Time")
+		}
+		levels[len(clause.Premises)] = nextStates
 	}
 	var relTypes []ast.BaseTerm
 	for _, state := range levels[len(clause.Premises)] {

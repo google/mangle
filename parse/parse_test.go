@@ -405,6 +405,7 @@ func TestParseUnitPositive(t *testing.T) {
 			str:  "foo(X) ⟸ bar(X) |> do fn:party(), let Z = fn:foo(X).",
 			want: []ast.Clause{{
 				ast.NewAtom("foo", ast.Variable{"X"}),
+				nil,
 				[]ast.Term{ast.NewAtom("bar", ast.Variable{"X"})},
 				&ast.Transform{
 					[]ast.TransformStmt{
@@ -421,6 +422,7 @@ func TestParseUnitPositive(t *testing.T) {
 			str:  "foo(X, ZZ) :- bar(X) |> do fn:party(), let Z = fn:foo(X) |> let ZZ = fn:mul(Z, 2).",
 			want: []ast.Clause{{
 				ast.NewAtom("foo", ast.Variable{"X"}, ast.Variable{"ZZ"}),
+				nil,
 				[]ast.Term{ast.NewAtom("bar", ast.Variable{"X"})},
 				&ast.Transform{
 					[]ast.TransformStmt{
@@ -446,6 +448,7 @@ func TestParseUnitPositive(t *testing.T) {
 			str:  "foo(X) :- bar(X) |> let Y = fn:plus(X, 1).",
 			want: []ast.Clause{{
 				ast.NewAtom("foo", ast.Variable{"X"}),
+				nil,
 				[]ast.Term{ast.NewAtom("bar", ast.Variable{"X"})},
 				&ast.Transform{
 					[]ast.TransformStmt{

@@ -275,8 +275,9 @@ func TestAnalyzePositive(t *testing.T) {
 				EdbPredicates: map[ast.PredicateSym]struct{}{
 					ast.PredicateSym{"foo", 1}: {},
 				},
-				InitialFacts: []ast.Atom{atom("foo(/bar)")},
-				Rules:        []ast.Clause{clause("sna(X) :- foo(X).")},
+				InitialFacts:     []ast.Atom{atom("foo(/bar)")},
+				InitialFactTimes: []*ast.Interval{nil},
+				Rules:            []ast.Clause{clause("sna(X) :- foo(X).")},
 				Decls: mustDesugar(t, map[ast.PredicateSym]ast.Decl{
 					ast.PredicateSym{"foo", 1}: makeSyntheticDecl(t, atom("foo(X0)")),
 					ast.PredicateSym{"sna", 1}: makeSyntheticDecl(t, atom("sna(X)")),
@@ -313,8 +314,9 @@ func TestAnalyzePositive(t *testing.T) {
 				EdbPredicates: map[ast.PredicateSym]struct{}{
 					ast.PredicateSym{"foo.baz", 1}: {},
 				},
-				InitialFacts: []ast.Atom{atom("foo.baz(1)")},
-				Rules:        []ast.Clause{clause("foo.bar(X) :- foo.baz(X).")},
+				InitialFacts:     []ast.Atom{atom("foo.baz(1)")},
+				InitialFactTimes: []*ast.Interval{nil},
+				Rules:            []ast.Clause{clause("foo.bar(X) :- foo.baz(X).")},
 				Decls: mustDesugar(t, map[ast.PredicateSym]ast.Decl{
 					ast.PredicateSym{"foo.baz", 1}: privateDecl,
 					ast.PredicateSym{"foo.bar", 1}: makeSyntheticDecl(t, atom("foo.bar(X)")),
@@ -336,8 +338,9 @@ func TestAnalyzePositive(t *testing.T) {
 				EdbPredicates: map[ast.PredicateSym]struct{}{
 					ast.PredicateSym{"baz", 1}: {},
 				},
-				InitialFacts: []ast.Atom{atom("baz(1)")},
-				Rules:        []ast.Clause{clause("bar(X) :- baz(X).")},
+				InitialFacts:     []ast.Atom{atom("baz(1)")},
+				InitialFactTimes: []*ast.Interval{nil},
+				Rules:            []ast.Clause{clause("bar(X) :- baz(X).")},
 				Decls: mustDesugar(t, map[ast.PredicateSym]ast.Decl{
 					ast.PredicateSym{"baz", 1}: privateDeclEmptyPackage,
 					ast.PredicateSym{"bar", 1}: makeSyntheticDecl(t, atom("bar(X)")),
@@ -384,7 +387,8 @@ func TestAnalyzePositive(t *testing.T) {
 				Decls: mustDesugar(t, map[ast.PredicateSym]ast.Decl{
 					ast.PredicateSym{"a_list", 1}: makeSyntheticDecl(t, atom("a_list(X0)")),
 				}),
-				InitialFacts: []ast.Atom{{Predicate: ast.PredicateSym{"a_list", 1}, Args: []ast.BaseTerm{ast.ListNil}}},
+				InitialFacts:     []ast.Atom{{Predicate: ast.PredicateSym{"a_list", 1}, Args: []ast.BaseTerm{ast.ListNil}}},
+				InitialFactTimes: []*ast.Interval{nil},
 			},
 		},
 	}
@@ -586,7 +590,7 @@ func newBoundsTestCaseWithNameTrie(t *testing.T, clauses []ast.Clause, decls []a
 	}
 
 	return boundsTestCase{
-		programInfo: ProgramInfo{nil, idbSymbols, nil, clauses, makeDesugaredDecls(t, decls...)},
+		programInfo: ProgramInfo{nil, idbSymbols, nil, nil, clauses, makeDesugaredDecls(t, decls...), nil},
 		rulesMap:    makeRulesMap(clauses),
 		nameTrie:    nameTrie,
 	}
@@ -1013,5 +1017,32 @@ func TestBoundOfArgTimeDuration(t *testing.T) {
 				t.Errorf("boundOfArg(%v) = %v, want %v", tt.arg, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestAnalyzeTemporal(t *testing.T) {
+	program := `
+Decl temp(Name) temporal bound [/name].
+Decl derived(Name, Time) bound [/name, /any].
+
+temp(/a)@[2024-01-01].
+derived(X, T) :- temp(X)@[T].
+`
+	unit, err := parse.Unit(strings.NewReader(program))
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	info, err := AnalyzeOneUnit(unit, nil)
+	if err != nil {
+		t.Fatalf("AnalyzeOneUnit failed: %v", err)
+	}
+	if len(info.InitialFacts) != 1 {
+		t.Errorf("Expected 1 initial fact, got %d", len(info.InitialFacts))
+	}
+	if len(info.InitialFactTimes) != 1 || info.InitialFactTimes[0] == nil {
+		t.Error("Expected temporal info for initial fact, got nil")
+	}
+	if len(info.Rules) != 1 {
+		t.Errorf("Expected 1 rule, got %d", len(info.Rules))
 	}
 }

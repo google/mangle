@@ -45,15 +45,18 @@ type Stats struct {
 }
 
 type engine struct {
-	store         factstore.FactStore
-	deltaStore    factstore.FactStore
-	programInfo   *analysis.ProgramInfo
-	strata        []analysis.Nodeset
-	predToStratum map[ast.PredicateSym]int
-	predToRules   map[ast.PredicateSym][]ast.Clause
-	predToDecl    map[ast.PredicateSym]*ast.Decl
-	stats         Stats
-	options       EvalOptions
+	store              factstore.FactStore
+	deltaStore         factstore.FactStore
+	temporalStore      factstore.TemporalFactStore // Optional temporal store
+	temporalDeltaStore factstore.TemporalFactStore // Stores new temporal facts for incremental evaluation
+	evalTime           time.Time                   // Evaluation time for temporal queries
+	programInfo        *analysis.ProgramInfo
+	strata             []analysis.Nodeset
+	predToStratum      map[ast.PredicateSym]int
+	predToRules        map[ast.PredicateSym][]ast.Clause
+	predToDecl         map[ast.PredicateSym]*ast.Decl
+	stats              Stats
+	options            EvalOptions
 }
 
 // ExternalPredicateCallback is used to query external data sources.
@@ -95,6 +98,10 @@ type EvalOptions struct {
 	// if non-nil, only predicates in this allowlist get evaluated.
 	predicateAllowList *func(ast.PredicateSym) bool
 	externalPredicates map[ast.PredicateSym]ExternalPredicateCallback
+	// Temporal evaluation options
+	temporalStore factstore.TemporalFactStore
+	evalTime      time.Time
+	addNowMarker  bool
 }
 
 // EvalOption affects the way the evaluation is performed.
@@ -109,6 +116,21 @@ func WithCreatedFactLimit(limit int) EvalOption {
 func WithExternalPredicates(
 	callbacks map[ast.PredicateSym]ExternalPredicateCallback) EvalOption {
 	return func(o *EvalOptions) { o.externalPredicates = callbacks }
+}
+
+// WithTemporalStore configures a temporal fact store for temporal reasoning.
+func WithTemporalStore(store factstore.TemporalFactStore) EvalOption {
+	return func(o *EvalOptions) { o.temporalStore = store }
+}
+
+// WithEvaluationTime sets the evaluation time for temporal queries.
+func WithEvaluationTime(t time.Time) EvalOption {
+	return func(o *EvalOptions) { o.evalTime = t }
+}
+
+// WithNowMarker requests adding a __now(T) fact after evaluation indicating the evaluation time.
+func WithNowMarker() EvalOption {
+	return func(o *EvalOptions) { o.addNowMarker = true }
 }
 
 // EvalProgram evaluates a given program on the given facts, modifying the fact store in the process.
@@ -181,10 +203,42 @@ func EvalStratifiedProgramWithStats(programInfo *analysis.ProgramInfo,
 	if opts.createdFactLimit > 0 {
 		opts.totalFactLimit = store.EstimateFactCount() + opts.createdFactLimit
 	}
-	e := &engine{store, factstore.NewMultiIndexedArrayInMemoryStore(), programInfo, strata,
-		predToStratum, predToRules, predToDecl, stats, opts}
+	// Set default evaluation time if not specified
+	evalTime := opts.evalTime
+	if evalTime.IsZero() {
+		evalTime = time.Now()
+	}
+	var temporalDeltaStore factstore.TemporalFactStore
+	if opts.temporalStore != nil {
+		temporalDeltaStore = factstore.NewTemporalStore()
+	}
+	e := &engine{
+		store:              store,
+		deltaStore:         factstore.NewMultiIndexedArrayInMemoryStore(),
+		temporalStore:      opts.temporalStore,
+		temporalDeltaStore: temporalDeltaStore,
+		evalTime:           evalTime,
+		programInfo:        programInfo,
+		strata:             strata,
+		predToStratum:      predToStratum,
+		predToRules:        predToRules,
+		predToDecl:         predToDecl,
+		stats:              stats,
+		options:            opts,
+	}
 	if err := e.evalStrata(); err != nil {
 		return Stats{}, err
+	}
+	if opts.addNowMarker {
+		nowAtom := ast.NewAtom("__now", ast.Time(e.evalTime.UnixNano()))
+		if opts.temporalStore != nil {
+			// Add to temporal store with point interval @[now]
+			if _, err := opts.temporalStore.Add(nowAtom, ast.NewPointInterval(e.evalTime)); err != nil {
+				return Stats{}, err
+			}
+		} else {
+			store.Add(nowAtom)
+		}
 	}
 	return e.stats, nil
 }
@@ -192,7 +246,7 @@ func EvalStratifiedProgramWithStats(programInfo *analysis.ProgramInfo,
 // evalStrata runs the evaluation for the layers.
 func (e *engine) evalStrata() error {
 	predicateAllowList := *e.options.predicateAllowList
-	for _, fact := range e.programInfo.InitialFacts {
+	for i, fact := range e.programInfo.InitialFacts {
 		if !predicateAllowList(fact.Predicate) {
 			continue
 		}
@@ -200,7 +254,15 @@ func (e *engine) evalStrata() error {
 		if err != nil {
 			return err
 		}
-		e.store.Add(f)
+
+		interval := e.programInfo.InitialFactTimes[i]
+		if interval != nil && e.temporalStore != nil {
+			if _, err := e.temporalStore.Add(f, *interval); err != nil {
+				return err
+			}
+		} else {
+			e.store.Add(f)
+		}
 	}
 	for i := 0; i < len(e.strata); i++ {
 		stratumEdbPredicates := make(map[ast.PredicateSym]struct{})
@@ -219,15 +281,23 @@ func (e *engine) evalStrata() error {
 		}
 		stratifiedProgram := rewrite.Rewrite(analysis.Program{stratumEdbPredicates, stratumIdbPredicates, stratumRules})
 		start := time.Now()
+		var temporalDeltaStore factstore.TemporalFactStore
+		if e.temporalStore != nil {
+			temporalDeltaStore = factstore.NewTemporalStore()
+		}
+
 		e := engine{
-			store:         e.store,
-			deltaStore:    factstore.NewMultiIndexedArrayInMemoryStore(),
-			programInfo:   &analysis.ProgramInfo{stratifiedProgram.EdbPredicates, stratifiedProgram.IdbPredicates, nil, stratifiedProgram.Rules, stratumDecls},
-			predToStratum: e.predToStratum,
-			predToRules:   e.predToRules,
-			predToDecl:    e.predToDecl,
-			stats:         e.stats,
-			options:       e.options,
+			store:              e.store,
+			deltaStore:         factstore.NewMultiIndexedArrayInMemoryStore(),
+			temporalStore:      e.temporalStore,
+			temporalDeltaStore: temporalDeltaStore,
+			evalTime:           e.evalTime,
+			programInfo:        &analysis.ProgramInfo{stratifiedProgram.EdbPredicates, stratifiedProgram.IdbPredicates, nil, nil, stratifiedProgram.Rules, stratumDecls, nil},
+			predToStratum:      e.predToStratum,
+			predToRules:        e.predToRules,
+			predToDecl:         e.predToDecl,
+			stats:              e.stats,
+			options:            e.options,
 		}
 		if err := e.eval(); err != nil {
 			return err
@@ -258,14 +328,30 @@ func makeNormalAtom(atom ast.Atom) ast.Atom {
 }
 
 // makeSingleDeltaRule turns rule into a delta rule, with i-th subgoal used as "delta subgoal."
-// The i-th subgoal must be a positive atom.
+// The i-th subgoal must be a positive atom or temporal literal.
 func makeSingleDeltaRule(rule ast.Clause, i int) ast.Clause {
 	var newpremises []ast.Term
 
 	for j, subgoal := range rule.Premises {
 		if i == j {
-			atom, _ := subgoal.(ast.Atom)
-			newpremises = append(newpremises, makeDeltaAtom(atom))
+			switch p := subgoal.(type) {
+			case ast.Atom:
+				newpremises = append(newpremises, makeDeltaAtom(p))
+			case ast.TemporalLiteral:
+				if atom, ok := p.Literal.(ast.Atom); ok {
+					deltaAtom := makeDeltaAtom(atom)
+					tl := ast.TemporalLiteral{
+						Literal:  deltaAtom,
+						Operator: p.Operator,
+						Interval: p.Interval,
+					}
+					newpremises = append(newpremises, tl)
+				} else {
+					newpremises = append(newpremises, subgoal) // Should not happen
+				}
+			default:
+				newpremises = append(newpremises, subgoal)
+			}
 		} else {
 			newpremises = append(newpremises, subgoal)
 		}
@@ -275,8 +361,7 @@ func makeSingleDeltaRule(rule ast.Clause, i int) ast.Clause {
 	return clause
 }
 
-// makeDeltaRules takes all rules of all predicates and creates delta rules for each of them.
-// A delta rule for R checks whether a newly added fact led to derivation of a new fact via R.
+// makeDeltaRules creates delta rules to check if newly added facts lead to new derivations.
 func makeDeltaRules(decls map[ast.PredicateSym]*ast.Decl, predToRules map[ast.PredicateSym][]ast.Clause) map[ast.PredicateSym][]ast.Clause {
 	predToDeltaRules := make(map[ast.PredicateSym][]ast.Clause)
 	for _, decl := range decls {
@@ -289,14 +374,21 @@ func makeDeltaRules(decls map[ast.PredicateSym]*ast.Decl, predToRules map[ast.Pr
 			}
 			var deltaRules []ast.Clause
 			for i, subgoal := range clause.Premises {
-				// We want one delta rule for each subgoal that can match a positive atoms
-				// produced exactly in the last round.
-				p, ok := subgoal.(ast.Atom)
-				if !ok || p.Predicate.IsBuiltin() {
+				// Create delta rule for each subgoal matching positive atoms from last round.
+				var pred ast.PredicateSym
+				switch p := subgoal.(type) {
+				case ast.Atom:
+					pred = p.Predicate
+				case ast.TemporalLiteral:
+					if atom, ok := p.Literal.(ast.Atom); ok {
+						pred = atom.Predicate
+					}
+				}
+
+				if pred.Symbol == "" || pred.IsBuiltin() {
 					continue
 				}
-				subgoalPred := p.Predicate
-				if _, ok := decls[subgoalPred]; ok {
+				if _, ok := decls[pred]; ok {
 					deltaRule := makeSingleDeltaRule(clause, i)
 					deltaRules = append(deltaRules, deltaRule)
 				}
@@ -410,15 +502,28 @@ func (e *engine) eval() error {
 			// clauses with do-transforms assume a single subgoal as body.
 			continue
 		}
-		facts, err := e.oneStepEvalClause(clause)
+		derivedFacts, err := e.oneStepEvalClause(clause)
 		if err != nil {
 			return err
 		}
-		for _, fact := range facts {
-			e.deltaStore.Add(fact)
+		for _, tf := range derivedFacts {
+			// Add to temporal store if interval is present
+			if tf.Interval != nil && e.temporalStore != nil {
+				if _, err := e.temporalStore.Add(tf.Atom, *tf.Interval); err != nil {
+					return err
+				}
+				if e.temporalDeltaStore != nil {
+					if _, err := e.temporalDeltaStore.Add(tf.Atom, *tf.Interval); err != nil {
+						return err
+					}
+				}
+			} else {
+				// Add to delta store (for incremental evaluation)
+				e.deltaStore.Add(tf.Atom)
+			}
 		}
 	}
-	if e.deltaStore.EstimateFactCount() > 0 {
+	if e.deltaStore.EstimateFactCount() > 0 || (e.temporalDeltaStore != nil && e.temporalDeltaStore.EstimateFactCount() > 0) {
 		// Incremental rounds.
 		deltaRules := makeDeltaRules(e.programInfo.Decls, e.predToRules)
 		if err := e.mergeDelta(); err != nil {
@@ -426,19 +531,38 @@ func (e *engine) eval() error {
 		}
 		for {
 			newDeltaStore := factstore.NewMultiIndexedArrayInMemoryStore()
+			var newTemporalDeltaStore factstore.TemporalFactStore
+			if e.temporalStore != nil {
+				newTemporalDeltaStore = factstore.NewTemporalStore()
+			}
 			var incrementalFactAdded bool
 			for _, predDeltaRule := range deltaRules {
 				for _, deltaRule := range predDeltaRule {
 					if !predicateAllowList(deltaRule.Head.Predicate) {
 						continue
 					}
-					facts, err := e.oneStepEvalClause(deltaRule)
+					derivedFacts, err := e.oneStepEvalClause(deltaRule)
 					if err != nil {
 						return err
 					}
-					for _, fact := range facts {
-						if !e.store.Contains(fact) && !e.deltaStore.Contains(fact) {
-							incrementalFactAdded = newDeltaStore.Add(fact) || incrementalFactAdded
+					for _, tf := range derivedFacts {
+						if tf.Interval != nil && e.temporalStore != nil {
+							added, err := e.temporalStore.Add(tf.Atom, *tf.Interval)
+							if err != nil {
+								return err
+							}
+							if added {
+								if newTemporalDeltaStore != nil {
+									if _, err := newTemporalDeltaStore.Add(tf.Atom, *tf.Interval); err != nil {
+										return err
+									}
+									incrementalFactAdded = true
+								}
+							}
+						} else {
+							if !e.store.Contains(tf.Atom) && !e.deltaStore.Contains(tf.Atom) {
+								incrementalFactAdded = newDeltaStore.Add(tf.Atom) || incrementalFactAdded
+							}
 						}
 						if e.options.createdFactLimit > 0 && newDeltaStore.EstimateFactCount() > e.options.createdFactLimit {
 							return fmt.Errorf("fact size limit reached evaluating %q %d > %d", deltaRule.String(), newDeltaStore.EstimateFactCount(), e.options.createdFactLimit)
@@ -453,6 +577,7 @@ func (e *engine) eval() error {
 				return fmt.Errorf("fact size limit reached %d > %d", e.store.EstimateFactCount(), e.options.totalFactLimit)
 			}
 			e.deltaStore = newDeltaStore
+			e.temporalDeltaStore = newTemporalDeltaStore
 			if !incrementalFactAdded {
 				break
 			}
@@ -500,7 +625,7 @@ func (e *engine) eval() error {
 
 // Evaluates clause (a rule), by scanning known facts for each premise and producing
 // a solution (conjunctive query, similar to a join).
-func (e *engine) oneStepEvalClause(clause ast.Clause) ([]ast.Atom, error) {
+func (e *engine) oneStepEvalClause(clause ast.Clause) ([]DerivedTemporalFact, error) {
 	pred := clause.Head.Predicate
 	decl := e.predToDecl[pred]
 	if decl != nil && decl.DeferredPredicate() {
@@ -524,19 +649,31 @@ func (e *engine) oneStepEvalClause(clause ast.Clause) ([]ast.Atom, error) {
 		solutions = newsolutions
 	}
 
-	var facts []ast.Atom
+	var facts []DerivedTemporalFact
 	for _, sol := range solutions {
 		head, err := functional.EvalAtom(clause.Head, sol)
 		if err != nil {
 			return nil, err
 		}
+
+		// Resolve temporal annotation
+		var interval *ast.Interval
+		if clause.HeadTime != nil {
+			// Note: This only resolves variables bound in the body.
+			// Variables defined in transforms are not currently supported in HeadTime.
+			interval, err = ResolveHeadTime(clause.HeadTime, sol, e.evalTime)
+			if err != nil {
+				return nil, fmt.Errorf("failed to resolve HeadTime: %w", err)
+			}
+		}
+
 		if clause.Transform == nil {
-			facts = append(facts, head)
+			facts = append(facts, DerivedTemporalFact{Atom: head, Interval: interval})
 			continue
 		}
 
 		if err := EvalTransform(head, *clause.Transform, []ast.ConstSubstList{sol.AsConstSubstList()}, func(a ast.Atom) bool {
-			facts = append(facts, a)
+			facts = append(facts, DerivedTemporalFact{Atom: a, Interval: interval})
 			return true
 		}); err != nil {
 			return nil, err
@@ -597,6 +734,24 @@ func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind,
 	case ast.Ineq:
 		return premiseIneq(p.Left, p.Right, subst)
 
+	case ast.TemporalLiteral:
+		store := e.temporalStore
+		if atom, ok := p.Literal.(ast.Atom); ok && isDeltaPredicate(atom.Predicate) {
+			store = e.temporalDeltaStore
+			p.Literal = makeNormalAtom(atom)
+		}
+		if store == nil {
+			return nil, fmt.Errorf("temporal literal encountered but no temporal store configured")
+		}
+		return premiseTemporalLiteral(p, store, e.evalTime, subst)
+
+	case ast.TemporalAtom:
+		if e.temporalStore == nil {
+			return nil, fmt.Errorf("temporal atom encountered but no temporal store configured")
+		}
+		// Convert TemporalAtom to TemporalLiteral for evaluation
+		tl := ast.TemporalLiteral{Literal: p.Atom, Operator: nil, Interval: p.Interval}
+		return premiseTemporalLiteral(tl, e.temporalStore, e.evalTime, subst)
 	}
 	return nil, nil
 }

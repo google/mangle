@@ -46,6 +46,12 @@ const (
 	DescrMergePredicate = "merge"
 	// DescrDeferredPredicate is a descriptor for a deferred predicate.
 	DescrDeferredPredicate = "deferred"
+	// DescrTemporal is a descriptor marking a predicate as temporal.
+	// Temporal predicates have facts with validity intervals.
+	DescrTemporal = "temporal"
+	// DescrMaybeTemporal is a descriptor marking a predicate as potentially temporal.
+	// This is used internally during analysis and should not be surfaced.
+	DescrMaybeTemporal = "internal:maybe_temporal"
 )
 
 // Decl is a declaration.
@@ -107,6 +113,17 @@ func (d Decl) Doc() []string {
 // IsExtensional returns true if decl is for an extensional predicate.
 func (d Decl) IsExtensional() bool {
 	return d.findDescr(DescrExtensional, nil)
+}
+
+// IsTemporal returns true if decl is for a temporal predicate.
+// Temporal predicates have facts with validity intervals.
+func (d Decl) IsTemporal() bool {
+	return d.findDescr(DescrTemporal, nil)
+}
+
+// IsMaybeTemporal returns true if decl is for a predicate that might be temporal.
+func (d Decl) IsMaybeTemporal() bool {
+	return d.findDescr(DescrMaybeTemporal, nil)
 }
 
 // IsDesugared returns true if decl has been desugared.

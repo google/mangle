@@ -115,5 +115,5 @@ func RewriteClause(decls map[ast.PredicateSym]*ast.Decl, clause ast.Clause) ast.
 			}
 		}
 	}
-	return ast.Clause{Head: clause.Head, Premises: premises, Transform: clause.Transform}
+	return ast.Clause{Head: clause.Head, HeadTime: clause.HeadTime, Premises: premises, Transform: clause.Transform}
 }

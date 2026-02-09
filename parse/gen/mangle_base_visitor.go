@@ -1,4 +1,4 @@
-// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.1. DO NOT EDIT.
+// Code generated from parse/gen/Mangle.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Mangle
 import "github.com/antlr4-go/antlr/v4"
@@ -43,6 +43,14 @@ func (v *BaseMangleVisitor) VisitClause(ctx *ClauseContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseMangleVisitor) VisitTemporalAnnotation(ctx *TemporalAnnotationContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseMangleVisitor) VisitTemporalBound(ctx *TemporalBoundContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseMangleVisitor) VisitClauseBody(ctx *ClauseBodyContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -56,6 +64,10 @@ func (v *BaseMangleVisitor) VisitLetStmt(ctx *LetStmtContext) interface{} {
 }
 
 func (v *BaseMangleVisitor) VisitLiteralOrFml(ctx *LiteralOrFmlContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseMangleVisitor) VisitTemporalOperator(ctx *TemporalOperatorContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

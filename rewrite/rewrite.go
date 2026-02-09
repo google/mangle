@@ -56,8 +56,8 @@ func Rewrite(stratum analysis.Program) analysis.Program {
 		internalPred := gen.freshPredicateName(p, len(vars))
 
 		newHead := makeHead(internalPred, vars)
-		newRules = append(newRules, ast.Clause{newHead, clause.Premises, nil})
-		newRules = append(newRules, ast.Clause{clause.Head, []ast.Term{newHead}, clause.Transform})
+		newRules = append(newRules, ast.Clause{newHead, nil, clause.Premises, nil})
+		newRules = append(newRules, ast.Clause{clause.Head, clause.HeadTime, []ast.Term{newHead}, clause.Transform})
 	}
 	return analysis.Program{stratum.EdbPredicates, stratum.IdbPredicates, newRules}
 }

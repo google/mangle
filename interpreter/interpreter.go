@@ -35,16 +35,19 @@ import (
 const bufSize = 4096
 
 type sourceFragment struct {
-	units      []parse.SourceUnit
-	program    *analysis.ProgramInfo
-	checkpoint factstore.FactStoreWithRemove
+	units              []parse.SourceUnit
+	program            *analysis.ProgramInfo
+	simpleCheckpoint   factstore.FactStoreWithRemove
+	temporalCheckpoint factstore.TemporalFactStore
 }
 
 // Interpreter is an interactive interpreter.
 type Interpreter struct {
-	out   io.Writer
-	root  string
-	store factstore.FactStoreWithRemove
+	out           io.Writer
+	root          string
+	store         factstore.FactStoreWithRemove // Combined store (Adapter+Simple)
+	simpleStore   factstore.FactStoreWithRemove // Non-temporal store
+	temporalStore factstore.TemporalFactStore
 	// List of source paths that were loaded, in the order they were loaded.
 	src []string
 	// Maps source path sets to source fragment. A path set is comma-separated list of paths.
@@ -63,16 +66,29 @@ type Interpreter struct {
 
 // New returns a new interpreter.
 func New(out io.Writer, root string, stats []string) *Interpreter {
-	return &Interpreter{
+	i := &Interpreter{
 		out:             out,
 		root:            root,
-		store:           factstore.NewSimpleInMemoryStore(),
+		simpleStore:     factstore.NewSimpleInMemoryStore(),
+		temporalStore:   factstore.NewTemporalStore(),
 		src:             nil,
 		sourceFragments: make(map[string]*sourceFragment),
 		knownPredicates: map[ast.PredicateSym]ast.Decl{},
 		stats:           stats,
 		postProcessors:  nil,
 	}
+	i.updateCombinedStore()
+	return i
+}
+
+func (i *Interpreter) updateCombinedStore() {
+	adapter := factstore.NewTemporalFactStoreAdapter(i.temporalStore)
+	merged := factstore.NewMergedStore([]factstore.ReadOnlyFactStore{adapter}, i.simpleStore)
+	store, ok := merged.(factstore.FactStoreWithRemove)
+	if !ok {
+		panic("MergedStore does not implement FactStoreWithRemove")
+	}
+	i.store = store
 }
 
 // AddPostProcessor adds a post processing function that is called after evaluation.
@@ -369,7 +385,8 @@ func (i *Interpreter) Loop() error {
 // TODO: Add optional path parameter so the user can ::pop individual
 // preloaded sources.
 func (i *Interpreter) Preload(units []parse.SourceUnit, store factstore.FactStoreWithRemove, knownPredicates map[ast.PredicateSym]ast.Decl) error {
-	i.store = store
+	i.simpleStore = store
+	i.updateCombinedStore()
 	for sym, decl := range knownPredicates {
 		i.knownPredicates[sym] = decl
 	}
@@ -378,15 +395,17 @@ func (i *Interpreter) Preload(units []parse.SourceUnit, store factstore.FactStor
 
 func (i *Interpreter) pushSourceFragment(pathset string, units []parse.SourceUnit, programInfo *analysis.ProgramInfo) {
 	i.src = append(i.src, pathset)
-	i.sourceFragments[pathset] = &sourceFragment{units, programInfo, i.store}
+	i.sourceFragments[pathset] = &sourceFragment{units, programInfo, i.simpleStore, i.temporalStore}
 	for _, decl := range programInfo.Decls {
 		i.knownPredicates[decl.DeclaredAtom.Predicate] = *decl
 	}
-	i.store = factstore.NewTeeingStore(i.store)
+	i.simpleStore = factstore.NewTeeingStore(i.simpleStore)
+	i.temporalStore = factstore.NewTeeingTemporalStore(i.temporalStore)
+	i.updateCombinedStore()
 }
 
 func (i *Interpreter) evalProgram(programInfo *analysis.ProgramInfo) error {
-	stats, err := engine.EvalProgramWithStats(programInfo, i.store)
+	stats, err := engine.EvalProgramWithStats(programInfo, i.store, engine.WithTemporalStore(i.temporalStore))
 	if err != nil {
 		return err
 	}
@@ -420,7 +439,9 @@ func (i *Interpreter) popSourceFragment() *sourceFragment {
 	for _, decl := range f.program.Decls {
 		delete(i.knownPredicates, decl.DeclaredAtom.Predicate)
 	}
-	i.store = f.checkpoint
+	i.simpleStore = f.simpleCheckpoint
+	i.temporalStore = f.temporalCheckpoint
+	i.updateCombinedStore()
 	return f
 }
 

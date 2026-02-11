@@ -119,20 +119,23 @@ Example:
 ```
 # Get the duration of an event
 event_duration(X, D) :-
-    event(X)@T,
-    D = fn:interval:duration(T).
+    event(X)@[S, E],
+    D = fn:time:sub(E, S).
 ```
 
 ## Interval Variable Binding
 
-You can bind the interval of a matching fact to a variable:
+You can bind the interval components of a matching fact to variables:
 
 ```
-# Bind the validity interval to T
-event_with_time(X, T) :- event(X)@T.
+# Bind the validity interval to S and E
+event_with_time(X, S, E) :- event(X)@[S, E].
+
+# Shorthand: Bind both start and end to the same variable T (point interval)
+point_event(X, T) :- event(X)@[T].
 ```
 
-The bound variable is a pair of timestamps (start, end) in nanoseconds.
+The bound variables are timestamps in nanoseconds.
 
 ## Interval Coalescing
 

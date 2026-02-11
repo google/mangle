@@ -130,6 +130,28 @@ graph LR
     /bern -->|/code/BL <br /> 30 CHF| /lausanne
 ```
 
+### Temporal Knowledge Graphs
+
+In many real-world scenarios, facts are not static but have a validity period.
+Mangle supports temporal reasoning, allowing facts to be associated with time intervals.
+This enables querying not just *what* is true, but *when* it is true.
+
+```
+# A network link is active for a specific duration
+Decl link(X, Y) temporal bound [/name, /name].
+
+# When can we reach Y from X?
+# Only when the links are active simultaneously.
+reachable(X, Y)@[T] :- link(X, Y)@[T].
+reachable(X, Z)@[T] :- reachable(X, Y)@[T], link(Y, Z)@[T].
+```
+
+See the [Temporal Reasoning documentation](https://mangle.readthedocs.io/en/latest/temporal.html) for more details.
+
+## Talks
+
+*   **From Facts to Theories**: Burak Emir's talk at [REBASE 2025](https://rebaseconf.org/) discusses how Mangle bridges the gap between raw data and logical theories. [Watch on YouTube](https://youtu.be/UjOEHSZDBH8?si=qAjnkBQfPKMVaOPW).
+
 ## Building & Testing
 
 Get the dependencies (see [go.mod](go.mod)), build the library, run tests:

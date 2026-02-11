@@ -28,6 +28,16 @@ type TemporalFact struct {
 	Interval ast.Interval
 }
 
+// String returns a string representation of the temporal fact.
+func (tf TemporalFact) String() string {
+	return tf.Atom.String() + tf.Interval.String()
+}
+
+// DisplayString returns a string representation of the temporal fact using unescaped constants.
+func (tf TemporalFact) DisplayString() string {
+	return tf.Atom.DisplayString() + tf.Interval.String()
+}
+
 // ReadOnlyTemporalFactStore provides read access to temporal facts.
 type ReadOnlyTemporalFactStore interface {
 	// GetFactsAt returns facts valid at a specific point in time.

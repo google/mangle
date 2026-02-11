@@ -735,15 +735,16 @@ func TestTimeConstantString(t *testing.T) {
 	// Unix epoch
 	epoch := Time(0)
 	str := epoch.String()
-	if str != "1970-01-01T00:00:00Z" {
-		t.Errorf("Time(0).String() = %q, want %q", str, "1970-01-01T00:00:00Z")
+	wantEpoch := `fn:time:parse_rfc3339("1970-01-01T00:00:00Z")`
+	if str != wantEpoch {
+		t.Errorf("Time(0).String() = %q, want %q", str, wantEpoch)
 	}
 
 	// Time with nanoseconds: 2024-01-15T10:30:00.123456789Z
 	nanos := int64(1705314600123456789)
 	ts := Time(nanos)
 	str = ts.String()
-	expected := "2024-01-15T10:30:00.123456789Z"
+	expected := `fn:time:parse_rfc3339("2024-01-15T10:30:00.123456789Z")`
 	if str != expected {
 		t.Errorf("Time(%d).String() = %q, want %q", nanos, str, expected)
 	}
@@ -824,15 +825,15 @@ func TestDurationConstantString(t *testing.T) {
 		nanos int64
 		want  string
 	}{
-		{0, "0s"},
-		{1000000000, "1s"},         // 1 second
-		{60000000000, "1m0s"},      // 1 minute
-		{3600000000000, "1h0m0s"},  // 1 hour
-		{5400000000000, "1h30m0s"}, // 1.5 hours
-		{-1000000000, "-1s"},       // negative 1 second
-		{1500000, "1.5ms"},         // 1.5 milliseconds
-		{1500, "1.5µs"},            // 1.5 microseconds
-		{150, "150ns"},             // 150 nanoseconds
+		{0, `fn:duration:parse("0s")`},
+		{1000000000, `fn:duration:parse("1s")`},         // 1 second
+		{60000000000, `fn:duration:parse("1m0s")`},      // 1 minute
+		{3600000000000, `fn:duration:parse("1h0m0s")`},  // 1 hour
+		{5400000000000, `fn:duration:parse("1h30m0s")`}, // 1.5 hours
+		{-1000000000, `fn:duration:parse("-1s")`},       // negative 1 second
+		{1500000, `fn:duration:parse("1.5ms")`},         // 1.5 milliseconds
+		{1500, `fn:duration:parse("1.5µs")`},            // 1.5 microseconds
+		{150, `fn:duration:parse("150ns")`},             // 150 nanoseconds
 	}
 	for _, test := range tests {
 		d := Duration(test.nanos)

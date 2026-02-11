@@ -3,6 +3,8 @@ package interpreter
 import (
 	"bytes"
 	"testing"
+
+	"github.com/google/mangle/ast"
 )
 
 func TestInterpreter_TemporalSequence_Pop(t *testing.T) {
@@ -44,10 +46,11 @@ match(U) :-
 	foundU1 := false
 	foundU2 := false
 	for _, atom := range res {
-		if atom.Args[0].String() == "/u1" {
+		a, _ := atom.(ast.Atom)
+		if a.Args[0].String() == "/u1" {
 			foundU1 = true
 		}
-		if atom.Args[0].String() == "/u2" {
+		if a.Args[0].String() == "/u2" {
 			foundU2 = true
 		}
 	}

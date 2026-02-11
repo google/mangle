@@ -580,9 +580,9 @@ func (c Constant) String() string {
 	case Float64Type:
 		return FormatFloat64(math.Float64frombits(uint64(c.NumValue)))
 	case TimeType:
-		return FormatTime(c.NumValue)
+		return fmt.Sprintf("fn:time:parse_rfc3339(\"%s\")", FormatTime(c.NumValue))
 	case DurationType:
-		return FormatDuration(c.NumValue)
+		return fmt.Sprintf("fn:duration:parse(\"%s\")", FormatDuration(c.NumValue))
 	case PairShape:
 		fst := *c.fst
 		snd := *c.snd

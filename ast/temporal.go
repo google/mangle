@@ -358,9 +358,7 @@ func (i Interval) IsEternal() bool {
 
 // IsPoint returns true if this interval represents a single point in time.
 func (i Interval) IsPoint() bool {
-	return i.Start.Type == TimestampBound &&
-		i.End.Type == TimestampBound &&
-		i.Start.Timestamp == i.End.Timestamp
+	return i.Start.Equals(i.End)
 }
 
 // String returns a string representation of the interval.
@@ -495,6 +493,14 @@ func (ta TemporalAtom) String() string {
 		return ta.Atom.String()
 	}
 	return ta.Atom.String() + ta.Interval.String()
+}
+
+// DisplayString returns a string representation of the temporal atom using unescaped constants.
+func (ta TemporalAtom) DisplayString() string {
+	if ta.Interval == nil || ta.Interval.IsEternal() {
+		return ta.Atom.DisplayString()
+	}
+	return ta.Atom.DisplayString() + ta.Interval.String()
 }
 
 // Equals returns true if two temporal atoms are equal.

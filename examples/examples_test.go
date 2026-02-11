@@ -1,6 +1,7 @@
 package examples
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -11,33 +12,24 @@ import (
 	"github.com/google/mangle/parse"
 )
 
+func readExample(t *testing.T, filename string) string {
+	// Try reading relative to current directory (for standard go test)
+	content, err := os.ReadFile(filename)
+	if err == nil {
+		return string(content)
+	}
+
+	// Fallback: Try full path for Bazel/Google3 runfiles
+	fullPath := "third_party/mangle/examples/" + filename
+	content, err = os.ReadFile(fullPath)
+	if err != nil {
+		t.Fatalf("Failed to read example file %s (also tried %s): %v", filename, fullPath, err)
+	}
+	return string(content)
+}
+
 func TestTemporalGraphIntervals(t *testing.T) {
-	program := `
-Decl link(X, Y) temporal bound [/name, /name].
-Decl reachable(X, Y) temporal bound [/name, /name].
-
-link(/a, /b)@[2024-01-01, 2024-01-10].
-link(/b, /c)@[2024-01-05, 2024-01-15].
-link(/c, /d)@[2024-01-12, 2024-01-20].
-
-reachable(X, Y)@[S, E] :- link(X, Y)@[S, E].
-
-reachable(X, Z)@[S1, E1] :-
-    reachable(X, Y)@[S1, E1], link(Y, Z)@[S2, E2],
-    :time:ge(S1, S2), :time:le(E1, E2), :time:le(S1, E1).
-
-reachable(X, Z)@[S1, E2] :-
-    reachable(X, Y)@[S1, E1], link(Y, Z)@[S2, E2],
-    :time:ge(S1, S2), :time:lt(E2, E1), :time:le(S1, E2).
-
-reachable(X, Z)@[S2, E1] :-
-    reachable(X, Y)@[S1, E1], link(Y, Z)@[S2, E2],
-    :time:gt(S2, S1), :time:le(E1, E2), :time:le(S2, E1).
-
-reachable(X, Z)@[S2, E2] :-
-    reachable(X, Y)@[S1, E1], link(Y, Z)@[S2, E2],
-    :time:gt(S2, S1), :time:lt(E2, E1), :time:le(S2, E2).
-`
+	program := readExample(t, "temporal_graph_intervals.mg")
 	facts := runEvaluate(t, program)
 
 	expected := []string{
@@ -67,19 +59,7 @@ reachable(X, Z)@[S2, E2] :-
 }
 
 func TestTemporalGraphPoints(t *testing.T) {
-	program := `
-Decl link(X, Y) temporal bound [/name, /name].
-Decl reachable(X, Y) temporal bound [/name, /name].
-
-link(/a, /b)@[2024-01-01].
-link(/b, /c)@[2024-01-01].
-
-link(/a, /c)@[2024-01-02].
-link(/c, /d)@[2024-01-02].
-
-reachable(X, Y)@[T] :- link(X, Y)@[T].
-reachable(X, Z)@[T] :- reachable(X, Y)@[T], link(Y, Z)@[T].
-`
+	program := readExample(t, "temporal_graph_points.mg")
 	facts := runEvaluate(t, program)
 
 	// Check T1: 2024-01-01
@@ -92,25 +72,7 @@ reachable(X, Z)@[T] :- reachable(X, Y)@[T], link(Y, Z)@[T].
 }
 
 func TestTemporalSequence(t *testing.T) {
-	program := `
-Decl event_a(Name) temporal bound [/name].
-Decl event_b(Name) temporal bound [/name].
-Decl match(Name) bound [/name].
-
-event_a(/u1)@[2024-01-01T10:00:00].
-event_b(/u1)@[2024-01-01T10:05:00].
-
-event_a(/u2)@[2024-01-01T10:00:00].
-event_b(/u2)@[2024-01-01T10:15:00].
-
-match(U) :-
-  event_b(U)@[Tb],
-  event_a(U)@[Ta],
-  :time:lt(Ta, Tb),
-  Diff = fn:time:sub(Tb, Ta),
-  Limit = fn:duration:parse('10m'),
-  :duration:le(Diff, Limit).
-`
+	program := readExample(t, "temporal_sequence.mg")
 	facts := runEvaluate(t, program)
 
 	if !containsFact(facts, "match(/u1)") {

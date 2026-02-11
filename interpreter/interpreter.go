@@ -235,10 +235,18 @@ func (i *Interpreter) ParseQuery(query string) (ast.Atom, error) {
 }
 
 // Query queries the interpreter's state.
-func (i *Interpreter) Query(query ast.Atom) ([]ast.Atom, error) {
-	var results []ast.Atom
-	i.store.GetFacts(query, func(a ast.Atom) error {
+func (i *Interpreter) Query(query ast.Atom) ([]ast.Term, error) {
+	var results []ast.Term
+	// Query simple store
+	i.simpleStore.GetFacts(query, func(a ast.Atom) error {
 		results = append(results, a)
+		return nil
+	})
+	// Query temporal store
+	i.temporalStore.GetAllFacts(query, func(tf factstore.TemporalFact) error {
+		// Capture interval variable to take address
+		interval := tf.Interval
+		results = append(results, ast.TemporalAtom{Atom: tf.Atom, Interval: &interval})
 		return nil
 	})
 	return results, nil
@@ -257,7 +265,13 @@ func (i *Interpreter) QueryInteractive(queryString string) error {
 	}
 	var results []string
 	for _, fact := range facts {
-		results = append(results, fact.DisplayString())
+		if atom, ok := fact.(ast.Atom); ok {
+			results = append(results, atom.DisplayString())
+		} else if ta, ok := fact.(ast.TemporalAtom); ok {
+			results = append(results, ta.DisplayString())
+		} else {
+			results = append(results, fact.String())
+		}
 	}
 	sort.Strings(results)
 	fmt.Fprintf(i.out, "%s\n", strings.Join(results, "\n"))

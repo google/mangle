@@ -28,7 +28,7 @@ This project follows
 ### Code Reviews
 
 All submissions, including submissions by project members, require review. We
-use GitHub pull requests for this purpose. Consult
-[GitHub Help](https://help.github.com/articles/about-pull-requests/) for more
+use pull requests for this purpose. Consult
+[Codeberg documentation](https://docs.codeberg.org/collaborating/pull-requests-and-git-flow/) for more
 information on using pull requests.
 

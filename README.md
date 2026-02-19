@@ -26,11 +26,11 @@ This repository contains an implementation of Mangle as a go library that can be
 easily embedded into applications.
 
 Check out the [users documentation](https://mangle.readthedocs.io/en/latest/)
-and the [GitHub discussions](https://codeberg.org/TauCeti/mangle-go/discussions)
+and the [Codeberg discussions](https://codeberg.org/TauCeti/mangle-go/discussions)
 for more information. There is also a Q&A section.
 
 For an example how to use Mangle library in a database-like grpc service,
-see the separate [Mangle demo service repo](https://github.com/burakemir/mangle-service).
+see the separate [Mangle demo service repo](https://codeberg.org/TauCeti/mangle-service).
 
 This is not an officially supported Google product.
 

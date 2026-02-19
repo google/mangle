@@ -11,7 +11,7 @@ the rendered documentation, go to [mangle.readthedocs.io](http://mangle.readthed
 
 *Read the Docs* is a platform for hosting documentation. They offer a free
 community plan to open source projects. Publishing is automated
-through integration with GitHub.
+through integration with Codeberg.
 
 Mangle documentation uses *Read the Docs* with the following choices:
 

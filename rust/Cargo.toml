@@ -48,6 +48,6 @@ mangle-interpreter = { version = "0.3.0", path = "./interpreter" }
 mangle-simplecolumn = { version = "0.3.0", path = "./simplecolumn" }
 wasm-encoder = "0.240"
 wasmparser = "0.240"
-wasmtime = "30"
+wasmtime = "36"
 csv = "1.3"
 tempfile = "3.10"

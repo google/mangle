@@ -24,7 +24,7 @@ import (
 	"flag"
 	
 	log "github.com/golang/glog"
-	"github.com/google/mangle/interpreter"
+	"codeberg.org/TauCeti/mangle-go/interpreter"
 )
 
 var (

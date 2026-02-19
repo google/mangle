@@ -17,7 +17,7 @@ package analysis
 import (
 	"testing"
 
-	"github.com/google/mangle/ast"
+	"codeberg.org/TauCeti/mangle-go/ast"
 )
 
 func TestVarList(t *testing.T) {

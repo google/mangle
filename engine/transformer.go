@@ -17,10 +17,10 @@ package engine
 import (
 	"encoding/binary"
 
-	"github.com/google/mangle/ast"
-	"github.com/google/mangle/builtin"
-	"github.com/google/mangle/functional"
-	"github.com/google/mangle/symbols"
+	"codeberg.org/TauCeti/mangle-go/ast"
+	"codeberg.org/TauCeti/mangle-go/builtin"
+	"codeberg.org/TauCeti/mangle-go/functional"
+	"codeberg.org/TauCeti/mangle-go/symbols"
 
 	"hash/fnv"
 )

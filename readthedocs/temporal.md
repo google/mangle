@@ -203,8 +203,8 @@ To use temporal features from Go:
 ```go
 import (
     "time"
-    "github.com/google/mangle/engine"
-    "github.com/google/mangle/factstore"
+    "codeberg.org/TauCeti/mangle-go/engine"
+    "codeberg.org/TauCeti/mangle-go/factstore"
 )
 
 // Create a temporal store and add facts

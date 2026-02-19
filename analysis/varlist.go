@@ -15,7 +15,7 @@
 package analysis
 
 import (
-	"github.com/google/mangle/ast"
+	"codeberg.org/TauCeti/mangle-go/ast"
 )
 
 // VarList is an ordered list of variables.

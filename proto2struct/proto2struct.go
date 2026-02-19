@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"github.com/google/mangle/ast"
+	"codeberg.org/TauCeti/mangle-go/ast"
 )
 
 // ProtoToStruct uses reflection to convert a proto to a Mangle struct.

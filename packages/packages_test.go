@@ -18,8 +18,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/mangle/ast"
-	"github.com/google/mangle/parse"
+	"codeberg.org/TauCeti/mangle-go/ast"
+	"codeberg.org/TauCeti/mangle-go/parse"
 )
 
 func makeDecl(t *testing.T, atom ast.Atom, descrAtoms []ast.Atom, bounds []ast.BoundDecl, constraints *ast.InclusionConstraint) ast.Decl {

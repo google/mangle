@@ -26,9 +26,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/google/mangle/ast"
-	"github.com/google/mangle/functional"
-	"github.com/google/mangle/parse"
+	"codeberg.org/TauCeti/mangle-go/ast"
+	"codeberg.org/TauCeti/mangle-go/functional"
+	"codeberg.org/TauCeti/mangle-go/parse"
 )
 
 const (

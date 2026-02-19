@@ -47,8 +47,8 @@ Here `X` is a variable, `? sibling(/antigone, X)` is a query asking
 for all possible values of `X`.
 
 Documentation is under construction. In the meantime, please see the docs
-in the [documentation](https://github.com/google/mangle/blob/main/docs/README.md)
-and [examples directory](https://github.com/google/mangle/tree/main/examples)
+in the [documentation](https://codeberg.org/TauCeti/mangle-go/blob/main/docs/README.md)
+and [examples directory](https://codeberg.org/TauCeti/mangle-go/tree/main/examples)
 for more information.
 
 ## Table of contents

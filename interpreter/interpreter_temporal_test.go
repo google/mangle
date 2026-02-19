@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/google/mangle/ast"
+	"codeberg.org/TauCeti/mangle-go/ast"
 )
 
 func TestInterpreter_TemporalSequence_Pop(t *testing.T) {

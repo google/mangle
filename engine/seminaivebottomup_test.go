@@ -20,12 +20,12 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/mangle/analysis"
-	"github.com/google/mangle/ast"
-	"github.com/google/mangle/factstore"
-	"github.com/google/mangle/functional"
-	"github.com/google/mangle/parse"
-	"github.com/google/mangle/unionfind"
+	"codeberg.org/TauCeti/mangle-go/analysis"
+	"codeberg.org/TauCeti/mangle-go/ast"
+	"codeberg.org/TauCeti/mangle-go/factstore"
+	"codeberg.org/TauCeti/mangle-go/functional"
+	"codeberg.org/TauCeti/mangle-go/parse"
+	"codeberg.org/TauCeti/mangle-go/unionfind"
 )
 
 func atom(s string) ast.Atom {

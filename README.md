@@ -1,4 +1,4 @@
-<img src="https://github.com/google/mangle/blob/main/readthedocs/mangle_logo.png" width="50%">
+<img src="https://codeberg.org/TauCeti/mangle-go/blob/main/readthedocs/mangle_logo.png" width="50%">
 
 # Mangle
 
@@ -26,7 +26,7 @@ This repository contains an implementation of Mangle as a go library that can be
 easily embedded into applications.
 
 Check out the [users documentation](https://mangle.readthedocs.io/en/latest/)
-and the [GitHub discussions](https://github.com/google/mangle/discussions)
+and the [GitHub discussions](https://codeberg.org/TauCeti/mangle-go/discussions)
 for more information. There is also a Q&A section.
 
 For an example how to use Mangle library in a database-like grpc service,

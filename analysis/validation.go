@@ -22,13 +22,13 @@ import (
 	"strings"
 
 	"go.uber.org/multierr"
-	"github.com/google/mangle/ast"
-	"github.com/google/mangle/builtin"
-	"github.com/google/mangle/functional"
-	"github.com/google/mangle/packages"
-	"github.com/google/mangle/parse"
-	"github.com/google/mangle/symbols"
-	"github.com/google/mangle/unionfind"
+	"codeberg.org/TauCeti/mangle-go/ast"
+	"codeberg.org/TauCeti/mangle-go/builtin"
+	"codeberg.org/TauCeti/mangle-go/functional"
+	"codeberg.org/TauCeti/mangle-go/packages"
+	"codeberg.org/TauCeti/mangle-go/parse"
+	"codeberg.org/TauCeti/mangle-go/symbols"
+	"codeberg.org/TauCeti/mangle-go/unionfind"
 )
 
 // BoundsCheckingMode represents a mode for bounds checking.

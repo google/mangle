@@ -20,11 +20,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/mangle/analysis"
-	"github.com/google/mangle/ast"
-	"github.com/google/mangle/factstore"
-	"github.com/google/mangle/parse"
-	"github.com/google/mangle/unionfind"
+	"codeberg.org/TauCeti/mangle-go/analysis"
+	"codeberg.org/TauCeti/mangle-go/ast"
+	"codeberg.org/TauCeti/mangle-go/factstore"
+	"codeberg.org/TauCeti/mangle-go/parse"
+	"codeberg.org/TauCeti/mangle-go/unionfind"
 )
 
 // End-to-end integration tests for temporal reasoning in Mangle.

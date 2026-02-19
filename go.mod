@@ -1,4 +1,4 @@
-module github.com/google/mangle
+module codeberg.org/TauCeti/mangle-go
 
 go 1.23
 

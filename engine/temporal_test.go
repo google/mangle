@@ -18,9 +18,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/mangle/ast"
-	"github.com/google/mangle/factstore"
-	"github.com/google/mangle/unionfind"
+	"codeberg.org/TauCeti/mangle-go/ast"
+	"codeberg.org/TauCeti/mangle-go/factstore"
+	"codeberg.org/TauCeti/mangle-go/unionfind"
 )
 
 func name(str string) ast.Constant {

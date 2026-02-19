@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/mangle/ast"
-	"github.com/google/mangle/parse"
+	"codeberg.org/TauCeti/mangle-go/ast"
+	"codeberg.org/TauCeti/mangle-go/parse"
 )
 
 func TestTemporalValidation(t *testing.T) {

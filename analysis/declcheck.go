@@ -17,8 +17,8 @@ package analysis
 import (
 	"fmt"
 
-	"github.com/google/mangle/ast"
-	"github.com/google/mangle/symbols"
+	"codeberg.org/TauCeti/mangle-go/ast"
+	"codeberg.org/TauCeti/mangle-go/symbols"
 )
 
 type declChecker struct {

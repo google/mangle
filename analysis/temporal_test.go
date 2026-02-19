@@ -18,7 +18,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/mangle/parse"
+	"codeberg.org/TauCeti/mangle-go/parse"
 )
 
 func TestCheckTemporalRecursion(t *testing.T) {

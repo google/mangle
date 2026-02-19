@@ -17,9 +17,9 @@ package engine
 import (
 	"testing"
 
-	"github.com/google/mangle/ast"
-	"github.com/google/mangle/factstore"
-	"github.com/google/mangle/functional"
+	"codeberg.org/TauCeti/mangle-go/ast"
+	"codeberg.org/TauCeti/mangle-go/factstore"
+	"codeberg.org/TauCeti/mangle-go/functional"
 )
 
 func TestShortestPaths(t *testing.T) {

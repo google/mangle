@@ -15,7 +15,7 @@
 package factstore
 
 import (
-	"github.com/google/mangle/ast"
+	"codeberg.org/TauCeti/mangle-go/ast"
 )
 
 // IntervalTree is an augmented interval tree for efficient interval queries.

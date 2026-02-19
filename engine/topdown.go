@@ -17,10 +17,10 @@ package engine
 import (
 	"errors"
 
-	"github.com/google/mangle/ast"
-	"github.com/google/mangle/factstore"
-	"github.com/google/mangle/functional"
-	"github.com/google/mangle/unionfind"
+	"codeberg.org/TauCeti/mangle-go/ast"
+	"codeberg.org/TauCeti/mangle-go/factstore"
+	"codeberg.org/TauCeti/mangle-go/functional"
+	"codeberg.org/TauCeti/mangle-go/unionfind"
 )
 
 var errFound = errors.New("found")

@@ -19,7 +19,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/google/mangle/ast"
+	"codeberg.org/TauCeti/mangle-go/ast"
 )
 
 // TemporalFact represents a fact with a validity interval.

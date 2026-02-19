@@ -6,7 +6,7 @@ You need to have Go programming language installed (see [instructions](https://g
 
 Assuming you want to install the interpreter to `~/bin/mg`, do the following:
 ```
-GOBIN=~/bin go install github.com/google/mangle/interpreter/mg@latest
+GOBIN=~/bin go install codeberg.org/TauCeti/mangle-go/interpreter/mg@latest
 ```
 
 Then you can start the interpreter with `~/bin/mg`.
@@ -14,7 +14,7 @@ Then you can start the interpreter with `~/bin/mg`.
 ## Building the go implementation from source
 
 ```
-git clone github.com/google/mangle
+git clone codeberg.org/TauCeti/mangle-go
 cd mangle
 go get -t ./...
 go build ./...
@@ -26,7 +26,7 @@ You can start the interpreter using `go run interpreter/mg/mg.go`
 ## Building the rust implementation from source
 
 ```
-git clone github.com/google/mangle
+git clone codeberg.org/TauCeti/mangle-go
 cd mangle/rust
 cargo build
 cargo test

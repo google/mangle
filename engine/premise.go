@@ -15,11 +15,11 @@
 package engine
 
 import (
-	"github.com/google/mangle/ast"
-	"github.com/google/mangle/builtin"
-	"github.com/google/mangle/factstore"
-	"github.com/google/mangle/functional"
-	"github.com/google/mangle/unionfind"
+	"codeberg.org/TauCeti/mangle-go/ast"
+	"codeberg.org/TauCeti/mangle-go/builtin"
+	"codeberg.org/TauCeti/mangle-go/factstore"
+	"codeberg.org/TauCeti/mangle-go/functional"
+	"codeberg.org/TauCeti/mangle-go/unionfind"
 )
 
 func premiseAtom(a ast.Atom, lookupFn func(p ast.Atom, cb func(ast.Atom) error) error, subst unionfind.UnionFind) ([]unionfind.UnionFind, error) {

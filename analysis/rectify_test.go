@@ -18,8 +18,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/mangle/ast"
-	"github.com/google/mangle/unionfind"
+	"codeberg.org/TauCeti/mangle-go/ast"
+	"codeberg.org/TauCeti/mangle-go/unionfind"
 )
 
 func TestRectifyAtom(t *testing.T) {

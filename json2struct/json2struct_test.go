@@ -17,7 +17,7 @@ package json2struct
 import (
 	"testing"
 
-	"github.com/google/mangle/ast"
+	"codeberg.org/TauCeti/mangle-go/ast"
 )
 
 func name(n string) ast.Constant {

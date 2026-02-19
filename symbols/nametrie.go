@@ -17,7 +17,7 @@ package symbols
 import (
 	"strings"
 
-	"github.com/google/mangle/ast"
+	"codeberg.org/TauCeti/mangle-go/ast"
 )
 
 // NameTrieNode is a node in NameTrie.

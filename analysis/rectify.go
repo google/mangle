@@ -1,6 +1,6 @@
 package analysis
 
-import "github.com/google/mangle/ast"
+import "codeberg.org/TauCeti/mangle-go/ast"
 
 // RectifyAtom ensures all arguments of an atom are variables.
 // It returns a tuple (rectified atom, extra terms, fresh variables, defined variables).

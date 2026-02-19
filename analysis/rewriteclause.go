@@ -15,8 +15,8 @@
 package analysis
 
 import (
-	"github.com/google/mangle/ast"
-	"github.com/google/mangle/symbols"
+	"codeberg.org/TauCeti/mangle-go/ast"
+	"codeberg.org/TauCeti/mangle-go/symbols"
 )
 
 func scrutineeIsInputArg(d *ast.Decl) bool {

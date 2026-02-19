@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/mangle/ast"
+	"codeberg.org/TauCeti/mangle-go/ast"
 )
 
 // TestDisplayString tests the DisplayString() method of ast.Constant.

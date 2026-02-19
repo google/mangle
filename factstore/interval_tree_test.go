@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/mangle/ast"
+	"codeberg.org/TauCeti/mangle-go/ast"
 )
 
 func TestIntervalTree_Insert(t *testing.T) {

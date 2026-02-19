@@ -20,7 +20,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/google/mangle/ast"
+	"codeberg.org/TauCeti/mangle-go/ast"
 )
 
 // ReadOnlyFactStore provides read access to a set of facts.

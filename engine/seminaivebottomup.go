@@ -25,12 +25,12 @@ import (
 	"time"
 
 	"go.uber.org/multierr"
-	"github.com/google/mangle/analysis"
-	"github.com/google/mangle/ast"
-	"github.com/google/mangle/factstore"
-	"github.com/google/mangle/functional"
-	"github.com/google/mangle/rewrite"
-	"github.com/google/mangle/unionfind"
+	"codeberg.org/TauCeti/mangle-go/analysis"
+	"codeberg.org/TauCeti/mangle-go/ast"
+	"codeberg.org/TauCeti/mangle-go/factstore"
+	"codeberg.org/TauCeti/mangle-go/functional"
+	"codeberg.org/TauCeti/mangle-go/rewrite"
+	"codeberg.org/TauCeti/mangle-go/unionfind"
 )
 
 const deltaStringPrefix = "Δ"

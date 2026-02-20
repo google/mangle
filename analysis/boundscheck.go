@@ -613,6 +613,10 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 				}
 			}
 			return ast.NumberBound
+		case symbols.FloatPlus.Symbol:
+			fallthrough
+		case symbols.FloatMult.Symbol:
+			fallthrough
 		case symbols.FloatDiv.Symbol:
 			for _, arg := range z.Args {
 				if ast.Float64Bound != boundOfArg(arg, varRanges, nameTrie) {
@@ -638,23 +642,47 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 
 func typeOfFn(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie symbols.NameTrie) ast.BaseTerm {
 	switch x.Function.Symbol {
-	case symbols.Max.Symbol:
-		fallthrough
-	case symbols.Min.Symbol:
-		fallthrough
-	case symbols.Count.Symbol:
-		fallthrough
-	case symbols.Div.Symbol:
-		fallthrough
-	case symbols.FloatDiv.Symbol:
-		fallthrough
-	case symbols.Sum.Symbol:
-		fallthrough
 	case symbols.Plus.Symbol:
 		fallthrough
 	case symbols.Minus.Symbol:
 		fallthrough
 	case symbols.Mult.Symbol:
+		for _, arg := range x.Args {
+			if ast.NumberBound != boundOfArg(arg, varRanges, nameTrie) {
+				return symbols.EmptyType
+			}
+		}
+		return ast.NumberBound
+	case symbols.Div.Symbol:
+		for _, arg := range x.Args {
+			if ast.NumberBound != boundOfArg(arg, varRanges, nameTrie) {
+				return symbols.EmptyType
+			}
+		}
+		return ast.NumberBound
+	case symbols.FloatDiv.Symbol:
+		fallthrough
+	case symbols.FloatPlus.Symbol:
+		fallthrough
+	case symbols.FloatMult.Symbol:
+		for _, arg := range x.Args {
+			if ast.Float64Bound != boundOfArg(arg, varRanges, nameTrie) {
+				return symbols.EmptyType
+			}
+		}
+		return ast.Float64Bound
+	case symbols.Sum.Symbol:
+		fallthrough
+	case symbols.Max.Symbol:
+		fallthrough
+	case symbols.Min.Symbol:
+		for _, arg := range x.Args {
+			if ast.NumberBound != boundOfArg(arg, varRanges, nameTrie) {
+				return symbols.EmptyType
+			}
+		}
+		return ast.NumberBound
+	case symbols.Count.Symbol:
 		return ast.NumberBound
 	case symbols.Collect.Symbol:
 		fallthrough

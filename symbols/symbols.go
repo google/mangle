@@ -714,10 +714,18 @@ func TypeConforms(ctx map[ast.Variable]ast.BaseTerm, left ast.BaseTerm, right as
 		}
 	}
 	if leftVar, ok := left.(ast.Variable); ok {
-		return TypeConforms(ctx, ctx[leftVar], right)
+		bound, ok := ctx[leftVar]
+		if !ok {
+			return true // Unknown type variable: conservatively assume conformance.
+		}
+		return TypeConforms(ctx, bound, right)
 	}
 	if rightVar, ok := right.(ast.Variable); ok {
-		return TypeConforms(ctx, left, ctx[rightVar])
+		bound, ok := ctx[rightVar]
+		if !ok {
+			return true // Unknown type variable: conservatively assume conformance.
+		}
+		return TypeConforms(ctx, left, bound)
 	}
 	leftApply, leftApplyOk := left.(ast.ApplyFn)
 	rightApply, rightApplyOk := right.(ast.ApplyFn)

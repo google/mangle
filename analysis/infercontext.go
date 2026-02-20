@@ -65,7 +65,7 @@ func (s *inferState) addOrRefine(v ast.Variable, tpe ast.BaseTerm) error {
 		s.varTpe = append(s.varTpe, tpe)
 		return nil
 	}
-	tpe = symbols.LowerBound(nil /*TODO*/, []ast.BaseTerm{s.varTpe[i], tpe})
+	tpe = symbols.LowerBound(map[ast.Variable]ast.BaseTerm{}, []ast.BaseTerm{s.varTpe[i], tpe})
 	if tpe.Equals(symbols.EmptyType) {
 		return fmt.Errorf("variable %v cannot have both %v and %v", v, s.varTpe[i], tpe)
 	}
@@ -269,7 +269,7 @@ func (ic *inferContext) inferRelTypesFromPremise(premises []ast.Term, state *inf
 		leftTpe := boundOfArg(t.Left, state.asMap(), bc.nameTrie)
 		rightTpe := boundOfArg(t.Right, state.asMap(), bc.nameTrie)
 
-		tpe := symbols.LowerBound(nil /* TODO */, []ast.BaseTerm{leftTpe, rightTpe})
+		tpe := symbols.LowerBound(map[ast.Variable]ast.BaseTerm{}, []ast.BaseTerm{leftTpe, rightTpe})
 		if tpe.Equals(symbols.EmptyType) {
 			return nil, fmt.Errorf("type mismatch %v : left type %v right type %v", premise, leftTpe, rightTpe)
 		}

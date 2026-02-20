@@ -84,7 +84,7 @@ var (
 		symbols.Mult:      emptyType,
 		symbols.Plus:      emptyType,
 		symbols.Minus:     emptyType,
-		symbols.Sqrt:      emptyType,
+		symbols.Sqrt:      symbols.NewFunType(ast.Float64Bound /* <= */, ast.Float64Bound),
 
 		// This is only used to start a "do-transform".
 		symbols.GroupBy: emptyType,

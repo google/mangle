@@ -1,4 +1,4 @@
-<img src="https://codeberg.org/TauCeti/mangle-go/blob/main/readthedocs/mangle_logo.png" width="50%">
+<img src="https://codeberg.org/TauCeti/mangle-go/raw/branch/main/readthedocs/mangle_logo.png" width="50%">
 
 # Mangle
 

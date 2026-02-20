@@ -32,9 +32,18 @@ for more information. There is also a Q&A section.
 For an example how to use Mangle library in a database-like grpc service,
 see the separate [Mangle demo service repo](https://codeberg.org/TauCeti/mangle-service).
 
+This repository is hosted on [Codeberg](https://codeberg.org/TauCeti/mangle-go) and mirrored to GitHub.
+
 This is not an officially supported Google product.
 
+## Projects Using Mangle
+
+- [BrowserNerd](https://github.com/theRebelliousNerd/browserNerd) - token-efficient browser automation MCP server
+- [CodeNerd](https://github.com/theRebelliousNerd/codenerd) - logic-first CLI coding agent system
+- [Manglekit](https://github.com/duynguyendang/manglekit) - neuro-symbolic AI engine for Go
+
 ## Table of Contents
+- [Projects Using Mangle](#projects-using-mangle)
 - [Examples](#examples)
 - [Building](#building)
 

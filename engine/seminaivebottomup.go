@@ -21,6 +21,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -102,6 +103,8 @@ type EvalOptions struct {
 	temporalStore factstore.TemporalFactStore
 	evalTime      time.Time
 	addNowMarker  bool
+	// deterministicOrder sorts predicates within strata for reproducible evaluation.
+	deterministicOrder bool
 }
 
 // EvalOption affects the way the evaluation is performed.
@@ -131,6 +134,12 @@ func WithEvaluationTime(t time.Time) EvalOption {
 // WithNowMarker requests adding a __now(T) fact after evaluation indicating the evaluation time.
 func WithNowMarker() EvalOption {
 	return func(o *EvalOptions) { o.addNowMarker = true }
+}
+
+// WithDeterministicOrder sorts predicates within strata so that evaluation
+// order is reproducible across runs. Useful for debugging and testing.
+func WithDeterministicOrder() EvalOption {
+	return func(o *EvalOptions) { o.deterministicOrder = true }
 }
 
 // EvalProgram evaluates a given program on the given facts, modifying the fact store in the process.
@@ -191,6 +200,13 @@ func EvalStratifiedProgramWithStats(programInfo *analysis.ProgramInfo,
 		stats.Strata[stratum] = append(stats.Strata[stratum], sym)
 	}
 	opts := newEvalOptions(options...)
+	if opts.deterministicOrder {
+		for i := range stats.Strata {
+			sort.Slice(stats.Strata[i], func(a, b int) bool {
+				return stats.Strata[i][a].Symbol < stats.Strata[i][b].Symbol
+			})
+		}
+	}
 	for sym := range opts.externalPredicates {
 		decl := predToDecl[sym]
 		if decl == nil {
@@ -525,7 +541,21 @@ func (e *engine) eval() error {
 	}
 	if e.deltaStore.EstimateFactCount() > 0 || (e.temporalDeltaStore != nil && e.temporalDeltaStore.EstimateFactCount() > 0) {
 		// Incremental rounds.
-		deltaRules := makeDeltaRules(e.programInfo.Decls, e.predToRules)
+		deltaRuleMap := makeDeltaRules(e.programInfo.Decls, e.predToRules)
+		// Flatten delta rules into a slice.
+		deltaRulePreds := make([]ast.PredicateSym, 0, len(deltaRuleMap))
+		for pred := range deltaRuleMap {
+			deltaRulePreds = append(deltaRulePreds, pred)
+		}
+		if e.options.deterministicOrder {
+			sort.Slice(deltaRulePreds, func(a, b int) bool {
+				return deltaRulePreds[a].Symbol < deltaRulePreds[b].Symbol
+			})
+		}
+		var deltaRules []ast.Clause
+		for _, pred := range deltaRulePreds {
+			deltaRules = append(deltaRules, deltaRuleMap[pred]...)
+		}
 		if err := e.mergeDelta(); err != nil {
 			return err
 		}
@@ -536,37 +566,35 @@ func (e *engine) eval() error {
 				newTemporalDeltaStore = factstore.NewTemporalStore()
 			}
 			var incrementalFactAdded bool
-			for _, predDeltaRule := range deltaRules {
-				for _, deltaRule := range predDeltaRule {
-					if !predicateAllowList(deltaRule.Head.Predicate) {
-						continue
-					}
-					derivedFacts, err := e.oneStepEvalClause(deltaRule)
-					if err != nil {
-						return err
-					}
-					for _, tf := range derivedFacts {
-						if tf.Interval != nil && e.temporalStore != nil {
-							added, err := e.temporalStore.Add(tf.Atom, *tf.Interval)
-							if err != nil {
-								return err
-							}
-							if added {
-								if newTemporalDeltaStore != nil {
-									if _, err := newTemporalDeltaStore.Add(tf.Atom, *tf.Interval); err != nil {
-										return err
-									}
-									incrementalFactAdded = true
+			for _, deltaRule := range deltaRules {
+				if !predicateAllowList(deltaRule.Head.Predicate) {
+					continue
+				}
+				derivedFacts, err := e.oneStepEvalClause(deltaRule)
+				if err != nil {
+					return err
+				}
+				for _, tf := range derivedFacts {
+					if tf.Interval != nil && e.temporalStore != nil {
+						added, err := e.temporalStore.Add(tf.Atom, *tf.Interval)
+						if err != nil {
+							return err
+						}
+						if added {
+							if newTemporalDeltaStore != nil {
+								if _, err := newTemporalDeltaStore.Add(tf.Atom, *tf.Interval); err != nil {
+									return err
 								}
-							}
-						} else {
-							if !e.store.Contains(tf.Atom) && !e.deltaStore.Contains(tf.Atom) {
-								incrementalFactAdded = newDeltaStore.Add(tf.Atom) || incrementalFactAdded
+								incrementalFactAdded = true
 							}
 						}
-						if e.options.createdFactLimit > 0 && newDeltaStore.EstimateFactCount() > e.options.createdFactLimit {
-							return fmt.Errorf("fact size limit reached evaluating %q %d > %d", deltaRule.String(), newDeltaStore.EstimateFactCount(), e.options.createdFactLimit)
+					} else {
+						if !e.store.Contains(tf.Atom) && !e.deltaStore.Contains(tf.Atom) {
+							incrementalFactAdded = newDeltaStore.Add(tf.Atom) || incrementalFactAdded
 						}
+					}
+					if e.options.createdFactLimit > 0 && newDeltaStore.EstimateFactCount() > e.options.createdFactLimit {
+						return fmt.Errorf("fact size limit reached evaluating %q %d > %d", deltaRule.String(), newDeltaStore.EstimateFactCount(), e.options.createdFactLimit)
 					}
 				}
 			}

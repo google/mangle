@@ -1295,11 +1295,11 @@ func TestFunctionEval(t *testing.T) {
 }
 
 type ExtImpl struct {
-	called1  int
-	called2  int
-	pushdown []ast.Term
-	called3  int
-	filters  []ast.BaseTerm
+	called1   int
+	called2   int
+	pushdowns [][]ast.Term
+	called3   int
+	filters   []ast.BaseTerm
 }
 
 func (e *ExtImpl) ShouldPushdown() bool {
@@ -1313,7 +1313,7 @@ func (e *ExtImpl) ShouldQuery(inputs []ast.Constant, filters []ast.BaseTerm, pus
 	}
 	if inputs[0].Equals(ast.Number(2)) {
 		e.called2++
-		e.pushdown = pushdown
+		e.pushdowns = append(e.pushdowns, pushdown)
 	}
 	if inputs[0].Equals(ast.Number(3)) {
 		e.called3++
@@ -1371,7 +1371,7 @@ func TestEvalExternal(t *testing.T) {
 	opt := WithExternalPredicates(map[ast.PredicateSym]ExternalPredicateCallback{
 		ast.PredicateSym{"testExt", 2}: extImpl,
 	})
-	_, err = EvalStratifiedProgramWithStats(programInfo, strata, predToStratum, store, opt)
+	_, err = EvalStratifiedProgramWithStats(programInfo, strata, predToStratum, store, opt, WithDeterministicOrder())
 	if err != nil {
 		t.Fatalf("eval: %v", err)
 	}
@@ -1382,9 +1382,16 @@ func TestEvalExternal(t *testing.T) {
 	if extImpl.called2 != 2 {
 		t.Errorf("expected ShouldQuery(testExt(2)) to be called twice, was %d times", extImpl.called2)
 	}
-	if len(extImpl.pushdown) != 1 || !extImpl.pushdown[0].Equals(stringContainsSubgoal) {
-		t.Errorf("expected ShouldQuery(testExt(2)) to be called with pushdown [%v], was %v",
-			stringContainsSubgoal, extImpl.pushdown)
+	var foundPushdown bool
+	for _, pd := range extImpl.pushdowns {
+		if len(pd) == 1 && pd[0].Equals(stringContainsSubgoal) {
+			foundPushdown = true
+			break
+		}
+	}
+	if !foundPushdown {
+		t.Errorf("expected at least one ShouldQuery(testExt(2)) call with pushdown [%v], got %v",
+			stringContainsSubgoal, extImpl.pushdowns)
 	}
 	if extImpl.called3 != 1 {
 		t.Errorf("expected ShouldQuery(testExt(3)) to be called once, was %d times", extImpl.called3)

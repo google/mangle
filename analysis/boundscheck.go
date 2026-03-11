@@ -289,7 +289,7 @@ func (bc *BoundsAnalyzer) feasibleAlternatives(
 	}
 	if pred.Symbol == symbols.MatchField.Symbol {
 		tpe := boundOfArg(args[0], varRanges, bc.nameTrie)
-		if symbols.IsStructTypeExpression(tpe) {
+		if symbols.IsStructTypeExpression(tpe) || symbols.IsTaggedUnionTypeExpression(tpe) || symbols.IsUnionTypeExpression(tpe) {
 			fieldTpe, err := symbols.StructTypeField(tpe, args[1].(ast.Constant))
 			if err != nil {
 				return nil, nil, err

@@ -53,8 +53,16 @@ func (n NameTrie) Collect(typeExpr ast.BaseTerm) {
 				n.Add(parts[1:])
 			}
 		case ast.ApplyFn:
-			for _, arg := range x.Args {
-				n.Collect(arg)
+			if x.Function.Symbol == TaggedUnionType.Symbol && len(x.Args) >= 3 {
+				// Only collect names from variant struct types, not the tag
+				// field name or variant tags (which are discriminant values).
+				for i := 2; i < len(x.Args); i += 2 {
+					n.Collect(x.Args[i])
+				}
+			} else {
+				for _, arg := range x.Args {
+					n.Collect(arg)
+				}
 			}
 		default:
 		}

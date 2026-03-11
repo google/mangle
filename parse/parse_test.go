@@ -208,6 +208,36 @@ func TestParseDecl(t *testing.T) {
 				},
 				nil)},
 		},
+		{
+			name: "tagged union",
+			str:  "Decl foo(X) bound [.TaggedUnion</kind, /move : .Struct</x : /number, /y : /number>, /quit : .Struct<>>].",
+			want: []ast.Decl{makeDecl(t, ast.NewAtom("foo", ast.Variable{"X"}),
+				nil,
+				[]ast.BoundDecl{
+					ast.NewBoundDecl(
+						ast.ApplyFn{
+							Function: ast.FunctionSym{"fn:TaggedUnion", -1},
+							Args: []ast.BaseTerm{
+								name("/kind"),
+								name("/move"),
+								ast.ApplyFn{
+									Function: ast.FunctionSym{"fn:Struct", -1},
+									Args: []ast.BaseTerm{
+										name("/x"), ast.NumberBound,
+										name("/y"), ast.NumberBound,
+									},
+								},
+								name("/quit"),
+								ast.ApplyFn{
+									Function: ast.FunctionSym{"fn:Struct", -1},
+									Args:     nil,
+								},
+							},
+						},
+					),
+				},
+				nil)},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

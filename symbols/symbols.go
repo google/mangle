@@ -305,6 +305,10 @@ var (
 	StructType = ast.FunctionSym{"fn:Struct", -1}
 	// UnionType is a constructor for a union type.
 	UnionType = ast.FunctionSym{"fn:Union", -1}
+	// TaggedUnionType is a constructor for a tagged union (internally-tagged discriminated union).
+	// fn:TaggedUnion(tag_field, tag1, struct_type1, tag2, struct_type2, ...)
+	// A value is a struct with the tag field set to a variant tag, plus the variant's fields.
+	TaggedUnionType = ast.FunctionSym{"fn:TaggedUnion", -1}
 
 	// Optional may appear inside StructType to indicate optional fields.
 	Optional = ast.FunctionSym{"fn:opt", -1}
@@ -324,9 +328,10 @@ var (
 		PairType.Symbol:      PairType,
 		TupleType.Symbol:     TupleType,
 		MapType.Symbol:       MapType,
-		StructType.Symbol:    StructType,
-		FunType.Symbol:       FunType,
-		RelType.Symbol:       RelType,
+		StructType.Symbol:       StructType,
+		TaggedUnionType.Symbol:  TaggedUnionType,
+		FunType.Symbol:          FunType,
+		RelType.Symbol:          RelType,
 	}
 
 	// EmptyType is a type without members.
@@ -519,6 +524,12 @@ func (t TypeHandle) HasType(c ast.Constant) bool {
 	case SingletonType:
 		d := tpe.Args[0]
 		return c.Equals(d)
+	case TaggedUnionType:
+		expanded, err := ExpandTaggedUnionType(tpe)
+		if err != nil {
+			return false
+		}
+		return TypeHandle{expanded, t.ctx}.HasType(c)
 	}
 	return false
 }
@@ -618,6 +629,9 @@ func WellformedType(ctx map[ast.Variable]ast.BaseTerm, expr ast.BaseTerm) error 
 			}
 			return nil
 		}
+		if fn == TaggedUnionType {
+			return CheckTaggedUnionTypeExpression(ctx, expr)
+		}
 
 		for _, arg := range args {
 			if err := WellformedType(ctx, arg); err != nil {
@@ -663,6 +677,60 @@ func CheckFunTypeExpression(ctx map[ast.Variable]ast.BaseTerm, expr ast.ApplyFn)
 	return WellformedType(ctxMap, codomain)
 }
 
+// CheckTaggedUnionTypeExpression checks a tagged union type expression.
+// fn:TaggedUnion(tag_field, tag1, struct_type1, tag2, struct_type2, ...)
+func CheckTaggedUnionTypeExpression(ctx map[ast.Variable]ast.BaseTerm, expr ast.ApplyFn) error {
+	args := expr.Args
+	if len(args) < 3 || len(args)%2 != 1 {
+		return fmt.Errorf("tagged union type must have odd number of args >= 3 (tag_field, tag1, type1, ...), got %d in %v", len(args), expr)
+	}
+	tagField, ok := args[0].(ast.Constant)
+	if !ok || tagField.Type != ast.NameType {
+		return fmt.Errorf("tagged union tag field must be a name constant, got %v in %v", args[0], expr)
+	}
+	seenTags := make(map[string]bool)
+	for i := 1; i < len(args); i += 2 {
+		tag, ok := args[i].(ast.Constant)
+		if !ok || tag.Type != ast.NameType {
+			return fmt.Errorf("tagged union variant tag must be a name constant, got %v in %v", args[i], expr)
+		}
+		if seenTags[tag.Symbol] {
+			return fmt.Errorf("duplicate variant tag %v in %v", tag, expr)
+		}
+		seenTags[tag.Symbol] = true
+
+		variantType := args[i+1]
+		if !IsStructTypeExpression(variantType) {
+			return fmt.Errorf("tagged union variant type must be a struct type, got %v in %v", variantType, expr)
+		}
+		if err := WellformedType(ctx, variantType); err != nil {
+			return fmt.Errorf("in tagged union variant %v: %w", tag, err)
+		}
+		// Check that the tag field does not appear in the variant struct.
+		requiredArgs, err := StructTypeRequiredArgs(variantType)
+		if err != nil {
+			return err
+		}
+		for j := 0; j < len(requiredArgs); j += 2 {
+			if key, ok := requiredArgs[j].(ast.Constant); ok && key.Symbol == tagField.Symbol {
+				return fmt.Errorf("variant %v must not contain tag field %v in %v", tag, tagField, expr)
+			}
+		}
+		optArgs, err := StructTypeOptionaArgs(variantType)
+		if err != nil {
+			return err
+		}
+		for _, optArg := range optArgs {
+			if f, ok := optArg.(ast.ApplyFn); ok {
+				if key, ok := f.Args[0].(ast.Constant); ok && key.Symbol == tagField.Symbol {
+					return fmt.Errorf("variant %v must not contain tag field %v in %v", tag, tagField, expr)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // SetConforms returns true if |- left <: right for set expression.
 func SetConforms(typeCtx map[ast.Variable]ast.BaseTerm, left ast.BaseTerm, right ast.BaseTerm) bool {
 	if left.Equals(right) || right.Equals(ast.AnyBound) || left.Equals(ast.BotBound) {
@@ -680,6 +748,21 @@ func SetConforms(typeCtx map[ast.Variable]ast.BaseTerm, left ast.BaseTerm, right
 	}
 	leftApply, leftApplyOk := left.(ast.ApplyFn)
 	rightApply, rightApplyOk := right.(ast.ApplyFn)
+	// Expand tagged unions to union-of-structs before checking conformance.
+	if leftApplyOk && leftApply.Function.Symbol == TaggedUnionType.Symbol {
+		expanded, err := ExpandTaggedUnionType(leftApply)
+		if err != nil {
+			return false
+		}
+		return SetConforms(typeCtx, expanded, right)
+	}
+	if rightApplyOk && rightApply.Function.Symbol == TaggedUnionType.Symbol {
+		expanded, err := expandTaggedUnionForBounds(rightApply)
+		if err != nil {
+			return false
+		}
+		return SetConforms(typeCtx, left, expanded)
+	}
 	if leftApplyOk && leftApply.Function.Symbol == UnionType.Symbol {
 		for _, leftItem := range leftApply.Args {
 			if !SetConforms(typeCtx, leftItem, right) {
@@ -711,6 +794,12 @@ func TypeConforms(ctx map[ast.Variable]ast.BaseTerm, left ast.BaseTerm, right as
 				return true
 			}
 			return leftConst.Type == ast.NameType && rightConst.Equals(ast.NameBound)
+		}
+	}
+	// fn:Singleton(c) <: T if c is a member of T.
+	if leftApply, ok := left.(ast.ApplyFn); ok && leftApply.Function.Symbol == SingletonType.Symbol {
+		if c, ok := leftApply.Args[0].(ast.Constant); ok {
+			return (TypeHandle{right, ctx}).HasType(c)
 		}
 	}
 	if leftVar, ok := left.(ast.Variable); ok {

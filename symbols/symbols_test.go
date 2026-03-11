@@ -278,6 +278,12 @@ func TestSetConforms(t *testing.T) {
 		{name("/foo"), ast.NameBound, true},
 		{name("/true"), NewUnionType(name("/true"), name("/false")), true},
 		{ast.NameBound, name("/foo"), false},
+		// Singleton conformance
+		{NewSingletonType(name("/foo")), ast.NameBound, true},
+		{NewSingletonType(ast.TrueConstant), ast.NameBound, true},
+		{NewSingletonType(ast.Number(42)), ast.NumberBound, true},
+		{NewSingletonType(ast.String("hi")), ast.StringBound, true},
+		{NewSingletonType(ast.Number(42)), ast.StringBound, false},
 		{NewUnionType(name("/true"), name("/false")), name("/true"), false},
 		{
 			NewListType(ast.BotBound),
@@ -463,6 +469,208 @@ func TestAccess(t *testing.T) {
 	}
 	if !barTpe.Equals(ast.NumberBound) {
 		t.Errorf("StructTypeField(%v,%v)=%v want /number", tpe, name("bar"), barTpe)
+	}
+}
+
+func TestTaggedUnionWellformed(t *testing.T) {
+	// Valid tagged union
+	tpe := NewTaggedUnionType(name("/kind"),
+		name("/move"), NewStructType(name("/x"), ast.NumberBound, name("/y"), ast.NumberBound),
+		name("/quit"), NewStructType(),
+		name("/write"), NewStructType(name("/content"), ast.StringBound),
+	)
+	if err := WellformedType(nil, tpe); err != nil {
+		t.Errorf("WellformedType(%v) failed: %v", tpe, err)
+	}
+}
+
+func TestTaggedUnionWellformedNegative(t *testing.T) {
+	tests := []struct {
+		desc string
+		tpe  ast.BaseTerm
+	}{
+		{
+			desc: "too few args",
+			tpe:  ast.ApplyFn{TaggedUnionType, []ast.BaseTerm{name("/kind")}},
+		},
+		{
+			desc: "even number of args",
+			tpe:  ast.ApplyFn{TaggedUnionType, []ast.BaseTerm{name("/kind"), name("/a")}},
+		},
+		{
+			desc: "tag field not a name",
+			tpe:  ast.ApplyFn{TaggedUnionType, []ast.BaseTerm{ast.Number(1), name("/a"), NewStructType()}},
+		},
+		{
+			desc: "variant tag not a name",
+			tpe:  ast.ApplyFn{TaggedUnionType, []ast.BaseTerm{name("/kind"), ast.Number(1), NewStructType()}},
+		},
+		{
+			desc: "variant type not a struct",
+			tpe:  ast.ApplyFn{TaggedUnionType, []ast.BaseTerm{name("/kind"), name("/a"), ast.NumberBound}},
+		},
+		{
+			desc: "duplicate variant tags",
+			tpe: NewTaggedUnionType(name("/kind"),
+				name("/a"), NewStructType(),
+				name("/a"), NewStructType(name("/x"), ast.NumberBound),
+			),
+		},
+		{
+			desc: "tag field appears in variant struct",
+			tpe: NewTaggedUnionType(name("/kind"),
+				name("/a"), NewStructType(name("/kind"), ast.StringBound),
+			),
+		},
+	}
+	for _, test := range tests {
+		if err := WellformedType(nil, test.tpe); err == nil {
+			t.Errorf("WellformedType(%v) [%s] succeeded, expected error", test.tpe, test.desc)
+		}
+	}
+}
+
+func TestTaggedUnionHasType(t *testing.T) {
+	kindName := name("/kind")
+	moveName := name("/move")
+	quitName := name("/quit")
+	xName := name("/x")
+	yName := name("/y")
+
+	tpe := NewTaggedUnionType(kindName,
+		moveName, NewStructType(xName, ast.NumberBound, yName, ast.NumberBound),
+		quitName, NewStructType(),
+	)
+	h, err := NewSetHandle(tpe)
+	if err != nil {
+		t.Fatalf("NewSetHandle(%v) failed %v", tpe, err)
+	}
+
+	// Good: a "move" struct with tag field and variant fields
+	moveStruct := ast.Struct(map[*ast.Constant]*ast.Constant{
+		&kindName: &moveName,
+		&xName:    constPtr(ast.Number(10)),
+		&yName:    constPtr(ast.Number(20)),
+	})
+	if !h.HasType(*moveStruct) {
+		t.Errorf("HasType(%v) for move struct = false, want true", moveStruct)
+	}
+
+	// Good: a "quit" struct with just the tag field
+	quitStruct := ast.Struct(map[*ast.Constant]*ast.Constant{
+		&kindName: &quitName,
+	})
+	if !h.HasType(*quitStruct) {
+		t.Errorf("HasType(%v) for quit struct = false, want true", quitStruct)
+	}
+
+	// Bad: wrong tag value
+	badTag := name("/unknown")
+	badStruct := ast.Struct(map[*ast.Constant]*ast.Constant{
+		&kindName: &badTag,
+	})
+	if h.HasType(*badStruct) {
+		t.Errorf("HasType(%v) for bad tag struct = true, want false", badStruct)
+	}
+
+	// Bad: plain number
+	if h.HasType(ast.Number(42)) {
+		t.Errorf("HasType(42) = true, want false")
+	}
+}
+
+func constPtr(c ast.Constant) *ast.Constant {
+	return &c
+}
+
+func TestTaggedUnionSetConforms(t *testing.T) {
+	kindName := name("/kind")
+	// A two-variant tagged union
+	tuFull := NewTaggedUnionType(kindName,
+		name("/a"), NewStructType(name("/x"), ast.NumberBound),
+		name("/b"), NewStructType(name("/y"), ast.StringBound),
+	)
+	// A single-variant subset
+	tuSub := NewTaggedUnionType(kindName,
+		name("/a"), NewStructType(name("/x"), ast.NumberBound),
+	)
+	// The expanded union-of-structs form
+	expandedFull := NewUnionType(
+		NewStructType(kindName, NewSingletonType(name("/a")), name("/x"), ast.NumberBound),
+		NewStructType(kindName, NewSingletonType(name("/b")), name("/y"), ast.StringBound),
+	)
+
+	tests := []struct {
+		desc  string
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
+	}{
+		{"tagged union conforms to itself", tuFull, tuFull, true},
+		{"subset conforms to superset", tuSub, tuFull, true},
+		{"superset does not conform to subset", tuFull, tuSub, false},
+		{"tagged union conforms to equivalent union-of-structs", tuFull, expandedFull, true},
+		{"equivalent union-of-structs conforms to tagged union", expandedFull, tuFull, true},
+		{"tagged union conforms to /any", tuFull, ast.AnyBound, true},
+		// Bounds-checker scenario: inferred struct type with /name for tag field
+		{
+			"inferred struct conforms to tagged union",
+			NewStructType(kindName, ast.NameBound, name("/x"), ast.NumberBound),
+			tuFull,
+			true,
+		},
+	}
+	for _, test := range tests {
+		if got := SetConforms(nil, test.left, test.right); got != test.want {
+			t.Errorf("SetConforms(%v, %v) [%s] = %v, want %v", test.left, test.right, test.desc, got, test.want)
+		}
+	}
+}
+
+func TestTaggedUnionExpand(t *testing.T) {
+	kindName := name("/kind")
+	tpe := NewTaggedUnionType(kindName,
+		name("/a"), NewStructType(name("/x"), ast.NumberBound),
+		name("/b"), NewStructType(name("/y"), ast.StringBound),
+	)
+	expanded, err := ExpandTaggedUnionType(tpe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := NewUnionType(
+		NewStructType(kindName, NewSingletonType(name("/a")), name("/x"), ast.NumberBound),
+		NewStructType(kindName, NewSingletonType(name("/b")), name("/y"), ast.StringBound),
+	)
+	if !expanded.Equals(want) {
+		t.Errorf("ExpandTaggedUnionType = %v, want %v", expanded, want)
+	}
+}
+
+func TestTaggedUnionStructTypeField(t *testing.T) {
+	kindName := name("/kind")
+	tpe := NewTaggedUnionType(kindName,
+		name("/a"), NewStructType(name("/x"), ast.NumberBound),
+		name("/b"), NewStructType(name("/x"), ast.StringBound, name("/y"), ast.NumberBound),
+	)
+
+	// Tag field should project to union of singletons
+	tagTpe, err := StructTypeField(tpe, kindName)
+	if err != nil {
+		t.Fatalf("StructTypeField tag field: %v", err)
+	}
+	wantTag := NewUnionType(NewSingletonType(name("/a")), NewSingletonType(name("/b")))
+	if !SetConforms(nil, tagTpe, wantTag) || !SetConforms(nil, wantTag, tagTpe) {
+		t.Errorf("StructTypeField(tag) = %v, want %v", tagTpe, wantTag)
+	}
+
+	// Shared field /x should project to union of types from each variant
+	xTpe, err := StructTypeField(tpe, name("/x"))
+	if err != nil {
+		t.Fatalf("StructTypeField /x: %v", err)
+	}
+	wantX := NewUnionType(ast.NumberBound, ast.StringBound)
+	if !SetConforms(nil, xTpe, wantX) || !SetConforms(nil, wantX, xTpe) {
+		t.Errorf("StructTypeField(/x) = %v, want %v", xTpe, wantX)
 	}
 }
 

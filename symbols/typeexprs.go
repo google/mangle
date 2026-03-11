@@ -123,6 +123,102 @@ func BoolType() ast.ApplyFn {
 	return NewUnionType(NewSingletonType(ast.TrueConstant), NewSingletonType(ast.FalseConstant))
 }
 
+// NewTaggedUnionType returns a new TaggedUnionType.
+// variantPairs must be alternating tag constants and struct types.
+func NewTaggedUnionType(tagField ast.Constant, variantPairs ...ast.BaseTerm) ast.ApplyFn {
+	args := make([]ast.BaseTerm, 0, 1+len(variantPairs))
+	args = append(args, tagField)
+	args = append(args, variantPairs...)
+	return newTypeExpr(TaggedUnionType, args...)
+}
+
+// IsTaggedUnionTypeExpression returns true if tpe is a TaggedUnionType.
+func IsTaggedUnionTypeExpression(tpe ast.BaseTerm) bool {
+	op := typeOp(tpe)
+	return op != nil && op.Symbol == TaggedUnionType.Symbol
+}
+
+// TaggedUnionTagField returns the tag field name of a TaggedUnionType.
+func TaggedUnionTagField(tpe ast.BaseTerm) (ast.Constant, error) {
+	args := typeArgs(tpe)
+	if args == nil || len(args) < 3 {
+		return ast.Constant{}, fmt.Errorf("not a tagged union type expression: %v", tpe)
+	}
+	c, ok := args[0].(ast.Constant)
+	if !ok {
+		return ast.Constant{}, fmt.Errorf("tag field is not a constant: %v", args[0])
+	}
+	return c, nil
+}
+
+// TaggedUnionVariants returns the variant tags and their struct types.
+func TaggedUnionVariants(tpe ast.BaseTerm) ([]ast.Constant, []ast.BaseTerm, error) {
+	args := typeArgs(tpe)
+	if args == nil || len(args) < 3 || len(args)%2 != 1 {
+		return nil, nil, fmt.Errorf("not a tagged union type expression: %v", tpe)
+	}
+	n := (len(args) - 1) / 2
+	tags := make([]ast.Constant, n)
+	types := make([]ast.BaseTerm, n)
+	for i := 0; i < n; i++ {
+		c, ok := args[1+2*i].(ast.Constant)
+		if !ok {
+			return nil, nil, fmt.Errorf("variant tag is not a constant: %v", args[1+2*i])
+		}
+		tags[i] = c
+		types[i] = args[2+2*i]
+	}
+	return tags, types, nil
+}
+
+// ExpandTaggedUnionType expands a TaggedUnionType into the equivalent Union of Struct types.
+// fn:TaggedUnion(/kind, /a, fn:Struct(/x: /number), /b, fn:Struct(/y: /string))
+// becomes:
+// fn:Union(fn:Struct(/kind, fn:Singleton(/a), /x, /number), fn:Struct(/kind, fn:Singleton(/b), /y, /string))
+func ExpandTaggedUnionType(tpe ast.BaseTerm) (ast.ApplyFn, error) {
+	tagField, err := TaggedUnionTagField(tpe)
+	if err != nil {
+		return ast.ApplyFn{}, err
+	}
+	tags, structTypes, err := TaggedUnionVariants(tpe)
+	if err != nil {
+		return ast.ApplyFn{}, err
+	}
+	alternatives := make([]ast.BaseTerm, len(tags))
+	for i, tag := range tags {
+		variantArgs := typeArgs(structTypes[i])
+		// Build struct: tag_field, Singleton(tag), ...variant fields
+		structArgs := make([]ast.BaseTerm, 0, 2+len(variantArgs))
+		structArgs = append(structArgs, tagField, NewSingletonType(tag))
+		structArgs = append(structArgs, variantArgs...)
+		alternatives[i] = NewStructType(structArgs...)
+	}
+	return NewUnionType(alternatives...), nil
+}
+
+// expandTaggedUnionForBounds is like ExpandTaggedUnionType but uses /name for the
+// tag field type instead of fn:Singleton(tag). This is less precise but compatible
+// with the bounds checker's type inference, which infers /name for name constants.
+func expandTaggedUnionForBounds(tpe ast.BaseTerm) (ast.ApplyFn, error) {
+	tagField, err := TaggedUnionTagField(tpe)
+	if err != nil {
+		return ast.ApplyFn{}, err
+	}
+	_, structTypes, err := TaggedUnionVariants(tpe)
+	if err != nil {
+		return ast.ApplyFn{}, err
+	}
+	alternatives := make([]ast.BaseTerm, len(structTypes))
+	for i := range structTypes {
+		variantArgs := typeArgs(structTypes[i])
+		structArgs := make([]ast.BaseTerm, 0, 2+len(variantArgs))
+		structArgs = append(structArgs, tagField, ast.NameBound)
+		structArgs = append(structArgs, variantArgs...)
+		alternatives[i] = NewStructType(structArgs...)
+	}
+	return NewUnionType(alternatives...), nil
+}
+
 // IsListTypeExpression returns true if tpe is a ListType.
 func IsListTypeExpression(tpe ast.BaseTerm) bool {
 	op := typeOp(tpe)
@@ -212,6 +308,13 @@ func StructTypeOptionaArgs(tpe ast.BaseTerm) ([]ast.BaseTerm, error) {
 
 // StructTypeField returns field type for given field.
 func StructTypeField(tpe ast.BaseTerm, field ast.Constant) (ast.BaseTerm, error) {
+	if IsTaggedUnionTypeExpression(tpe) {
+		expanded, err := ExpandTaggedUnionType(tpe)
+		if err != nil {
+			return nil, err
+		}
+		return StructTypeField(expanded, field)
+	}
 	if IsUnionTypeExpression(tpe) { // Project
 		src, _ := UnionTypeArgs(tpe)
 		alternatives := []ast.BaseTerm{}

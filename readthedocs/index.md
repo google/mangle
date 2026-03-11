@@ -63,4 +63,5 @@ Aggregation <aggregation.md>
 Basic Types <basictypes.md>
 Constructed Types <constructedtypes.md>
 Type Expressions <typeexpressions.md>
+Declarations <declarations.md>
 Temporal Reasoning <temporal.md>

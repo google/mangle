@@ -173,6 +173,7 @@ func (uf UnionFind) Copy() UnionFind {
 // UnifyTermsExtend unifies two same-length lists of relational terms, returning
 // an extended UnionFind. It does not handle apply-expressions.
 // The caller needs to ensure that none of the variables is "_" and none of the variables appears among the terms.
+// The caller also needs to ensure that the base UnionFind is consistent with the new terms.
 func UnifyTermsExtend(xs []ast.BaseTerm, ys []ast.BaseTerm, base UnionFind) (UnionFind, error) {
 	if len(xs) != len(ys) {
 		return UnionFind{}, fmt.Errorf("not of equal size")

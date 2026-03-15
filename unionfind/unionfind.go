@@ -161,16 +161,24 @@ func UnifyTerms(xs []ast.BaseTerm, ys []ast.BaseTerm) (UnionFind, error) {
 	return uf, unifyTermsUpdate(newXs, newYs, uf)
 }
 
+// Clone returns a new UnionFind that is a copy of this one.
+func (uf UnionFind) Clone() UnionFind {
+	newUf := UnionFind{make(map[ast.BaseTerm]ast.BaseTerm, len(uf.parent))}
+	for k, v := range uf.parent {
+		newUf.parent[k] = v
+	}
+	return newUf
+}
+
 // UnifyTermsExtend unifies two same-length lists of relational terms, returning
 // an extended UnionFind. It does not handle apply-expressions.
+// The caller needs to ensure that none of the variables is "_" and none of the variables appears among the terms.
+// The caller also needs to ensure that the base UnionFind is consistent with the new terms.
 func UnifyTermsExtend(xs []ast.BaseTerm, ys []ast.BaseTerm, base UnionFind) (UnionFind, error) {
 	if len(xs) != len(ys) {
 		return UnionFind{}, fmt.Errorf("not of equal size")
 	}
-	uf := UnionFind{make(map[ast.BaseTerm]ast.BaseTerm)}
-	for k, v := range base.parent {
-		uf.parent[k] = v
-	}
+	uf := base.Clone()
 	var newXs []ast.BaseTerm
 	var newYs []ast.BaseTerm
 	for i, x := range xs {

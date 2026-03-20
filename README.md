@@ -159,7 +159,7 @@ See the [Temporal Reasoning documentation](https://mangle.readthedocs.io/en/late
 
 ## Talks
 
-*   **[From Facts to Theories ](https://rebase-conf.org/2025/), an invited talk REBASE 2025. [Watch on YouTube](https://youtu.be/UjOEHSZDBH8?si=qAjnkBQfPKMVaOPW).
+*   **[From Facts to Theories](https://rebase-conf.org/2025/)**, an invited talk REBASE 2025. [Watch on YouTube](https://youtu.be/UjOEHSZDBH8?si=qAjnkBQfPKMVaOPW).
 
 ## Building & Testing
 

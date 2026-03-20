@@ -33,7 +33,8 @@ see the separate [Mangle demo service repo](https://codeberg.org/TauCeti/mangle-
 
 This repository is hosted on [Codeberg](https://codeberg.org/TauCeti/mangle-go) and mirrored to GitHub.
 
-This is not an officially supported Google product.
+Mangle started out as an open source project released by Google but is now developed
+independently. It is not and never was an officially supported Google product.
 
 ## Projects Using Mangle
 
@@ -184,8 +185,5 @@ antlr -Dlanguage=Go -package gen -o ./ parse/gen/Mangle.g4 -visitor
 ## Contributing
 
 The Mangle maintainers welcome external contributions to spec, documentation
-and this implementation (see [CONTRIBUTING.md](CONTRIBUTING.md)) and also other
-implementations. Pull requests will be handled
-[like for tensorflow](https://github.com/tensorflow/tensorflow/blob/master/CONTRIBUTING.md),
-to ensure our internal usage and tests will pass.
+and implementations (see [CONTRIBUTING.md](CONTRIBUTING.md)).
 

@@ -25,9 +25,8 @@ a way that is accessible to developers and lends itself to easy experimentation.
 This repository contains an implementation of Mangle as a go library that can be
 easily embedded into applications.
 
-Check out the [users documentation](https://mangle.readthedocs.io/en/latest/)
-and the [Codeberg discussions](https://codeberg.org/TauCeti/mangle-go/discussions)
-for more information. There is also a Q&A section.
+Check out the [user documentation](https://mangle.readthedocs.io/en/latest/)
+and the [issues](https://codeberg.org/TauCeti/mangle-go/issues) for more information.
 
 For an example how to use Mangle library in a database-like grpc service,
 see the separate [Mangle demo service repo](https://codeberg.org/TauCeti/mangle-service).
@@ -159,7 +158,7 @@ See the [Temporal Reasoning documentation](https://mangle.readthedocs.io/en/late
 
 ## Talks
 
-*   **From Facts to Theories**: Burak Emir's talk at [REBASE 2025](https://rebaseconf.org/) discusses how Mangle bridges the gap between raw data and logical theories. [Watch on YouTube](https://youtu.be/UjOEHSZDBH8?si=qAjnkBQfPKMVaOPW).
+*   **[From Facts to Theories ](https://rebase-conf.org/2025/), an invited talk REBASE 2025. [Watch on YouTube](https://youtu.be/UjOEHSZDBH8?si=qAjnkBQfPKMVaOPW).
 
 ## Building & Testing
 
@@ -190,6 +189,3 @@ implementations. Pull requests will be handled
 [like for tensorflow](https://github.com/tensorflow/tensorflow/blob/master/CONTRIBUTING.md),
 to ensure our internal usage and tests will pass.
 
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=google/mangle&type=Date)](https://www.star-history.com/#google/mangle&Date)

@@ -15,7 +15,7 @@ reach out to Burak.
 
 ### Code Reviews
 
-All submissions, including submissions by project members, but exluding Burak,
+All submissions, including submissions by project members, but excluding Burak,
 require review. We use pull requests for this purpose. Consult
 [Codeberg documentation](https://docs.codeberg.org/collaborating/pull-requests-and-git-flow/) for more
 information on using pull requests.

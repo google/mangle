@@ -15,10 +15,12 @@
 package engine
 
 import (
+	"fmt"
 	"testing"
 
 	"codeberg.org/TauCeti/mangle-go/ast"
 	"codeberg.org/TauCeti/mangle-go/factstore"
+	"codeberg.org/TauCeti/mangle-go/parse"
 )
 
 type testCase struct {
@@ -129,5 +131,52 @@ func TestGroupBy(t *testing.T) {
 
 	for _, test := range tests {
 		runEval(test, t)
+	}
+}
+
+// TestGroupByManyKeys exercises a large number of distinct group keys to
+// guard against the old FNV-32 hash-collision bug in which two distinct
+// keys could silently merge into a single group.
+func TestGroupByManyKeys(t *testing.T) {
+	const numKeys = 5000
+	var facts []ast.Atom
+	for i := 0; i < numKeys; i++ {
+		a, err := parse.Atom(fmt.Sprintf("bar(%d, 10)", i))
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		b, err := parse.Atom(fmt.Sprintf("bar(%d, 32)", i))
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		facts = append(facts, a, b)
+	}
+	c := clause("foo(Y, S) :- bar(Y, Z) |> do fn:group_by(Y), let S = fn:sum(Z).")
+
+	store := factstore.NewSimpleInMemoryStore()
+	for _, f := range facts {
+		store.Add(f)
+	}
+	var input []ast.ConstSubstList
+	premise := c.Premises[0].(ast.Atom)
+	store.GetFacts(premise, func(a ast.Atom) error {
+		var subst ast.ConstSubstList
+		for i, arg := range premise.Args {
+			subst = subst.Extend(arg.(ast.Variable), a.Args[i].(ast.Constant))
+		}
+		input = append(input, subst)
+		return nil
+	})
+	if err := EvalTransform(c.Head, *c.Transform, input, store.Add); err != nil {
+		t.Fatalf("EvalTransform: %v", err)
+	}
+	for i := 0; i < numKeys; i++ {
+		want, err := parse.Atom(fmt.Sprintf("foo(%d, 42)", i))
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		if !store.Contains(want) {
+			t.Fatalf("missing aggregate %v — suggests distinct group keys collided", want)
+		}
 	}
 }

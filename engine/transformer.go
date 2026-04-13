@@ -15,14 +15,13 @@
 package engine
 
 import (
-	"encoding/binary"
+	"fmt"
+	"strings"
 
 	"codeberg.org/TauCeti/mangle-go/ast"
 	"codeberg.org/TauCeti/mangle-go/builtin"
 	"codeberg.org/TauCeti/mangle-go/functional"
 	"codeberg.org/TauCeti/mangle-go/symbols"
-
-	"hash/fnv"
 )
 
 // EvalTransform evaluates a transform.
@@ -64,6 +63,18 @@ type grouped struct {
 	values []ast.ConstSubstList
 }
 
+// groupKeyString builds a collision-free string key for a group-by key.
+// Each component's String() form is length-prefixed and terminated so the
+// encoding is injective for any sequence of constants.
+func groupKeyString(keys []ast.Constant) string {
+	var sb strings.Builder
+	for _, k := range keys {
+		s := k.String()
+		fmt.Fprintf(&sb, "%d:%s|", len(s), s)
+	}
+	return sb.String()
+}
+
 // evalDo evaluates a do statement (currently: only "|> do fn::group_by")
 // A do-transform acts on a whole result relation.
 func evalDo(
@@ -75,20 +86,15 @@ func evalDo(
 	doStmt := transform.Statements[0]
 	switch doStmt.Fn.Function.Symbol {
 	case symbols.GroupBy.Symbol:
-		keyToGroup := make(map[uint32]grouped)
+		keyToGroup := make(map[string]grouped)
 
 		for _, subst := range input {
 			keyLen := len(doStmt.Fn.Args)
 			key := make([]ast.Constant, keyLen)
-			b := make([]byte, 8*keyLen)
 			for i, v := range doStmt.Fn.Args {
-				value := subst.Get(v.(ast.Variable)).(ast.Constant)
-				binary.LittleEndian.PutUint64(b[i*8:], value.Hash())
-				key[i] = value
+				key[i] = subst.Get(v.(ast.Variable)).(ast.Constant)
 			}
-			hasher := fnv.New32()
-			hasher.Write(b)
-			h := hasher.Sum32()
+			h := groupKeyString(key)
 			group, ok := keyToGroup[h]
 			if !ok {
 				group = grouped{key, nil}

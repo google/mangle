@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/klauspost/compress/zstd"
 	"codeberg.org/TauCeti/mangle-go/ast"
 )
 
@@ -267,5 +268,37 @@ func TestGzip(t *testing.T) {
 	}
 	if !store.Contains(atom("we(/persist)")) {
 		t.Errorf("NewSimpleColumnStoreFromGzipBytes: expected atom i(/persist)")
+	}
+}
+
+func TestZstd(t *testing.T) {
+	tmpStore := NewSimpleInMemoryStore()
+	tmpStore.Add(atom("i(/persist, '%%')"))
+	tmpStore.Add(atom("we(/persist)"))
+	var b bytes.Buffer
+	w, err := zstd.NewWriter(&b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sc := SimpleColumn{}
+	if err := sc.WriteTo(tmpStore, w); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewSimpleColumnStoreFromZstdBytes(b.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(tmpStore.ListPredicates(), store.ListPredicates(),
+		cmpopts.SortSlices(sortBySymbol)); diff != "" {
+		t.Errorf("NewSimpleColumnStoreFromZstdBytes: diff (-want +got) %v", diff)
+	}
+	if !store.Contains(atom("i(/persist, '%%')")) {
+		t.Errorf("NewSimpleColumnStoreFromZstdBytes: expected atom i(/persist, '%%')")
+	}
+	if !store.Contains(atom("we(/persist)")) {
+		t.Errorf("NewSimpleColumnStoreFromZstdBytes: expected atom we(/persist)")
 	}
 }

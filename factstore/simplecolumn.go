@@ -29,6 +29,7 @@ import (
 	"codeberg.org/TauCeti/mangle-go/ast"
 	"codeberg.org/TauCeti/mangle-go/functional"
 	"codeberg.org/TauCeti/mangle-go/parse"
+	"github.com/klauspost/compress/zstd"
 )
 
 const (
@@ -201,6 +202,18 @@ func NewSimpleColumnStoreFromGzipBytes(data []byte) (*SimpleColumnStore, error) 
 			return nil, err
 		}
 		return reader, nil
+	})
+}
+
+// NewSimpleColumnStoreFromZstdBytes returns a new fact store backed by data that is
+// a zstd-compressed file in simplecolumn format.
+func NewSimpleColumnStoreFromZstdBytes(data []byte) (*SimpleColumnStore, error) {
+	return NewSimpleColumnStore(func() (io.ReadCloser, error) {
+		decoder, err := zstd.NewReader(bytes.NewReader(data))
+		if err != nil {
+			return nil, err
+		}
+		return decoder.IOReadCloser(), nil
 	})
 }
 

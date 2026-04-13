@@ -1,6 +1,6 @@
 module codeberg.org/TauCeti/mangle-go
 
-go 1.23
+go 1.24
 
 require (
 	bitbucket.org/creachadair/stringset v0.0.11
@@ -8,6 +8,7 @@ require (
 	github.com/chzyer/readline v1.5.1
 	github.com/golang/glog v1.2.4
 	github.com/google/go-cmp v0.6.0
+	github.com/klauspost/compress v1.18.5
 	go.uber.org/multierr v1.11.0
 	google.golang.org/protobuf v1.34.0
 )

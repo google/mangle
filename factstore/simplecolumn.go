@@ -93,6 +93,17 @@ func (s *SimpleColumnStore) ListPredicates() []ast.PredicateSym {
 	return s.predicates
 }
 
+// FactCount returns the number of facts for the given predicate as recorded
+// in the header. Returns 0 if the predicate is not present in the store.
+func (s *SimpleColumnStore) FactCount(pred ast.PredicateSym) int {
+	for i, p := range s.predicates {
+		if p == pred {
+			return s.predicateFactCount[i]
+		}
+	}
+	return 0
+}
+
 // Contains implements a ReadOnlyFactStore method.
 func (s *SimpleColumnStore) Contains(fact ast.Atom) bool {
 	var found bool

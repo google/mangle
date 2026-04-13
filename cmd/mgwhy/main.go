@@ -16,7 +16,8 @@
 //
 // Usage:
 //
-//	mgwhy -program PROG.mg [-facts STORE.sc[.gz|.zst]] [-format tree|facts]
+//	mgwhy -program PROG.mg [-facts STORE.sc[.gz|.zst]]
+//	      [-mode simple|full] [-format tree|facts]
 //	      [-max-proofs N] [-max-depth N] GOAL
 //
 // The program is loaded and evaluated against the fact store (if any); then
@@ -44,12 +45,13 @@ func main() {
 	var (
 		programPath = flag.String("program", "", "Mangle program source file (required)")
 		factsPath   = flag.String("facts", "", "simplecolumn factstore file (optional; auto-detects .gz / .zst)")
+		mode        = flag.String("mode", "simple", "provenance mode: simple (post-hoc) or full (engine-recorded, handles aggregation)")
 		format      = flag.String("format", "tree", "output format: tree or facts")
 		maxProofs   = flag.Int("max-proofs", 1, "maximum number of alternative proofs to return")
 		maxDepth    = flag.Int("max-depth", 64, "maximum proof depth")
 	)
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: mgwhy -program PROG.mg [-facts STORE.sc] [-format tree|facts] GOAL\n\n")
+		fmt.Fprintf(os.Stderr, "usage: mgwhy -program PROG.mg [-facts STORE.sc] [-mode simple|full] [-format tree|facts] GOAL\n\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -61,14 +63,18 @@ func main() {
 		fmt.Fprintf(os.Stderr, "mgwhy: -format must be \"tree\" or \"facts\"\n")
 		os.Exit(2)
 	}
+	if *mode != "simple" && *mode != "full" {
+		fmt.Fprintf(os.Stderr, "mgwhy: -mode must be \"simple\" or \"full\"\n")
+		os.Exit(2)
+	}
 	goalStr := flag.Arg(0)
-	if err := run(*programPath, *factsPath, goalStr, *format, *maxProofs, *maxDepth); err != nil {
+	if err := run(*programPath, *factsPath, goalStr, *mode, *format, *maxProofs, *maxDepth); err != nil {
 		fmt.Fprintf(os.Stderr, "mgwhy: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(programPath, factsPath, goalStr, format string, maxProofs, maxDepth int) error {
+func run(programPath, factsPath, goalStr, mode, format string, maxProofs, maxDepth int) error {
 	pf, err := os.Open(programPath)
 	if err != nil {
 		return fmt.Errorf("open program: %w", err)
@@ -123,7 +129,13 @@ func run(programPath, factsPath, goalStr, format string, maxProofs, maxDepth int
 	if err != nil {
 		return fmt.Errorf("stratify: %w", err)
 	}
-	if _, err := engine.EvalStratifiedProgramWithStats(pi, strata, predToStratum, store); err != nil {
+	var recorder *provenance.MemoryRecorder
+	var evalOpts []engine.EvalOption
+	if mode == "full" {
+		recorder = provenance.NewMemoryRecorder()
+		evalOpts = append(evalOpts, engine.WithDerivationRecorder(recorder))
+	}
+	if _, err := engine.EvalStratifiedProgramWithStats(pi, strata, predToStratum, store, evalOpts...); err != nil {
 		return fmt.Errorf("eval: %w", err)
 	}
 
@@ -132,10 +144,13 @@ func run(programPath, factsPath, goalStr, format string, maxProofs, maxDepth int
 		return fmt.Errorf("parse goal: %w", err)
 	}
 
-	proofs, err := provenance.Explain(pi, store, goal, provenance.Options{
-		MaxProofs: maxProofs,
-		MaxDepth:  maxDepth,
-	})
+	opts := provenance.Options{MaxProofs: maxProofs, MaxDepth: maxDepth}
+	var proofs []*provenance.ProofNode
+	if mode == "full" {
+		proofs, err = provenance.BuildFromRecording(recorder, store, goal, opts)
+	} else {
+		proofs, err = provenance.Explain(pi, store, goal, opts)
+	}
 	if err != nil {
 		return err
 	}

@@ -139,22 +139,52 @@ Note: `absence_leaf` nodes do **not** emit a `proves(...)` fact, since
 semantically they prove the *negation* of the fact, not the fact itself.
 Walk them via `premise(Parent, Index, AbsenceID)`.
 
-## What is *not* explained
+## Simple and full modes
 
-The current explainer is a post-hoc backward-chainer — it works from the
-finished fact store, without instrumenting the engine. That approach is
-cheap when you don't ask for provenance and free when you do, but it has
-limits. Specifically, the following are **not** yet explained:
+`mgwhy` has two modes, switched via `-mode`:
 
-- **Aggregation and transforms** (`|> do …`). A fact produced by
-  `fn:sum` or `fn:collect` depends on a whole group of input rows; the
-  exact grouping is known to the evaluator but not easy to reconstruct
-  after the fact.
-- **Temporal annotations** on rule heads or premises.
+- **`-mode=simple`** (default) is a post-hoc backward-chainer. It works
+  from the finished fact store, without instrumenting the engine, and
+  only pays a cost when you ask for provenance. It covers plain Datalog,
+  equality/inequality, stratified negation, and recursion.
 
-Rules using these features are skipped, and affected proofs are flagged.
-A future "full provenance" mode would instrument the evaluator to emit
-derivation events during computation, which would capture these cleanly.
+- **`-mode=full`** installs a recorder on the engine that captures every
+  derivation during evaluation. It handles everything simple mode does,
+  plus **let-transforms** and **do-transforms (aggregation)**. The
+  recorder has a nil-check cost on the hot path — when it isn't
+  installed, there is no overhead.
+
+### Aggregation (full mode only)
+
+```
+sale("apple", 3).
+sale("apple", 5).
+sale("pear", 2).
+totals(P, S) :- sale(P, N) |> do fn:group_by(P), let S = fn:sum(N).
+```
+
+```
+$ mgwhy -program sales.mg -mode full 'totals("apple", 8)'
+proof 1 of 1:
+  totals("apple",8)  (/proof/b53cb477…)
+    by rule …:  totals(P,S) :- sale(P,N) |> do fn:group_by(P), let S = fn:sum(N).
+    transform: do fn:group_by(P), let S = fn:sum(N)
+    group key: ("apple")
+    input facts:
+      sale("apple",3)  [EDB]
+      sale("apple",5)  [EDB]
+```
+
+The proof node for an aggregate lists the `group key` and every input
+fact that contributed to the group. As facts, aggregates emit
+`uses_transform(ProofID, TransformText)` and `group_key(ProofID, Index,
+Value)` in addition to the usual `proves`, `premise`, and `edb_leaf`
+tuples.
+
+## What is still not explained
+
+- **Temporal annotations** on rule heads or premises are not yet
+  covered. Affected proofs are flagged `partial`.
 
 ## Caps and performance
 
@@ -173,6 +203,8 @@ succeed.
 
 ## Using the Go API
 
+Simple (post-hoc) mode:
+
 ```go
 import "codeberg.org/TauCeti/mangle-go/provenance"
 
@@ -180,9 +212,22 @@ proofs, err := provenance.Explain(programInfo, factstore, goal, provenance.Optio
     MaxProofs: 3,
     MaxDepth:  32,
 })
-if err == provenance.ErrNoProof {
-    // goal is not derivable (or only derivable via unsupported features)
-}
+```
+
+Full (recorder) mode — attach a recorder during eval, then build proofs
+from the recording:
+
+```go
+import (
+    "codeberg.org/TauCeti/mangle-go/engine"
+    "codeberg.org/TauCeti/mangle-go/provenance"
+)
+
+rec := provenance.NewMemoryRecorder()
+engine.EvalStratifiedProgramWithStats(pi, strata, predToStratum, store,
+    engine.WithDerivationRecorder(rec))
+
+proofs, err := provenance.BuildFromRecording(rec, store, goal, provenance.Options{})
 
 // Pretty-print a tree:
 provenance.Print(os.Stdout, proofs)

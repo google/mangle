@@ -105,6 +105,9 @@ type EvalOptions struct {
 	addNowMarker  bool
 	// deterministicOrder sorts predicates within strata for reproducible evaluation.
 	deterministicOrder bool
+	// recorder, if non-nil, receives a callback per derived fact so the
+	// provenance package can assemble a proof DAG during evaluation.
+	recorder DerivationRecorder
 }
 
 // EvalOption affects the way the evaluation is performed.
@@ -621,6 +624,7 @@ func (e *engine) eval() error {
 			return fmt.Errorf("expected first premise of clause: %v to be an atom %v", clause, clause.Premises[0])
 		}
 		var substs []ast.ConstSubstList
+		var inputFacts []ast.Atom
 		e.store.GetFacts(internalPremise, func(fact ast.Atom) error {
 			var subst ast.ConstSubstList
 			for i, baseTerm := range internalPremise.Args {
@@ -631,17 +635,22 @@ func (e *engine) eval() error {
 				}
 			}
 			substs = append(substs, subst)
+			inputFacts = append(inputFacts, fact)
 			return nil
 		})
 		var merr error
-		if err := EvalTransform(clause.Head, *clause.Transform, substs, func(a ast.Atom) bool {
-			a, err := functional.EvalAtom(a, ast.ConstSubstList{})
-			if err != nil {
-				merr = multierr.Append(merr, err)
-				return false
-			}
-			return e.store.Add(a)
-		}); err != nil {
+		if err := EvalTransformWithInputFacts(clause.Head, *clause.Transform, substs, inputFacts,
+			func(a ast.Atom, kind TransformKind, groupKey []ast.Constant, groupFacts []ast.Atom) bool {
+				a, err := functional.EvalAtom(a, ast.ConstSubstList{})
+				if err != nil {
+					merr = multierr.Append(merr, err)
+					return false
+				}
+				if e.options.recorder != nil && kind == TransformKindDo {
+					e.options.recorder.DoEmit(clause, clause.Head, groupKey, groupFacts, a)
+				}
+				return e.store.Add(a)
+			}); err != nil {
 			return err
 		}
 		if merr != nil {
@@ -649,6 +658,77 @@ func (e *engine) eval() error {
 		}
 	}
 	return nil
+}
+
+// resolvePremiseFacts re-evaluates each atom-shaped premise under the given
+// substitution, returning the ground atom that matched. Delta-prefixed
+// predicates (introduced by semi-naive evaluation) are normalized back to
+// their original predicate. The returned slice has one entry per premise;
+// non-atom premises (Eq, Ineq, NegAtom) produce a zero-valued Atom. Used
+// only when a [DerivationRecorder] is configured.
+func (e *engine) resolvePremiseFacts(premises []ast.Term, sol unionfind.UnionFind) []ast.Atom {
+	out := make([]ast.Atom, len(premises))
+	for i, p := range premises {
+		var atom ast.Atom
+		switch t := p.(type) {
+		case ast.Atom:
+			atom = t
+		case ast.TemporalLiteral:
+			a, ok := t.Literal.(ast.Atom)
+			if !ok {
+				continue
+			}
+			atom = a
+		default:
+			continue
+		}
+		if isDeltaPredicate(atom.Predicate) {
+			atom = makeNormalAtom(atom)
+		}
+		ground, err := functional.EvalAtom(atom, sol)
+		if err != nil {
+			continue
+		}
+		out[i] = ground
+	}
+	return out
+}
+
+// normalizeRule returns a clause with any delta-prefixed premise atoms
+// restored to their non-delta form. Passed to the [DerivationRecorder] so
+// that delta and non-delta firings of the same logical rule share a rule
+// identifier.
+func normalizeRule(r ast.Clause) ast.Clause {
+	needs := false
+	for _, p := range r.Premises {
+		if a, ok := p.(ast.Atom); ok && isDeltaPredicate(a.Predicate) {
+			needs = true
+			break
+		}
+	}
+	if !needs {
+		return r
+	}
+	premises := make([]ast.Term, len(r.Premises))
+	for i, p := range r.Premises {
+		switch t := p.(type) {
+		case ast.Atom:
+			if isDeltaPredicate(t.Predicate) {
+				premises[i] = makeNormalAtom(t)
+			} else {
+				premises[i] = t
+			}
+		case ast.TemporalLiteral:
+			if a, ok := t.Literal.(ast.Atom); ok && isDeltaPredicate(a.Predicate) {
+				premises[i] = ast.TemporalLiteral{Literal: makeNormalAtom(a), Operator: t.Operator, Interval: t.Interval}
+			} else {
+				premises[i] = t
+			}
+		default:
+			premises[i] = t
+		}
+	}
+	return ast.Clause{Head: r.Head, HeadTime: r.HeadTime, Premises: premises, Transform: r.Transform}
 }
 
 // Evaluates clause (a rule), by scanning known facts for each premise and producing
@@ -696,14 +776,33 @@ func (e *engine) oneStepEvalClause(clause ast.Clause) ([]DerivedTemporalFact, er
 		}
 
 		if clause.Transform == nil {
+			if e.options.recorder != nil {
+				normal := normalizeRule(clause)
+				premiseFacts := e.resolvePremiseFacts(normal.Premises, sol)
+				e.options.recorder.RuleFired(normal, head, sol, premiseFacts)
+			}
 			facts = append(facts, DerivedTemporalFact{Atom: head, Interval: interval})
 			continue
 		}
 
-		if err := EvalTransform(head, *clause.Transform, []ast.ConstSubstList{sol.AsConstSubstList()}, func(a ast.Atom) bool {
-			facts = append(facts, DerivedTemporalFact{Atom: a, Interval: interval})
-			return true
-		}); err != nil {
+		row := sol.AsConstSubstList()
+		var normal ast.Clause
+		if e.options.recorder != nil {
+			normal = normalizeRule(clause)
+		}
+		if err := EvalTransformWithInputFacts(head, *clause.Transform, []ast.ConstSubstList{row}, nil,
+			func(out ast.Atom, kind TransformKind, groupKey []ast.Constant, inputFacts []ast.Atom) bool {
+				if e.options.recorder != nil {
+					switch kind {
+					case TransformKindLet:
+						e.options.recorder.LetEmit(normal, head, row, out)
+					case TransformKindDo:
+						e.options.recorder.DoEmit(normal, head, groupKey, inputFacts, out)
+					}
+				}
+				facts = append(facts, DerivedTemporalFact{Atom: out, Interval: interval})
+				return true
+			}); err != nil {
 			return nil, err
 		}
 		if e.options.totalFactLimit > 0 && e.store.EstimateFactCount() > e.options.totalFactLimit {

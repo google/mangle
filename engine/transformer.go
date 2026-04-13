@@ -24,17 +24,53 @@ import (
 	"codeberg.org/TauCeti/mangle-go/symbols"
 )
 
-// EvalTransform evaluates a transform.
+// TransformKind identifies which kind of transform produced an output fact
+// in a [TransformEmit] callback.
+type TransformKind int
+
+const (
+	// TransformKindLet indicates the emission came from a let-transform.
+	TransformKindLet TransformKind = iota
+	// TransformKindDo indicates the emission came from a do-transform.
+	TransformKindDo
+)
+
+// TransformEmit is the richer emission callback. For let-transforms, kind
+// is TransformKindLet and groupKey and inputFacts are nil. For do-transforms,
+// kind is TransformKindDo, groupKey holds the group-by values, and
+// inputFacts (if non-nil) lists the facts that fed this group in input order.
+type TransformEmit func(out ast.Atom, kind TransformKind, groupKey []ast.Constant, inputFacts []ast.Atom) bool
+
+// EvalTransform evaluates a transform, emitting one output fact per
+// derivation. This is the narrow public entry point; see also
+// [EvalTransformWithInputFacts] for callers that need per-emission context
+// (group keys, contributing input facts).
 func EvalTransform(
 	head ast.Atom,
 	transform ast.Transform,
 	input []ast.ConstSubstList,
 	emit func(atom ast.Atom) bool) error {
 
+	return EvalTransformWithInputFacts(head, transform, input, nil,
+		func(out ast.Atom, _ TransformKind, _ []ast.Constant, _ []ast.Atom) bool {
+			return emit(out)
+		})
+}
+
+// EvalTransformWithInputFacts evaluates a transform with a richer emit
+// callback. If inputFacts is non-nil it must have len(input) entries:
+// inputFacts[i] is the fact that produced row input[i]. Used by the
+// provenance recorder to reconstruct which facts fed each aggregate group.
+func EvalTransformWithInputFacts(
+	head ast.Atom,
+	transform ast.Transform,
+	input []ast.ConstSubstList,
+	inputFacts []ast.Atom,
+	emit TransformEmit) error {
 	if transform.IsLetTransform() {
 		return evalLet(head, transform, input, emit)
 	}
-	return evalDo(head, transform, input, emit)
+	return evalDo(head, transform, input, inputFacts, emit)
 }
 
 // evalLet evaluates a let transform. This consists of a number of let statements,
@@ -43,7 +79,7 @@ func evalLet(
 	head ast.Atom,
 	transform ast.Transform,
 	rows []ast.ConstSubstList,
-	emit func(atom ast.Atom) bool) error {
+	emit TransformEmit) error {
 	for _, init := range rows {
 		subst := init
 		for _, stmt := range transform.Statements {
@@ -53,14 +89,15 @@ func evalLet(
 			}
 			subst = subst.Extend(*stmt.Var, con)
 		}
-		emit(head.ApplySubst(subst).(ast.Atom))
+		emit(head.ApplySubst(subst).(ast.Atom), TransformKindLet, nil, nil)
 	}
 	return nil
 }
 
 type grouped struct {
-	key    []ast.Constant
-	values []ast.ConstSubstList
+	key     []ast.Constant
+	values  []ast.ConstSubstList
+	indices []int // positions in the original input (for input-fact lookup)
 }
 
 // groupKeyString builds a collision-free string key for a group-by key.
@@ -81,14 +118,15 @@ func evalDo(
 	head ast.Atom,
 	transform ast.Transform,
 	input []ast.ConstSubstList,
-	emit func(atom ast.Atom) bool) error {
+	inputFacts []ast.Atom,
+	emit TransformEmit) error {
 
 	doStmt := transform.Statements[0]
 	switch doStmt.Fn.Function.Symbol {
 	case symbols.GroupBy.Symbol:
 		keyToGroup := make(map[string]grouped)
 
-		for _, subst := range input {
+		for idx, subst := range input {
 			keyLen := len(doStmt.Fn.Args)
 			key := make([]ast.Constant, keyLen)
 			for i, v := range doStmt.Fn.Args {
@@ -97,9 +135,10 @@ func evalDo(
 			h := groupKeyString(key)
 			group, ok := keyToGroup[h]
 			if !ok {
-				group = grouped{key, nil}
+				group = grouped{key, nil, nil}
 			}
 			group.values = append(group.values, subst)
+			group.indices = append(group.indices, idx)
 			keyToGroup[h] = group
 		}
 		// Now apply reductions.
@@ -125,7 +164,14 @@ func evalDo(
 					subst = subst.Extend(*stmt.Var, con)
 				}
 			}
-			emit(head.ApplySubst(subst).(ast.Atom))
+			var groupFacts []ast.Atom
+			if inputFacts != nil {
+				groupFacts = make([]ast.Atom, len(group.indices))
+				for i, idx := range group.indices {
+					groupFacts[i] = inputFacts[idx]
+				}
+			}
+			emit(head.ApplySubst(subst).(ast.Atom), TransformKindDo, group.key, groupFacts)
 		}
 	default:
 	}

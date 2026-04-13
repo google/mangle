@@ -33,6 +33,8 @@ import (
 //	                                     (closed-world proof of a negated premise)
 //	binding(ProofID, VarName, Value)   — substitution entries
 //	rule_source(RuleID, ClauseText)    — human-readable form of a rule
+//	uses_transform(ProofID, TransformText) — set for let/do-transform nodes
+//	group_key(ProofID, Index, Value)   — per-position group-by values for do-aggregates
 //
 // Note: absence leaves do not emit a proves(...) fact — semantically they
 // "prove" the negation of Fact, not Fact itself. Walk them via premise(...).
@@ -63,7 +65,7 @@ func EmitFacts(proofs []*ProofNode, out factstore.FactStore) error {
 			out.Add(ast.NewAtom("proves", pid, factList))
 		case KindAbsence:
 			out.Add(ast.NewAtom("absence_leaf", pid, factList))
-		case KindDerived:
+		case KindDerived, KindLetRow, KindDoAggregate:
 			out.Add(ast.NewAtom("proves", pid, factList))
 			rid, err := ast.Name(n.RuleID)
 			if err != nil {
@@ -75,6 +77,12 @@ func EmitFacts(proofs []*ProofNode, out factstore.FactStore) error {
 			}
 			for _, b := range n.Bindings {
 				out.Add(ast.NewAtom("binding", pid, ast.String(b.Var.Symbol), b.Value))
+			}
+			if n.TransformText != "" {
+				out.Add(ast.NewAtom("uses_transform", pid, ast.String(n.TransformText)))
+			}
+			for i, v := range n.GroupKey {
+				out.Add(ast.NewAtom("group_key", pid, ast.Number(int64(i)), v))
 			}
 			for i, sub := range n.Premises {
 				if sub == nil {
@@ -172,7 +180,7 @@ func printNode(w io.Writer, n *ProofNode, indent string, printed map[string]bool
 		if _, err := fmt.Fprintf(w, "%s  [absent: !%s]\n", indent, n.Fact.String()); err != nil {
 			return err
 		}
-	case KindDerived:
+	case KindLetRow, KindDoAggregate, KindDerived:
 		ruleStr := ""
 		if n.Rule != nil {
 			ruleStr = n.Rule.String()
@@ -189,8 +197,26 @@ func printNode(w io.Writer, n *ProofNode, indent string, printed map[string]bool
 				return err
 			}
 		}
+		if n.TransformText != "" {
+			if _, err := fmt.Fprintf(w, "%s  transform: %s\n", indent, n.TransformText); err != nil {
+				return err
+			}
+		}
+		if len(n.GroupKey) > 0 {
+			var parts []string
+			for _, v := range n.GroupKey {
+				parts = append(parts, v.String())
+			}
+			if _, err := fmt.Fprintf(w, "%s  group key: (%s)\n", indent, strings.Join(parts, ", ")); err != nil {
+				return err
+			}
+		}
 		if len(n.Premises) > 0 {
-			if _, err := fmt.Fprintf(w, "%s  premises:\n", indent); err != nil {
+			label := "premises"
+			if n.Kind == KindDoAggregate {
+				label = "input facts"
+			}
+			if _, err := fmt.Fprintf(w, "%s  %s:\n", indent, label); err != nil {
 				return err
 			}
 			for _, sub := range n.Premises {

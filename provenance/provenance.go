@@ -12,17 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package provenance computes proof trees for derived (IDB) facts by
-// backward-chaining against a program and a fact store.
+// Package provenance computes proof trees for derived (IDB) facts.
 //
-// This "simple provenance" scope covers positive Datalog,
-// equality/inequality builtins, and stratified negation via closed-world
-// absence (a negated premise !p(a) succeeds iff p(a) is not in the final
-// store). Rules that use aggregation, transforms, or temporal annotations
-// are not explained (they are skipped when encountered, and a flag on the
-// resulting [ProofNode] indicates the proof may be incomplete). Handling
-// those is "full provenance" — deferred future work that would instrument
-// the evaluator to emit derivation events during computation.
+// Two modes are supported:
+//
+//   - "Simple provenance" ([Explain]) works post-hoc: given a program and
+//     the final fact store, it backward-chains to assemble proofs. It
+//     handles positive Datalog, equality/inequality builtins, stratified
+//     negation via closed-world absence, and recursion with cycle
+//     detection. Rules that use aggregation or other transforms are
+//     skipped in this mode because post-hoc reconstruction of grouping is
+//     not reliable.
+//
+//   - "Full provenance" ([BuildFromRecording]) uses a [MemoryRecorder]
+//     installed via [engine.WithDerivationRecorder] to capture derivation
+//     events *during* evaluation. It handles the same features as simple
+//     provenance, plus let-transforms (row-wise) and do-transforms
+//     (aggregation). When a recorder is attached, the engine fires
+//     callbacks at every derivation point so the full DAG, including
+//     group-feeding facts, is available to [BuildFromRecording] without
+//     re-querying the store.
+//
+// Both modes produce the same [ProofNode] shape and are emitted through
+// the same [EmitFacts] / [Print] helpers.
 //
 // Proof nodes are identified by a 128-bit content hash computed from the
 // rule, the derived fact, and the (sorted) identifiers of sub-proofs. That
@@ -56,6 +68,14 @@ const (
 	// negated premise is checked, the stratum defining its predicate has
 	// already run to fixpoint.
 	KindAbsence
+	// KindLetRow is an output of a row-wise let-transform. Its single
+	// premise is the conjunctive body row (recorded as a KindDerived
+	// node with the body atoms as sub-proofs).
+	KindLetRow
+	// KindDoAggregate is an output of a do-transform. Its premises are
+	// the sub-proofs of the facts that fed this group. The group's
+	// key values are stored in GroupKey.
+	KindDoAggregate
 )
 
 // Binding records one entry of a rule's substitution σ.
@@ -80,6 +100,12 @@ type ProofNode struct {
 	Bindings []Binding
 	// Premises are the sub-proofs matching the rule's body atoms, in body order.
 	Premises []*ProofNode
+	// GroupKey is set on KindDoAggregate nodes; it holds the group-by
+	// values that define the group this aggregate was computed over.
+	GroupKey []ast.Constant
+	// TransformText is set on KindLetRow and KindDoAggregate nodes to the
+	// rule's transform clause pretty-printed (e.g. "do fn:group_by(X), let S = fn:sum(Y)").
+	TransformText string
 	// Partial is true if the proof could not be fully expanded (e.g. rule used
 	// a negated premise, a transform, or exceeded MaxDepth).
 	Partial bool

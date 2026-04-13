@@ -8,8 +8,12 @@ premises, bottoming out at stored (EDB) facts.
 
 ## Scope and limits
 
-This is **simple provenance** — a post-hoc explainer that backward-chains
-against the final fact store. It handles:
+Two modes are available.
+
+**Simple provenance** (`-mode=simple`, default) is a post-hoc explainer
+that backward-chains against the final fact store. No engine changes, no
+per-derivation cost — you pay only when you ask for provenance. It
+handles:
 
 - positive Datalog (rules whose body consists of atoms),
 - equality (`=`) and inequality (`!=`) premises,
@@ -17,15 +21,21 @@ against the final fact store. It handles:
 - recursion (with cycle detection),
 - multiple alternative derivations of the same fact.
 
-It does **not** yet handle:
+It does **not** handle transforms (`|> let …` or `|> do …`) — those rules
+are skipped and affected proofs are flagged `partial`.
 
-- aggregation / transforms (`|> do …`) — rules using them are skipped,
-- temporal annotations on heads or premises.
+**Full provenance** (`-mode=full`) installs a `DerivationRecorder` on the
+engine and captures events *during* evaluation. This catches everything
+simple mode does, plus:
 
-For those, **full provenance** is deferred future work: it would
-instrument the evaluator to emit derivation events during computation,
-giving first-class access to the substitutions and grouped rows that
-bulk-emit operators like aggregation consume.
+- **let-transforms** — one proof node per row, with the contributing body
+  atoms as premises;
+- **do-transforms (aggregation)** — one proof node per group, carrying
+  the group-by key and listing every input fact that fed the aggregate.
+
+The cost is one callback per derivation. The callback is a nil-check
+away from the hot path when no recorder is installed, so unused full
+mode costs nothing.
 
 ### How negation is handled
 
@@ -112,6 +122,8 @@ pipe them back into `mg` to query the proof itself in Datalog.
 | `absence_leaf(ProofID, Fact)` | 2 | Terminal leaf; `Fact` is **not** in the store (closed-world proof of a negated premise). |
 | `binding(ProofID, VarName, Value)` | 3 | One entry of the rule's substitution σ. |
 | `rule_source(RuleID, ClauseText)` | 2 | Human-readable form of a rule. |
+| `uses_transform(ProofID, TransformText)` | 2 | Full mode only: this node came from a let- or do-transform. |
+| `group_key(ProofID, Index, Value)` | 3 | Full mode only: group-by values for a do-aggregate, one fact per key position. |
 
 Note: `absence_leaf` nodes do **not** emit a `proves(...)` fact —
 semantically they prove the *negation* of `Fact`, not `Fact` itself. Walk
@@ -152,26 +164,34 @@ rule_used(P, R) :- proves(P, _), premise(P, _, Sub), rule_used(Sub, R).
 
 ## Using the Go API
 
+Simple (post-hoc) mode:
+
 ```go
-import (
-    "codeberg.org/TauCeti/mangle-go/provenance"
-)
+import "codeberg.org/TauCeti/mangle-go/provenance"
 
 proofs, err := provenance.Explain(programInfo, factstore, goal, provenance.Options{
     MaxProofs: 3,
     MaxDepth:  32,
 })
-if err == provenance.ErrNoProof {
-    // Goal is not derivable (or only derivable via unsupported features).
-}
-
-// Pretty-print:
-provenance.Print(os.Stdout, proofs)
-
-// Or emit to a factstore:
-out := factstore.NewSimpleInMemoryStore()
-provenance.EmitFacts(proofs, &out)
 ```
+
+Full (recorder) mode — attach a recorder during eval, then build:
+
+```go
+import (
+    "codeberg.org/TauCeti/mangle-go/engine"
+    "codeberg.org/TauCeti/mangle-go/provenance"
+)
+
+rec := provenance.NewMemoryRecorder()
+engine.EvalStratifiedProgramWithStats(pi, strata, predToStratum, store,
+    engine.WithDerivationRecorder(rec))
+
+proofs, err := provenance.BuildFromRecording(rec, store, goal, provenance.Options{})
+```
+
+Output helpers (`Print`, `EmitFacts`) work identically on proofs from
+either mode.
 
 ### Options
 

@@ -1374,8 +1374,9 @@ func TestTimeTrunc(t *testing.T) {
 		unit      string
 		wantNanos int64
 	}{
-		{"/day", 1705276800000000000}, // 2024-01-15 00:00:00 UTC
-		{"/hour", 1705312800000000000}, // 2024-01-15 10:00:00 UTC
+		{"/week", 1705276800000000000},   // 2024-01-15 00:00:00 UTC
+		{"/day", 1705276800000000000},    // 2024-01-15 00:00:00 UTC
+		{"/hour", 1705312800000000000},   // 2024-01-15 10:00:00 UTC
 		{"/minute", 1705314600000000000}, // 2024-01-15 10:30:00 UTC
 		{"/second", 1705314645000000000}, // 2024-01-15 10:30:45 UTC
 		{"/millisecond", 1705314645123000000},
@@ -1394,6 +1395,35 @@ func TestTimeTrunc(t *testing.T) {
 				t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
 			}
 			want := ast.Time(test.wantNanos)
+			if !got.Equals(want) {
+				t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, want)
+			}
+		})
+	}
+}
+
+func TestTimeTruncWeek(t *testing.T) {
+	wantNanos := int64(1705276800000000000) // Monday 2024-01-15 00:00:00 UTC
+
+	tests := []struct {
+		name  string
+		nanos int64
+	}{
+		{"thursday", 1705579200000000000},     // 2024-01-18 12:00:00 UTC
+		{"sunday_night", 1705881599000000000}, // 2024-01-21 23:59:59 UTC
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			expr := ast.ApplyFn{symbols.TimeTrunc, []ast.BaseTerm{
+				ast.Time(test.nanos),
+				name("/week"),
+			}}
+			got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+			if err != nil {
+				t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+			}
+			want := ast.Time(wantNanos)
 			if !got.Equals(want) {
 				t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, want)
 			}

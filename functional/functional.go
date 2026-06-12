@@ -702,8 +702,20 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 			return ast.Constant{}, fmt.Errorf("fn:time:trunc second argument must be a name constant: %w", err)
 		}
 
+		tm := time.Unix(0, t).UTC()
 		var d time.Duration
 		switch unitName {
+		case "/week":
+			// Truncate to the start of the ISO week (monday).
+			year, month, day := tm.Date()
+			dayStart := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+			daysSinceMonday := (int(dayStart.Weekday()) + 6) % 7
+			return ast.Time(dayStart.AddDate(0, 0, -daysSinceMonday).UnixNano()), nil
+		case "/day":
+			// "day", "month", "year" are not fixed durations, so Truncate doesn't support them directly in the same way.
+			// However, for "day" we can use 24 * time.Hour if we assume UTC day boundaries.
+			// Let's support /day for convenience, assuming standard 24h days.
+			d = 24 * time.Hour
 		case "/hour":
 			d = time.Hour
 		case "/minute":
@@ -717,23 +729,8 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		case "/nanosecond":
 			d = time.Nanosecond
 		default:
-			if unitName == "/day" {
-				// "day", "month", "year" are not fixed durations, so Truncate doesn't support them directly in the same way.
-				// However, for "day" we can use 24 * time.Hour if we assume UTC day boundaries.
-				// Let's support /day for convenience, assuming standard 24h days.
-				d = 24 * time.Hour
-			} else if unitName == "/week" {
-				tm := time.Unix(0, t).UTC()
-				year, month, day := tm.Date()
-				dayStart := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
-				daysSinceMonday := (int(dayStart.Weekday()) + 6) % 7
-				return ast.Time(dayStart.AddDate(0, 0, -daysSinceMonday).UnixNano()), nil
-			} else {
-				return ast.Constant{}, fmt.Errorf("fn:time:trunc unknown unit %q", unitName)
-			}
+			return ast.Constant{}, fmt.Errorf("fn:time:trunc unknown unit %q", unitName)
 		}
-
-		tm := time.Unix(0, t).UTC()
 		return ast.Time(tm.Truncate(d).UnixNano()), nil
 
 	// Duration functions

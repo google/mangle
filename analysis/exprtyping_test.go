@@ -25,6 +25,7 @@ package analysis
 // updated to assert the correct behavior.
 
 import (
+	"fmt"
 	"testing"
 
 	"codeberg.org/TauCeti/mangle-go/ast"
@@ -131,6 +132,47 @@ func TestExprTyping_TransformMaxOnStrings(t *testing.T) {
 	err = bc.BoundsCheck()
 	if err == nil {
 		t.Error("BoundsCheck should reject fn:max applied to /string values, but it passes")
+	}
+}
+
+// --- Reducers over duration and time values ---
+
+func TestExprTyping_TemporalReducers(t *testing.T) {
+	tests := []struct {
+		name    string
+		reducer string
+		elem    ast.BaseTerm // bound of the reduced column in source
+		result  ast.BaseTerm // declared bound of the reduced column in result
+		wantErr bool
+	}{
+		{"sum of numbers is number", "fn:sum", ast.NumberBound, ast.NumberBound, false},
+		{"sum of durations is duration", "fn:sum", ast.DurationBound, ast.DurationBound, false},
+		{"sum of times is rejected", "fn:sum", ast.TimeBound, ast.TimeBound, true},
+		{"max of durations is duration", "fn:max", ast.DurationBound, ast.DurationBound, false},
+		{"max of times is time", "fn:max", ast.TimeBound, ast.TimeBound, false},
+		{"min of durations is duration", "fn:min", ast.DurationBound, ast.DurationBound, false},
+		{"min of times is time", "fn:min", ast.TimeBound, ast.TimeBound, false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tc := newBoundsTestCase(t, []ast.Clause{
+				clause(fmt.Sprintf("result(X, Y) :- source(X, Z) |> do fn:group_by(X), let Y = %s(Z).", test.reducer)),
+			}, []ast.Decl{
+				makeSimpleDecl(atom("result(X, Y)"), ast.StringBound, test.result),
+				makeSimpleDecl(atom("source(X, Z)"), ast.StringBound, test.elem),
+			})
+			bc, err := newBoundsAnalyzer(&tc.programInfo, symbols.NewNameTrie(), nil, tc.rulesMap)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = bc.BoundsCheck()
+			if test.wantErr && err == nil {
+				t.Errorf("BoundsCheck passed, want error for %s over %v declared as %v", test.reducer, test.elem, test.result)
+			}
+			if !test.wantErr && err != nil {
+				t.Errorf("BoundsCheck failed for %s over %v declared as %v: %v", test.reducer, test.elem, test.result, err)
+			}
+		})
 	}
 }
 

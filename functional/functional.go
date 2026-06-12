@@ -1381,17 +1381,19 @@ func evalToString(val ast.Constant) (ast.Constant, error) {
 }
 
 func evalMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	max := int64(math.MinInt64)
+	max := ast.Number(math.MinInt64)
 	for c := range it {
-		num, err := c.NumberValue()
-		if err != nil {
-			return ast.Constant{}, err
+		switch c.Type {
+		case ast.NumberType, ast.DurationType, ast.TimeType:
+			// These types are represented as int64, we can reduce them.
+		default:
+			return ast.Constant{}, fmt.Errorf("expected number, duration or time constant, got %v", c)
 		}
-		if num > max {
-			max = num
+		if c.NumValue > max.NumValue {
+			max = c
 		}
 	}
-	return ast.Number(max), nil
+	return max, nil
 }
 
 func evalFloatMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
@@ -1409,17 +1411,19 @@ func evalFloatMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 }
 
 func evalMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	min := int64(math.MaxInt64)
+	min := ast.Number(math.MaxInt64)
 	for c := range it {
-		num, err := c.NumberValue()
-		if err != nil {
-			return ast.Constant{}, err
+		switch c.Type {
+		case ast.NumberType, ast.DurationType, ast.TimeType:
+			// These types are represented as int64, we can reduce them.
+		default:
+			return ast.Constant{}, fmt.Errorf("expected number, duration or time constant, got %v", c)
 		}
-		if num < min {
-			min = num
+		if c.NumValue < min.NumValue {
+			min = c
 		}
 	}
-	return ast.Number(min), nil
+	return min, nil
 }
 
 func evalFloatMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
@@ -1437,15 +1441,17 @@ func evalFloatMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 }
 
 func evalSum(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	var sum int64
+	sum := ast.Number(0)
 	for c := range it {
-		num, err := c.NumberValue()
-		if err != nil {
-			return ast.Constant{}, err
+		switch c.Type {
+		case ast.NumberType, ast.DurationType:
+			// These types are represented as int64, we can reduce them.
+		default:
+			return ast.Constant{}, fmt.Errorf("expected number or duration constant, got %v", c)
 		}
-		sum += num
+		sum = ast.Number(sum.NumValue + c.NumValue)
 	}
-	return ast.Number(sum), nil
+	return sum, nil
 }
 
 func evalFloatSum(it iter.Seq[ast.Constant]) (ast.Constant, error) {

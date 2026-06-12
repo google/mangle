@@ -129,6 +129,8 @@ var (
 	FloatMult = ast.FunctionSym{"fn:float:mult", -1}
 	// FloatPlus is a family of functions mapping addition: X,Y1,.. to (X + Y1) + Y2 ... FloatPlus(x) is x.
 	FloatPlus = ast.FunctionSym{"fn:float:plus", -1}
+	// Mod is a function mapping X,Y to X modulo Y. The result has the sign of X.
+	Mod = ast.FunctionSym{"fn:mod", 2}
 	// Mult is a family of functions mapping X,Y1,.. to (X * Y1) * Y2 ... MULT(x) is x.
 	Mult = ast.FunctionSym{"fn:mult", -1}
 	// Plus is a family of functions mapping X,Y1,.. to (X + Y1) + Y2 ... PLUS(x) is x.

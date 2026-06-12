@@ -805,6 +805,30 @@ func TestFunctionEval(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			program: `fun(O) :- one(I) |> let O = fn:mod(7, 3).`,
+			want:    atom("fun(1)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:mod(-7, 3).`,
+			want:    atom("fun(-1)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:mod(6, 3).`,
+			want:    atom("fun(0)"),
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:mod(7, 0).`,
+			wantErr: true,
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:mod(7).`,
+			wantErr: true,
+		},
+		{
+			program: `fun(O) :- one(I) |> let O = fn:mod(7.0, 3).`,
+			wantErr: true,
+		},
+		{
 			program: `fun(O) :- one(I) |> let O = fn:mult().`,
 			want:    atom("fun(1)"),
 		},

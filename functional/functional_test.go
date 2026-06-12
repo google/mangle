@@ -43,33 +43,39 @@ func TestEvalFloatPlus(t *testing.T) {
 	}
 }
 
-func TestEvalMaxDuration(t *testing.T) {
-	list := ast.List([]ast.Constant{
+func TestEvalMinMax(t *testing.T) {
+	durations := ast.List([]ast.Constant{
 		ast.Duration(int64(2 * time.Hour)),
 		ast.Duration(int64(5 * time.Hour)),
 		ast.Duration(int64(1 * time.Hour)),
 	})
-	got, err := EvalApplyFn(ast.ApplyFn{symbols.Max, []ast.BaseTerm{list}}, ast.ConstSubstMap{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := ast.Duration(int64(5 * time.Hour)); !got.Equals(want) {
-		t.Errorf("got %v, want %v", got, want)
-	}
-}
-
-func TestEvalMaxTime(t *testing.T) {
-	list := ast.List([]ast.Constant{
+	times := ast.List([]ast.Constant{
 		ast.Time(time.Date(2022, 11, 24, 0, 0, 0, 0, time.UTC).UnixNano()),
 		ast.Time(time.Date(2022, 11, 25, 0, 0, 0, 0, time.UTC).UnixNano()),
 		ast.Time(time.Date(2022, 11, 26, 0, 0, 0, 0, time.UTC).UnixNano()),
 	})
-	got, err := EvalApplyFn(ast.ApplyFn{symbols.Max, []ast.BaseTerm{list}}, ast.ConstSubstMap{})
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name string
+		fn   ast.FunctionSym
+		list ast.Constant
+		want ast.Constant
+	}{
+		{"max duration", symbols.Max, durations, ast.Duration(int64(5 * time.Hour))},
+		{"min duration", symbols.Min, durations, ast.Duration(int64(1 * time.Hour))},
+		{"max time", symbols.Max, times, ast.Time(time.Date(2022, 11, 26, 0, 0, 0, 0, time.UTC).UnixNano())},
+		{"min time", symbols.Min, times, ast.Time(time.Date(2022, 11, 24, 0, 0, 0, 0, time.UTC).UnixNano())},
 	}
-	if want := ast.Time(time.Date(2022, 11, 26, 0, 0, 0, 0, time.UTC).UnixNano()); !got.Equals(want) {
-		t.Errorf("got %v, want %v", got, want)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			expr := ast.ApplyFn{test.fn, []ast.BaseTerm{test.list}}
+			got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !got.Equals(test.want) {
+				t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, test.want)
+			}
+		})
 	}
 }
 

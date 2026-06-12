@@ -43,6 +43,51 @@ func TestEvalFloatPlus(t *testing.T) {
 	}
 }
 
+func TestEvalMaxDuration(t *testing.T) {
+	list := ast.List([]ast.Constant{
+		ast.Duration(int64(2 * time.Hour)),
+		ast.Duration(int64(5 * time.Hour)),
+		ast.Duration(int64(1 * time.Hour)),
+	})
+	got, err := EvalApplyFn(ast.ApplyFn{symbols.Max, []ast.BaseTerm{list}}, ast.ConstSubstMap{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := ast.Duration(int64(5 * time.Hour)); !got.Equals(want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestEvalMaxTime(t *testing.T) {
+	list := ast.List([]ast.Constant{
+		ast.Time(time.Date(2022, 11, 24, 0, 0, 0, 0, time.UTC).UnixNano()),
+		ast.Time(time.Date(2022, 11, 25, 0, 0, 0, 0, time.UTC).UnixNano()),
+		ast.Time(time.Date(2022, 11, 26, 0, 0, 0, 0, time.UTC).UnixNano()),
+	})
+	got, err := EvalApplyFn(ast.ApplyFn{symbols.Max, []ast.BaseTerm{list}}, ast.ConstSubstMap{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := ast.Time(time.Date(2022, 11, 26, 0, 0, 0, 0, time.UTC).UnixNano()); !got.Equals(want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestEvalSumDuration(t *testing.T) {
+	list := ast.List([]ast.Constant{
+		ast.Duration(int64(2 * time.Hour)),
+		ast.Duration(int64(5 * time.Hour)),
+		ast.Duration(int64(1 * time.Hour)),
+	})
+	got, err := EvalApplyFn(ast.ApplyFn{symbols.Sum, []ast.BaseTerm{list}}, ast.ConstSubstMap{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := ast.Duration(int64(8 * time.Hour)); !got.Equals(want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
 func TestListContains(t *testing.T) {
 	tests := []struct {
 		listTerm   ast.BaseTerm

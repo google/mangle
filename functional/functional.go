@@ -1383,7 +1383,7 @@ func evalToString(val ast.Constant) (ast.Constant, error) {
 
 // reduceNum reduces the values of the it iterator using the combine function
 // ensuring the values in the iterator are of the same type.
-// If no values are present in the iterator, the empty value is used instead.
+// If no values are present in the iterator, the empty value is returned.
 // The allowed slice restricts the types of the values that are accepted.
 func reduceNum(
 	it iter.Seq[ast.Constant],
@@ -1408,6 +1408,25 @@ func reduceNum(
 		acc.NumValue = combine(acc.NumValue, c.NumValue)
 	}
 	return acc, nil
+}
+
+// reduceFloat reduces the float values of the it iterator using the combine
+// function.
+// If no values are present in the iterator, the init value is returned.
+func reduceFloat(
+	it iter.Seq[ast.Constant],
+	init float64,
+	combine func(acc, v float64) float64,
+) (ast.Constant, error) {
+	acc := init
+	for c := range it {
+		v, err := c.Float64Value()
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		acc = combine(acc, v)
+	}
+	return ast.Float64(acc), nil
 }
 
 func evalMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
@@ -1438,43 +1457,15 @@ func evalSum(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 }
 
 func evalFloatMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	max := -1 * math.MaxFloat64
-	for c := range it {
-		num, err := c.Float64Value()
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		if num > max {
-			max = num
-		}
-	}
-	return ast.Float64(max), nil
+	return reduceFloat(it, -math.MaxFloat64, func(acc, v float64) float64 { return max(acc, v) })
 }
 
 func evalFloatMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	min := math.MaxFloat64
-	for c := range it {
-		floatNum, err := c.Float64Value()
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		if floatNum < min {
-			min = floatNum
-		}
-	}
-	return ast.Float64(min), nil
+	return reduceFloat(it, math.MaxFloat64, func(acc, v float64) float64 { return min(acc, v) })
 }
 
 func evalFloatSum(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	var sum float64
-	for c := range it {
-		num, err := c.Float64Value()
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		sum += num
-	}
-	return ast.Float64(sum), nil
+	return reduceFloat(it, 0, func(acc, v float64) float64 { return acc + v })
 }
 
 func evalAvg(it iter.Seq[ast.Constant]) (ast.Constant, error) {

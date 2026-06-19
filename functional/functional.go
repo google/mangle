@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"iter"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -1380,20 +1381,60 @@ func evalToString(val ast.Constant) (ast.Constant, error) {
 	return res, nil
 }
 
-func evalMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	max := ast.Number(math.MinInt64)
-	for c := range it {
-		switch c.Type {
-		case ast.NumberType, ast.DurationType, ast.TimeType:
-			// These types are represented as int64, we can reduce them.
-		default:
-			return ast.Constant{}, fmt.Errorf("expected number, duration or time constant, got %v", c)
-		}
-		if c.NumValue > max.NumValue {
-			max = c
-		}
+// reduceNum reduces the values of the it iterator using the combine function
+// ensuring the values in the iterator are of the same type.
+// If no values are present in the iterator, the empty value is used instead.
+// The allowed slice restricts the types of the values that are accepted.
+func reduceNum(
+	it iter.Seq[ast.Constant],
+	empty ast.Constant,
+	allowed []ast.ConstantType,
+	combine func(acc, v int64) int64,
+) (ast.Constant, error) {
+	next, stop := iter.Pull(it)
+	defer stop()
+
+	acc, ok := next()
+	if !ok {
+		return empty, nil
 	}
-	return max, nil
+	if !slices.Contains(allowed, acc.Type) {
+		return ast.Constant{}, fmt.Errorf("expected one of %v, got %v", allowed, acc)
+	}
+	for c, ok := next(); ok; c, ok = next() {
+		if c.Type != acc.Type {
+			return ast.Constant{}, fmt.Errorf("cannot reduce constants of different types: %v and %v", acc, c)
+		}
+		acc.NumValue = combine(acc.NumValue, c.NumValue)
+	}
+	return acc, nil
+}
+
+func evalMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
+	return reduceNum(
+		it,
+		ast.Number(math.MinInt),
+		[]ast.ConstantType{ast.NumberType, ast.DurationType, ast.TimeType},
+		func(acc, v int64) int64 { return max(acc, v) },
+	)
+}
+
+func evalMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
+	return reduceNum(
+		it,
+		ast.Number(math.MaxInt),
+		[]ast.ConstantType{ast.NumberType, ast.DurationType, ast.TimeType},
+		func(acc, v int64) int64 { return min(acc, v) },
+	)
+}
+
+func evalSum(it iter.Seq[ast.Constant]) (ast.Constant, error) {
+	return reduceNum(
+		it,
+		ast.Number(0),
+		[]ast.ConstantType{ast.NumberType, ast.DurationType},
+		func(acc, v int64) int64 { return acc + v },
+	)
 }
 
 func evalFloatMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
@@ -1410,22 +1451,6 @@ func evalFloatMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 	return ast.Float64(max), nil
 }
 
-func evalMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	min := ast.Number(math.MaxInt64)
-	for c := range it {
-		switch c.Type {
-		case ast.NumberType, ast.DurationType, ast.TimeType:
-			// These types are represented as int64, we can reduce them.
-		default:
-			return ast.Constant{}, fmt.Errorf("expected number, duration or time constant, got %v", c)
-		}
-		if c.NumValue < min.NumValue {
-			min = c
-		}
-	}
-	return min, nil
-}
-
 func evalFloatMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 	min := math.MaxFloat64
 	for c := range it {
@@ -1438,20 +1463,6 @@ func evalFloatMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 		}
 	}
 	return ast.Float64(min), nil
-}
-
-func evalSum(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	sum := ast.Number(0)
-	for c := range it {
-		switch c.Type {
-		case ast.NumberType, ast.DurationType:
-			// These types are represented as int64, we can reduce them.
-		default:
-			return ast.Constant{}, fmt.Errorf("expected number or duration constant, got %v", c)
-		}
-		sum = ast.Number(sum.NumValue + c.NumValue)
-	}
-	return sum, nil
 }
 
 func evalFloatSum(it iter.Seq[ast.Constant]) (ast.Constant, error) {

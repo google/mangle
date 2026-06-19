@@ -94,6 +94,20 @@ func TestEvalSumDuration(t *testing.T) {
 	}
 }
 
+func TestEvalMinMaxSumMixedTypesFails(t *testing.T) {
+	mixed := ast.List([]ast.Constant{
+		ast.Duration(int64(2 * time.Hour)),
+		ast.Number(5),
+		ast.Time(time.Date(2022, 11, 24, 0, 0, 0, 0, time.UTC).UnixNano()),
+	})
+	for _, fn := range []ast.FunctionSym{symbols.Max, symbols.Min, symbols.Sum} {
+		expr := ast.ApplyFn{Function: fn, Args: []ast.BaseTerm{mixed}}
+		if got, err := EvalApplyFn(expr, ast.ConstSubstMap{}); err == nil {
+			t.Errorf("EvalApplyFn(%v) = %v, want error for mixed element types", expr, got)
+		}
+	}
+}
+
 func TestListContains(t *testing.T) {
 	tests := []struct {
 		listTerm   ast.BaseTerm
@@ -1425,8 +1439,8 @@ func TestTimeTrunc(t *testing.T) {
 		unit      string
 		wantNanos int64
 	}{
-		{"/day", 1705276800000000000}, // 2024-01-15 00:00:00 UTC
-		{"/hour", 1705312800000000000}, // 2024-01-15 10:00:00 UTC
+		{"/day", 1705276800000000000},    // 2024-01-15 00:00:00 UTC
+		{"/hour", 1705312800000000000},   // 2024-01-15 10:00:00 UTC
 		{"/minute", 1705314600000000000}, // 2024-01-15 10:30:00 UTC
 		{"/second", 1705314645000000000}, // 2024-01-15 10:30:45 UTC
 		{"/millisecond", 1705314645123000000},

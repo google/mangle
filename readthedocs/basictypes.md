@@ -177,10 +177,16 @@ format (RFC 3339).
     `/nanosecond`.
 *   `fn:time:format_civil(Time, TimeZone, UnitName)`: Formats a time in the
     specified timezone (e.g. "America/Los_Angeles").
-*   `fn:time:trunc(Time, UnitName)`: Truncates a time to the given unit.
-    Supported units: `/week`, `/day`, `/hour`, `/minute`, `/second`,
-    `/millisecond`, `/microsecond`, `/nanosecond`. Truncating to `/week`
-    yields the start of the ISO week (Monday, 00:00 UTC).
+*   `fn:time:trunc(Time, UnitName)`: Truncates a time to the given fixed-duration
+    unit, in UTC. Supported units: `/day`, `/hour`, `/minute`, `/second`,
+    `/millisecond`, `/microsecond`, `/nanosecond`. (`/day` is treated as a fixed
+    24h period aligned to UTC midnight.)
+*   `fn:time:trunc_civil(Time, TimeZone, UnitName)`: Truncates a time to the
+    start of a calendar unit in the specified timezone (e.g.
+    "America/Los_Angeles"). Supported units: `/year`, `/month`, `/week`, `/day`.
+    Boundaries are computed against the wall clock in that timezone and are
+    correct across DST transitions. `/week` yields the start of the ISO week
+    (Monday, 00:00 local time).
 *   `fn:time:add(Time, Duration)`: Adds a duration to a time.
 *   `fn:time:sub(Time1, Time2)`: Subtracts two times to get a duration.
 *   `fn:time:year(Time)`, `fn:time:month(Time)`, `fn:time:day(Time)`,

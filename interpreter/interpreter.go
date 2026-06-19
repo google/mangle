@@ -24,12 +24,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/chzyer/readline"
 	"codeberg.org/TauCeti/mangle-go/analysis"
 	"codeberg.org/TauCeti/mangle-go/ast"
 	"codeberg.org/TauCeti/mangle-go/engine"
 	"codeberg.org/TauCeti/mangle-go/factstore"
 	"codeberg.org/TauCeti/mangle-go/parse"
+	"github.com/chzyer/readline"
 )
 
 const bufSize = 4096
@@ -383,7 +383,8 @@ func (i *Interpreter) Loop() error {
 				if err != nil {
 					return err
 				}
-				clauseText = clauseText + nextLine
+				// Add next line, with a newline to support comments.
+				clauseText = clauseText + "\n" + nextLine
 			}
 
 			if err := i.Define(clauseText); err != nil {

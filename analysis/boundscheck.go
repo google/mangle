@@ -599,7 +599,12 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 
 		case symbols.StringConcatenate.Symbol:
 			return ast.StringBound
-
+		case symbols.Sum.Symbol:
+			return commonBound(z.Args, varRanges, nameTrie, ast.NumberBound, ast.DurationBound)
+		case symbols.Min.Symbol:
+			fallthrough
+		case symbols.Max.Symbol:
+			return commonBound(z.Args, varRanges, nameTrie, ast.NumberBound, ast.DurationBound, ast.TimeBound)
 		case symbols.Plus.Symbol:
 			fallthrough
 		case symbols.Minus.Symbol:

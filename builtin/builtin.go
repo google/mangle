@@ -81,6 +81,7 @@ var (
 		symbols.FloatDiv:  emptyType,
 		symbols.FloatMult: emptyType,
 		symbols.FloatPlus: emptyType,
+		symbols.Mod:       symbols.NewFunType(ast.NumberBound /* <= */, ast.NumberBound, ast.NumberBound),
 		symbols.Mult:      emptyType,
 		symbols.Plus:      emptyType,
 		symbols.Minus:     emptyType,

@@ -929,6 +929,12 @@ func EvalNumericApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, err
 			return ast.Constant{}, err
 		}
 		return ast.Number(res), nil
+	case symbols.Mod.Symbol:
+		res, err := evalMod(args)
+		if err != nil {
+			return ast.Constant{}, err
+		}
+		return ast.Number(res), nil
 	case symbols.Mult.Symbol:
 		res, err := evalMult(args)
 		if err != nil {
@@ -1015,6 +1021,24 @@ func evalDiv(args []ast.Constant) (int64, error) {
 		}
 	}
 	return res, nil
+}
+
+func evalMod(args []ast.Constant) (int64, error) {
+	if len(args) != 2 {
+		return 0, fmt.Errorf("expected 2 arguments for mod, got %d", len(args))
+	}
+	x, err := args[0].NumberValue()
+	if err != nil {
+		return 0, err
+	}
+	y, err := args[1].NumberValue()
+	if err != nil {
+		return 0, err
+	}
+	if y == 0 {
+		return 0, ErrDivisionByZero
+	}
+	return x % y, nil
 }
 
 func valueAsFloat(a ast.Constant) (float64, error) {

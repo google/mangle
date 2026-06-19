@@ -606,6 +606,8 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 			fallthrough
 		case symbols.Mult.Symbol:
 			fallthrough
+		case symbols.Mod.Symbol:
+			fallthrough
 		case symbols.Div.Symbol:
 			for _, arg := range z.Args {
 				if ast.NumberBound != boundOfArg(arg, varRanges, nameTrie) {
@@ -653,6 +655,8 @@ func typeOfFn(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie s
 			}
 		}
 		return ast.NumberBound
+	case symbols.Mod.Symbol:
+		fallthrough
 	case symbols.Div.Symbol:
 		for _, arg := range x.Args {
 			if ast.NumberBound != boundOfArg(arg, varRanges, nameTrie) {

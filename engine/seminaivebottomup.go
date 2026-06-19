@@ -25,13 +25,13 @@ import (
 	"strings"
 	"time"
 
-	"go.uber.org/multierr"
 	"codeberg.org/TauCeti/mangle-go/analysis"
 	"codeberg.org/TauCeti/mangle-go/ast"
 	"codeberg.org/TauCeti/mangle-go/factstore"
 	"codeberg.org/TauCeti/mangle-go/functional"
 	"codeberg.org/TauCeti/mangle-go/rewrite"
 	"codeberg.org/TauCeti/mangle-go/unionfind"
+	"go.uber.org/multierr"
 )
 
 const deltaStringPrefix = "Δ"
@@ -824,12 +824,19 @@ func (e *engine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionFind,
 				return nil, fmt.Errorf("no decl for predicate %v", p.Predicate)
 			}
 			mode := decl.Modes()[0]
+			// Apply the current substitution so that input arguments which
+			// are variables bound by earlier premises become constants
+			// before the callback is invoked.
+			substP, err := functional.EvalAtom(p, subst)
+			if err != nil {
+				return nil, fmt.Errorf("apply subst to external query %v: %w", p, err)
+			}
 			var pushdown []ast.Term
 			if ext.ShouldPushdown() {
-				pushdown = getPushdown(p, mode, clause, subst)
+				pushdown = getPushdown(substP, mode, clause, subst)
 			}
-			err := e.newContext().EvalExternalQuery(
-				p, mode, ext, pushdown, func(fact ast.Atom) error {
+			err = e.newContext().EvalExternalQuery(
+				substP, mode, ext, pushdown, func(fact ast.Atom) error {
 					e.store.Add(fact)
 					return nil
 				})

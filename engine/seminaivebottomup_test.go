@@ -19,13 +19,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"codeberg.org/TauCeti/mangle-go/analysis"
 	"codeberg.org/TauCeti/mangle-go/ast"
 	"codeberg.org/TauCeti/mangle-go/factstore"
 	"codeberg.org/TauCeti/mangle-go/functional"
 	"codeberg.org/TauCeti/mangle-go/parse"
 	"codeberg.org/TauCeti/mangle-go/unionfind"
+	"github.com/google/go-cmp/cmp"
 )
 
 func atom(s string) ast.Atom {
@@ -1413,6 +1413,56 @@ func TestEvalExternal(t *testing.T) {
 	}
 	if store.EstimateFactCount() != 4 {
 		t.Errorf("did not expect other facts in store %v", store)
+	}
+}
+
+// TestEvalExternalInputFromPremise checks that an external predicate whose
+// input position is supplied by a variable bound in an earlier premise is
+// evaluated correctly.
+func TestEvalExternalInputFromPremise(t *testing.T) {
+	u := unit(`
+	Decl testExt(X, Y)
+	  descr [
+		  external(),
+		  mode('+', '-'),
+		]
+		bound [ /number, /string ]
+	.
+
+	# seed/1 binds X before testExt consumes it as an input argument.
+	foo(Z) :- seed(X), testExt(X, Y), Z = Y.
+	`)
+
+	store := factstore.NewSimpleInMemoryStore()
+	store.Add(atom("seed(1)"))
+
+	programInfo, err := analysis.AnalyzeOneUnit(
+		parse.SourceUnit{Clauses: u.Clauses, Decls: u.Decls}, asMap(store.ListPredicates()))
+	if err != nil {
+		t.Fatalf("analysis: %v", err)
+	}
+	strata, predToStratum, err := analysis.Stratify(analysis.Program{
+		EdbPredicates: programInfo.EdbPredicates,
+		IdbPredicates: programInfo.IdbPredicates,
+		Rules:         programInfo.Rules,
+	})
+	if err != nil {
+		t.Fatalf("stratification: %v", err)
+	}
+	extImpl := &ExtImpl{}
+	opt := WithExternalPredicates(map[ast.PredicateSym]ExternalPredicateCallback{
+		{Symbol: "testExt", Arity: 2}: extImpl,
+	})
+	if _, err = EvalStratifiedProgramWithStats(
+		programInfo, strata, predToStratum, store, opt, WithDeterministicOrder()); err != nil {
+		t.Fatalf("eval: %v", err)
+	}
+
+	if extImpl.called1 != 1 {
+		t.Errorf("expected ShouldQuery(testExt(1)) to be called once, was %d times", extImpl.called1)
+	}
+	if !store.Contains(atom("foo('ExecuteQuery(1)')")) {
+		t.Errorf("expected fact foo('ExecuteQuery(1)') in store %v", store)
 	}
 }
 

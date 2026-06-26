@@ -79,6 +79,39 @@ func TestEvalMinMax(t *testing.T) {
 	}
 }
 
+func TestEvalFloatReducersPropagateNaN(t *testing.T) {
+	list := ast.List([]ast.Constant{
+		ast.Float64(2.0),
+		ast.Float64(math.NaN()),
+		ast.Float64(5.0),
+		ast.Float64(1.0),
+	})
+	tests := []struct {
+		name string
+		fn   ast.FunctionSym
+	}{
+		{"float max propagates NaN", symbols.FloatMax},
+		{"float min propagates NaN", symbols.FloatMin},
+		{"float sum propagates NaN", symbols.FloatSum},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			expr := ast.ApplyFn{test.fn, []ast.BaseTerm{list}}
+			got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			gotFloat, err := got.Float64Value()
+			if err != nil {
+				t.Fatalf("EvalApplyFn(%v) returned non-float %v: %v", expr, got, err)
+			}
+			if !math.IsNaN(gotFloat) {
+				t.Errorf("EvalApplyFn(%v) = %v, want NaN", expr, got)
+			}
+		})
+	}
+}
+
 func TestEvalSumDuration(t *testing.T) {
 	list := ast.List([]ast.Constant{
 		ast.Duration(int64(2 * time.Hour)),

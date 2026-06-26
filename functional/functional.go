@@ -1432,7 +1432,7 @@ func reduceFloat(
 func evalMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 	return reduceNum(
 		it,
-		ast.Number(math.MinInt),
+		ast.Number(math.MinInt64),
 		[]ast.ConstantType{ast.NumberType, ast.DurationType, ast.TimeType},
 		func(acc, v int64) int64 { return max(acc, v) },
 	)
@@ -1441,7 +1441,7 @@ func evalMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 func evalMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
 	return reduceNum(
 		it,
-		ast.Number(math.MaxInt),
+		ast.Number(math.MaxInt64),
 		[]ast.ConstantType{ast.NumberType, ast.DurationType, ast.TimeType},
 		func(acc, v int64) int64 { return min(acc, v) },
 	)

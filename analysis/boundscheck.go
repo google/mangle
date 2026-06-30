@@ -600,11 +600,21 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 		case symbols.StringConcatenate.Symbol:
 			return ast.StringBound
 		case symbols.Sum.Symbol:
-			return commonBound(z.Args, varRanges, nameTrie, ast.NumberBound, ast.DurationBound)
+			fallthrough
 		case symbols.Min.Symbol:
 			fallthrough
 		case symbols.Max.Symbol:
-			return commonBound(z.Args, varRanges, nameTrie, ast.NumberBound, ast.DurationBound, ast.TimeBound)
+			return commonBound(z.Args, varRanges, nameTrie, ast.NumberBound)
+		case symbols.DurationSum.Symbol:
+			fallthrough
+		case symbols.DurationMin.Symbol:
+			fallthrough
+		case symbols.DurationMax.Symbol:
+			return commonBound(z.Args, varRanges, nameTrie, ast.DurationBound)
+		case symbols.TimeMin.Symbol:
+			fallthrough
+		case symbols.TimeMax.Symbol:
+			return commonBound(z.Args, varRanges, nameTrie, ast.TimeBound)
 		case symbols.Plus.Symbol:
 			fallthrough
 		case symbols.Minus.Symbol:
@@ -681,11 +691,21 @@ func typeOfFn(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie s
 		}
 		return ast.Float64Bound
 	case symbols.Sum.Symbol:
-		return commonBound(x.Args, varRanges, nameTrie, ast.NumberBound, ast.DurationBound)
+		fallthrough
 	case symbols.Max.Symbol:
 		fallthrough
 	case symbols.Min.Symbol:
-		return commonBound(x.Args, varRanges, nameTrie, ast.NumberBound, ast.DurationBound, ast.TimeBound)
+		return commonBound(x.Args, varRanges, nameTrie, ast.NumberBound)
+	case symbols.DurationSum.Symbol:
+		fallthrough
+	case symbols.DurationMax.Symbol:
+		fallthrough
+	case symbols.DurationMin.Symbol:
+		return commonBound(x.Args, varRanges, nameTrie, ast.DurationBound)
+	case symbols.TimeMax.Symbol:
+		fallthrough
+	case symbols.TimeMin.Symbol:
+		return commonBound(x.Args, varRanges, nameTrie, ast.TimeBound)
 	case symbols.Count.Symbol:
 		return ast.NumberBound
 	case symbols.Collect.Symbol:
@@ -710,8 +730,8 @@ func typeOfFn(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie s
 	return res
 }
 
-// commonBound returns the common bound of args if all args share a bound that is among the allowed ones, EmptyType otherwise.
-func commonBound(args []ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTrie symbols.NameTrie, allowed ...ast.BaseTerm) ast.BaseTerm {
+// commonBound returns want if every arg has bound want, EmptyType otherwise.
+func commonBound(args []ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTrie symbols.NameTrie, want ast.BaseTerm) ast.BaseTerm {
 	var common ast.BaseTerm
 	for _, arg := range args {
 		bound := boundOfArg(arg, varRanges, nameTrie)
@@ -721,13 +741,8 @@ func commonBound(args []ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, n
 			return symbols.EmptyType
 		}
 	}
-	if common == nil {
+	if common == nil || !common.Equals(want) {
 		return symbols.EmptyType
 	}
-	for _, b := range allowed {
-		if common.Equals(b) {
-			return common
-		}
-	}
-	return symbols.EmptyType
+	return common
 }

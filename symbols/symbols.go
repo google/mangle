@@ -154,14 +154,24 @@ var (
 	Max = ast.FunctionSym{"fn:max", 1}
 	// FloatMax reduces a set of float64 { x_1,...x_n } to { x_i } that is maximal.
 	FloatMax = ast.FunctionSym{"fn:float:max", 1}
-	// Min reduces a set { x_1,...x_n } to { x_i } that is minimal.
+	// DurationMax reduces a set of durations { x_1,...x_n } to { x_i } that is maximal.
+	DurationMax = ast.FunctionSym{"fn:duration:max", 1}
+	// TimeMax reduces a set of time instants { x_1,...x_n } to { x_i } that is maximal.
+	TimeMax = ast.FunctionSym{"fn:time:max", 1}
+	// Min reduces a set of numbers { x_1,...x_n } to { x_i } that is minimal.
 	Min = ast.FunctionSym{"fn:min", 1}
 	// FloatMin reduces a set of float64 { x_1,...x_n } to { x_i } that is minimal.
 	FloatMin = ast.FunctionSym{"fn:float:min", 1}
-	// Sum reduces a set { x_1,...x_n } to { x_1 + ... + x_n }.
+	// DurationMin reduces a set of durations { x_1,...x_n } to { x_i } that is minimal.
+	DurationMin = ast.FunctionSym{"fn:duration:min", 1}
+	// TimeMin reduces a set of time instants { x_1,...x_n } to { x_i } that is minimal.
+	TimeMin = ast.FunctionSym{"fn:time:min", 1}
+	// Sum reduces a set of numbers { x_1,...x_n } to { x_1 + ... + x_n }.
 	Sum = ast.FunctionSym{"fn:sum", 1}
 	// FloatSum reduces a set of float64 { x_1,...x_n } to { x_1 + ... + x_n }.
 	FloatSum = ast.FunctionSym{"fn:float:sum", 1}
+	// DurationSum reduces a set of durations { x_1,...x_n } to { x_1 + ... + x_n }.
+	DurationSum = ast.FunctionSym{"fn:duration:sum", 1}
 	// Count reduces a set { x_1,...x_n } to { n }.
 	Count = ast.FunctionSym{"fn:count", 0}
 	// CountDistinct reduces a set { x_1,...x_n } to { m } with m being the
@@ -323,17 +333,17 @@ var (
 	// TypeConstructors is a list of function symbols used in structured type expressions.
 	// Each name is mapped to the corresponding type constructor (a function at the level of types).
 	TypeConstructors = map[string]ast.FunctionSym{
-		UnionType.Symbol:     UnionType,
-		SingletonType.Symbol: SingletonType,
-		ListType.Symbol:      ListType,
-		OptionType.Symbol:    OptionType,
-		PairType.Symbol:      PairType,
-		TupleType.Symbol:     TupleType,
-		MapType.Symbol:       MapType,
-		StructType.Symbol:       StructType,
-		TaggedUnionType.Symbol:  TaggedUnionType,
-		FunType.Symbol:          FunType,
-		RelType.Symbol:          RelType,
+		UnionType.Symbol:       UnionType,
+		SingletonType.Symbol:   SingletonType,
+		ListType.Symbol:        ListType,
+		OptionType.Symbol:      OptionType,
+		PairType.Symbol:        PairType,
+		TupleType.Symbol:       TupleType,
+		MapType.Symbol:         MapType,
+		StructType.Symbol:      StructType,
+		TaggedUnionType.Symbol: TaggedUnionType,
+		FunType.Symbol:         FunType,
+		RelType.Symbol:         RelType,
 	}
 
 	// EmptyType is a type without members.

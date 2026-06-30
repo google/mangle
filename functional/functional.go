@@ -227,7 +227,9 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		}
 		return *tuple, nil
 
-	case symbols.Max.Symbol:
+	case symbols.Max.Symbol, symbols.FloatMax.Symbol, symbols.DurationMax.Symbol, symbols.TimeMax.Symbol,
+		symbols.Min.Symbol, symbols.FloatMin.Symbol, symbols.DurationMin.Symbol, symbols.TimeMin.Symbol,
+		symbols.Sum.Symbol, symbols.FloatSum.Symbol, symbols.DurationSum.Symbol:
 		if l := len(evaluatedArgs); l != 1 {
 			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
 		}
@@ -235,37 +237,7 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		if err != nil {
 			return ast.Constant{}, err
 		}
-		return evalMax(listElems)
-
-	case symbols.FloatMax.Symbol:
-		if l := len(evaluatedArgs); l != 1 {
-			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
-		}
-		listElems, err := evaluatedArgs[0].ListSeq()
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return evalFloatMax(listElems)
-
-	case symbols.Min.Symbol:
-		if l := len(evaluatedArgs); l != 1 {
-			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
-		}
-		listElems, err := evaluatedArgs[0].ListSeq()
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return evalMin(listElems)
-
-	case symbols.FloatMin.Symbol:
-		if l := len(evaluatedArgs); l != 1 {
-			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
-		}
-		listElems, err := evaluatedArgs[0].ListSeq()
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return evalFloatMin(listElems)
+		return listReducers[applyFn.Function.Symbol](listElems)
 
 	case symbols.NumberToString.Symbol:
 		if l := len(evaluatedArgs); l != 1 {
@@ -394,26 +366,6 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		}
 		countValue, _ := count.NumberValue()
 		return ast.String(strings.Replace(provided.Symbol, old.Symbol, new.Symbol, int(countValue))), nil
-
-	case symbols.Sum.Symbol:
-		if l := len(evaluatedArgs); l != 1 {
-			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
-		}
-		listElems, err := evaluatedArgs[0].ListSeq()
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return evalSum(listElems)
-
-	case symbols.FloatSum.Symbol:
-		if l := len(evaluatedArgs); l != 1 {
-			return ast.Constant{}, fmt.Errorf("expected 1 list argument, got %d argument(s)", l)
-		}
-		listElems, err := evaluatedArgs[0].ListSeq()
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		return evalFloatSum(listElems)
 
 	case symbols.ListGet.Symbol:
 		if l := len(evaluatedArgs); l != 2 {
@@ -1305,24 +1257,11 @@ func EvalReduceFn(reduceFn ast.ApplyFn, rows []ast.ConstSubstList) (ast.Constant
 		v := reduceFn.Args[0].(ast.Variable)
 		return evalAvg(rowsIter(v))
 
-	case symbols.Max.Symbol:
+	case symbols.Max.Symbol, symbols.FloatMax.Symbol, symbols.DurationMax.Symbol, symbols.TimeMax.Symbol,
+		symbols.Min.Symbol, symbols.FloatMin.Symbol, symbols.DurationMin.Symbol, symbols.TimeMin.Symbol,
+		symbols.Sum.Symbol, symbols.FloatSum.Symbol, symbols.DurationSum.Symbol:
 		v := reduceFn.Args[0].(ast.Variable)
-		return evalMax(rowsIter(v))
-	case symbols.FloatMax.Symbol:
-		v := reduceFn.Args[0].(ast.Variable)
-		return evalFloatMax(rowsIter(v))
-	case symbols.Min.Symbol:
-		v := reduceFn.Args[0].(ast.Variable)
-		return evalMin(rowsIter(v))
-	case symbols.FloatMin.Symbol:
-		v := reduceFn.Args[0].(ast.Variable)
-		return evalFloatMin(rowsIter(v))
-	case symbols.Sum.Symbol:
-		v := reduceFn.Args[0].(ast.Variable)
-		return evalSum(rowsIter(v))
-	case symbols.FloatSum.Symbol:
-		v := reduceFn.Args[0].(ast.Variable)
-		return evalFloatSum(rowsIter(v))
+		return listReducers[reduceFn.Function.Symbol](rowsIter(v))
 	default:
 		return ast.Constant{}, fmt.Errorf("unknown reducer %v", reduceFn.Function)
 	}
@@ -1380,84 +1319,110 @@ func evalToString(val ast.Constant) (ast.Constant, error) {
 	return res, nil
 }
 
-func evalMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	max := int64(math.MinInt64)
-	for c := range it {
-		num, err := c.NumberValue()
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		if num > max {
-			max = num
-		}
-	}
-	return ast.Number(max), nil
+// listReducers maps the symbols of reducer functions that operate over a
+// sequence of constants of a single type to their implementation.
+var listReducers = map[string]func(iter.Seq[ast.Constant]) (ast.Constant, error){
+	symbols.Max.Symbol:         evalMax,
+	symbols.Min.Symbol:         evalMin,
+	symbols.Sum.Symbol:         evalSum,
+	symbols.FloatMax.Symbol:    evalFloatMax,
+	symbols.FloatMin.Symbol:    evalFloatMin,
+	symbols.FloatSum.Symbol:    evalFloatSum,
+	symbols.DurationMax.Symbol: evalDurationMax,
+	symbols.DurationMin.Symbol: evalDurationMin,
+	symbols.DurationSum.Symbol: evalDurationSum,
+	symbols.TimeMax.Symbol:     evalTimeMax,
+	symbols.TimeMin.Symbol:     evalTimeMin,
 }
 
-func evalFloatMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	max := -1 * math.MaxFloat64
+// reduceNum reduces the values of the it iterator using the combine function.
+// All values must have the same type as the empty value, which is also the
+// value returned when the iterator is empty.
+func reduceNum(
+	it iter.Seq[ast.Constant],
+	empty ast.Constant,
+	combine func(acc, v int64) int64,
+) (ast.Constant, error) {
+	next, stop := iter.Pull(it)
+	defer stop()
+
+	acc, ok := next()
+	if !ok {
+		return empty, nil
+	}
+	if acc.Type != empty.Type {
+		return ast.Constant{}, fmt.Errorf("expected %v, got %v", empty.Type, acc)
+	}
+	for c, ok := next(); ok; c, ok = next() {
+		if c.Type != empty.Type {
+			return ast.Constant{}, fmt.Errorf("cannot reduce constants of different types: %v and %v", acc, c)
+		}
+		acc.NumValue = combine(acc.NumValue, c.NumValue)
+	}
+	return acc, nil
+}
+
+// reduceFloat reduces the float values of the it iterator using the combine
+// function.
+// If no values are present in the iterator, the init value is returned.
+func reduceFloat(
+	it iter.Seq[ast.Constant],
+	init float64,
+	combine func(acc, v float64) float64,
+) (ast.Constant, error) {
+	acc := init
 	for c := range it {
-		num, err := c.Float64Value()
+		v, err := c.Float64Value()
 		if err != nil {
 			return ast.Constant{}, err
 		}
-		if num > max {
-			max = num
-		}
+		acc = combine(acc, v)
 	}
-	return ast.Float64(max), nil
+	return ast.Float64(acc), nil
+}
+
+func evalMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
+	return reduceNum(it, ast.Number(math.MinInt64), func(acc, v int64) int64 { return max(acc, v) })
 }
 
 func evalMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	min := int64(math.MaxInt64)
-	for c := range it {
-		num, err := c.NumberValue()
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		if num < min {
-			min = num
-		}
-	}
-	return ast.Number(min), nil
-}
-
-func evalFloatMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	min := math.MaxFloat64
-	for c := range it {
-		floatNum, err := c.Float64Value()
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		if floatNum < min {
-			min = floatNum
-		}
-	}
-	return ast.Float64(min), nil
+	return reduceNum(it, ast.Number(math.MaxInt64), func(acc, v int64) int64 { return min(acc, v) })
 }
 
 func evalSum(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	var sum int64
-	for c := range it {
-		num, err := c.NumberValue()
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		sum += num
-	}
-	return ast.Number(sum), nil
+	return reduceNum(it, ast.Number(0), func(acc, v int64) int64 { return acc + v })
+}
+
+func evalDurationMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
+	return reduceNum(it, ast.Duration(math.MinInt64), func(acc, v int64) int64 { return max(acc, v) })
+}
+
+func evalDurationMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
+	return reduceNum(it, ast.Duration(math.MaxInt64), func(acc, v int64) int64 { return min(acc, v) })
+}
+
+func evalDurationSum(it iter.Seq[ast.Constant]) (ast.Constant, error) {
+	return reduceNum(it, ast.Duration(0), func(acc, v int64) int64 { return acc + v })
+}
+
+func evalTimeMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
+	return reduceNum(it, ast.Time(math.MinInt64), func(acc, v int64) int64 { return max(acc, v) })
+}
+
+func evalTimeMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
+	return reduceNum(it, ast.Time(math.MaxInt64), func(acc, v int64) int64 { return min(acc, v) })
+}
+
+func evalFloatMax(it iter.Seq[ast.Constant]) (ast.Constant, error) {
+	return reduceFloat(it, -math.MaxFloat64, func(acc, v float64) float64 { return max(acc, v) })
+}
+
+func evalFloatMin(it iter.Seq[ast.Constant]) (ast.Constant, error) {
+	return reduceFloat(it, math.MaxFloat64, func(acc, v float64) float64 { return min(acc, v) })
 }
 
 func evalFloatSum(it iter.Seq[ast.Constant]) (ast.Constant, error) {
-	var sum float64
-	for c := range it {
-		num, err := c.Float64Value()
-		if err != nil {
-			return ast.Constant{}, err
-		}
-		sum += num
-	}
-	return ast.Float64(sum), nil
+	return reduceFloat(it, 0, func(acc, v float64) float64 { return acc + v })
 }
 
 func evalAvg(it iter.Seq[ast.Constant]) (ast.Constant, error) {

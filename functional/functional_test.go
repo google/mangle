@@ -43,6 +43,135 @@ func TestEvalFloatPlus(t *testing.T) {
 	}
 }
 
+func TestEvalDurationTimeMinMax(t *testing.T) {
+	durations := ast.List([]ast.Constant{
+		ast.Duration(int64(2 * time.Hour)),
+		ast.Duration(int64(5 * time.Hour)),
+		ast.Duration(int64(1 * time.Hour)),
+	})
+	times := ast.List([]ast.Constant{
+		ast.Time(time.Date(2022, 11, 24, 0, 0, 0, 0, time.UTC).UnixNano()),
+		ast.Time(time.Date(2022, 11, 25, 0, 0, 0, 0, time.UTC).UnixNano()),
+		ast.Time(time.Date(2022, 11, 26, 0, 0, 0, 0, time.UTC).UnixNano()),
+	})
+	tests := []struct {
+		name string
+		fn   ast.FunctionSym
+		list ast.Constant
+		want ast.Constant
+	}{
+		{"max duration", symbols.DurationMax, durations, ast.Duration(int64(5 * time.Hour))},
+		{"min duration", symbols.DurationMin, durations, ast.Duration(int64(1 * time.Hour))},
+		{"max time", symbols.TimeMax, times, ast.Time(time.Date(2022, 11, 26, 0, 0, 0, 0, time.UTC).UnixNano())},
+		{"min time", symbols.TimeMin, times, ast.Time(time.Date(2022, 11, 24, 0, 0, 0, 0, time.UTC).UnixNano())},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			expr := ast.ApplyFn{test.fn, []ast.BaseTerm{test.list}}
+			got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !got.Equals(test.want) {
+				t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, test.want)
+			}
+		})
+	}
+}
+
+func TestEvalFloatReducersPropagateNaN(t *testing.T) {
+	list := ast.List([]ast.Constant{
+		ast.Float64(2.0),
+		ast.Float64(math.NaN()),
+		ast.Float64(5.0),
+		ast.Float64(1.0),
+	})
+	tests := []struct {
+		name string
+		fn   ast.FunctionSym
+	}{
+		{"float max propagates NaN", symbols.FloatMax},
+		{"float min propagates NaN", symbols.FloatMin},
+		{"float sum propagates NaN", symbols.FloatSum},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			expr := ast.ApplyFn{test.fn, []ast.BaseTerm{list}}
+			got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			gotFloat, err := got.Float64Value()
+			if err != nil {
+				t.Fatalf("EvalApplyFn(%v) returned non-float %v: %v", expr, got, err)
+			}
+			if !math.IsNaN(gotFloat) {
+				t.Errorf("EvalApplyFn(%v) = %v, want NaN", expr, got)
+			}
+		})
+	}
+}
+
+func TestEvalSumDuration(t *testing.T) {
+	list := ast.List([]ast.Constant{
+		ast.Duration(int64(2 * time.Hour)),
+		ast.Duration(int64(5 * time.Hour)),
+		ast.Duration(int64(1 * time.Hour)),
+	})
+	got, err := EvalApplyFn(ast.ApplyFn{symbols.DurationSum, []ast.BaseTerm{list}}, ast.ConstSubstMap{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := ast.Duration(int64(8 * time.Hour)); !got.Equals(want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestEvalMinMaxSumMixedTypesFails(t *testing.T) {
+	mixed := ast.List([]ast.Constant{
+		ast.Duration(int64(2 * time.Hour)),
+		ast.Number(5),
+		ast.Time(time.Date(2022, 11, 24, 0, 0, 0, 0, time.UTC).UnixNano()),
+	})
+	for _, fn := range []ast.FunctionSym{symbols.Max, symbols.Min, symbols.Sum} {
+		expr := ast.ApplyFn{Function: fn, Args: []ast.BaseTerm{mixed}}
+		if got, err := EvalApplyFn(expr, ast.ConstSubstMap{}); err == nil {
+			t.Errorf("EvalApplyFn(%v) = %v, want error for mixed element types", expr, got)
+		}
+	}
+}
+
+func TestEvalReducerWrongElementTypeFails(t *testing.T) {
+	number := ast.List([]ast.Constant{ast.Number(1), ast.Number(2)})
+	duration := ast.List([]ast.Constant{ast.Duration(int64(time.Hour))})
+	tm := ast.List([]ast.Constant{ast.Time(0)})
+	tests := []struct {
+		name string
+		fn   ast.FunctionSym
+		list ast.Constant
+	}{
+		{"fn:min rejects durations", symbols.Min, duration},
+		{"fn:max rejects durations", symbols.Max, duration},
+		{"fn:sum rejects durations", symbols.Sum, duration},
+		{"fn:min rejects time", symbols.Min, tm},
+		{"fn:max rejects time", symbols.Max, tm},
+		{"fn:sum rejects time", symbols.Sum, tm},
+		{"fn:duration:min rejects numbers", symbols.DurationMin, number},
+		{"fn:duration:max rejects numbers", symbols.DurationMax, number},
+		{"fn:duration:sum rejects times", symbols.DurationSum, tm},
+		{"fn:time:max rejects numbers", symbols.TimeMax, number},
+		{"fn:time:min rejects durations", symbols.TimeMin, duration},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			expr := ast.ApplyFn{Function: test.fn, Args: []ast.BaseTerm{test.list}}
+			if got, err := EvalApplyFn(expr, ast.ConstSubstMap{}); err == nil {
+				t.Errorf("EvalApplyFn(%v) = %v, want error for wrong element type", expr, got)
+			}
+		})
+	}
+}
+
 func TestListContains(t *testing.T) {
 	tests := []struct {
 		listTerm   ast.BaseTerm
@@ -1374,8 +1503,8 @@ func TestTimeTrunc(t *testing.T) {
 		unit      string
 		wantNanos int64
 	}{
-		{"/day", 1705276800000000000}, // 2024-01-15 00:00:00 UTC
-		{"/hour", 1705312800000000000}, // 2024-01-15 10:00:00 UTC
+		{"/day", 1705276800000000000},    // 2024-01-15 00:00:00 UTC
+		{"/hour", 1705312800000000000},   // 2024-01-15 10:00:00 UTC
 		{"/minute", 1705314600000000000}, // 2024-01-15 10:30:00 UTC
 		{"/second", 1705314645000000000}, // 2024-01-15 10:30:45 UTC
 		{"/millisecond", 1705314645123000000},

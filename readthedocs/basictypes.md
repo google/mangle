@@ -187,6 +187,8 @@ format (RFC 3339).
     Extract components from a time.
 *   `fn:time:from_unix_nanos(Number)`, `fn:time:to_unix_nanos(Time)`: Convert
     between time and Unix nanoseconds.
+*   `fn:time:min(Time)`, `fn:time:max(Time)`: Reducers that select the earliest
+    or latest time instant in a group.
 *   `:time:lt`, `:time:le`, `:time:gt`, `:time:ge`: Comparison predicates for
     time.
 
@@ -218,5 +220,8 @@ numbers and unit suffixes (e.g., `1h30m`, `300ms`).
     duration in specified units.
 *   `fn:duration:add(D1, D2)`: Adds two durations.
 *   `fn:duration:mult(Duration, Number)`: Multiplies a duration by a factor.
+*   `fn:duration:min(Duration)`, `fn:duration:max(Duration)`: Reducers that select the shortest or longest
+    duration in a group.
+*   `fn:duration:sum(Duration)`: Reducer that adds all durations together.
 *   `:duration:lt`, `:duration:le`, `:duration:gt`, `:duration:ge`: Comparison
     predicates for durations.

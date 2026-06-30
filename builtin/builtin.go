@@ -134,6 +134,7 @@ var (
 		symbols.TimeFromUnixNanos: symbols.NewFunType(ast.TimeBound /* <= */, ast.NumberBound),
 		symbols.TimeToUnixNanos:   symbols.NewFunType(ast.NumberBound /* <= */, ast.TimeBound),
 		symbols.TimeTrunc:         symbols.NewFunType(ast.TimeBound /* <= */, ast.TimeBound, ast.NameBound),
+		symbols.TimeTruncCivil:    symbols.NewFunType(ast.TimeBound /* <= */, ast.TimeBound, ast.StringBound, ast.NameBound),
 
 		// Duration functions
 		symbols.DurationAdd:         symbols.NewFunType(ast.DurationBound /* <= */, ast.DurationBound, ast.DurationBound),

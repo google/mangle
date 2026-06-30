@@ -654,8 +654,14 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 			return ast.Constant{}, fmt.Errorf("fn:time:trunc second argument must be a name constant: %w", err)
 		}
 
+		tm := time.Unix(0, t).UTC()
 		var d time.Duration
 		switch unitName {
+		case "/day":
+			// A day is treated as a fixed 24h duration; since Go's clock has no
+			// leap seconds this aligns to UTC midnight. For timezone-aware day
+			// boundaries (and other calendar units), use fn:time:trunc_civil.
+			d = 24 * time.Hour
 		case "/hour":
 			d = time.Hour
 		case "/minute":
@@ -669,18 +675,51 @@ func EvalApplyFn(applyFn ast.ApplyFn, subst ast.Subst) (ast.Constant, error) {
 		case "/nanosecond":
 			d = time.Nanosecond
 		default:
-			// "day", "month", "year" are not fixed durations, so Truncate doesn't support them directly in the same way.
-			// However, for "day" we can use 24 * time.Hour if we assume UTC day boundaries.
-			// Let's support /day for convenience, assuming standard 24h days.
-			if unitName == "/day" {
-				d = 24 * time.Hour
-			} else {
-				return ast.Constant{}, fmt.Errorf("fn:time:trunc unknown unit %q", unitName)
-			}
+			return ast.Constant{}, fmt.Errorf("fn:time:trunc unknown unit %q", unitName)
+		}
+		return ast.Time(tm.Truncate(d).UnixNano()), nil
+
+	case symbols.TimeTruncCivil.Symbol:
+		if l := len(evaluatedArgs); l != 3 {
+			return ast.Constant{}, fmt.Errorf("fn:time:trunc_civil expected 3 arguments, got %d", l)
+		}
+		t, err := evaluatedArgs[0].TimeValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:trunc_civil first argument must be time: %w", err)
+		}
+		tz, err := evaluatedArgs[1].StringValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:trunc_civil second argument must be string: %w", err)
+		}
+		unitName, err := evaluatedArgs[2].NameValue()
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:trunc_civil third argument must be a name constant: %w", err)
+		}
+		loc, err := time.LoadLocation(tz)
+		if err != nil {
+			return ast.Constant{}, fmt.Errorf("fn:time:trunc_civil unknown timezone %q: %w", tz, err)
 		}
 
-		tm := time.Unix(0, t).UTC()
-		return ast.Time(tm.Truncate(d).UnixNano()), nil
+		// Truncate to a calendar boundary in the given timezone. Constructing
+		// the boundary with time.Date and walking days with AddDate keeps this
+		// correct across DST transitions (where a civil day is not 24h).
+		tm := time.Unix(0, t).In(loc)
+		year, month, day := tm.Date()
+		switch unitName {
+		case "/year":
+			return ast.Time(time.Date(year, 1, 1, 0, 0, 0, 0, loc).UnixNano()), nil
+		case "/month":
+			return ast.Time(time.Date(year, month, 1, 0, 0, 0, 0, loc).UnixNano()), nil
+		case "/week":
+			// Start of the ISO week (Monday) at local midnight.
+			dayStart := time.Date(year, month, day, 0, 0, 0, 0, loc)
+			daysSinceMonday := (int(dayStart.Weekday()) + 6) % 7
+			return ast.Time(dayStart.AddDate(0, 0, -daysSinceMonday).UnixNano()), nil
+		case "/day":
+			return ast.Time(time.Date(year, month, day, 0, 0, 0, 0, loc).UnixNano()), nil
+		default:
+			return ast.Constant{}, fmt.Errorf("fn:time:trunc_civil unknown unit %q", unitName)
+		}
 
 	// Duration functions
 	case symbols.DurationAdd.Symbol:

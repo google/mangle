@@ -271,8 +271,11 @@ var (
 	TimeFromUnixNanos = ast.FunctionSym{"fn:time:from_unix_nanos", 1}
 	// TimeToUnixNanos converts a time instant to nanoseconds since epoch.
 	TimeToUnixNanos = ast.FunctionSym{"fn:time:to_unix_nanos", 1}
-	// TimeTrunc truncates a time to a given unit.
+	// TimeTrunc truncates a time to a given fixed-duration unit (in UTC).
 	TimeTrunc = ast.FunctionSym{"fn:time:trunc", 2}
+	// TimeTruncCivil truncates a time to the start of a calendar unit in a
+	// given timezone: fn:time:trunc_civil(Time, TimeZone, UnitName) -> Time
+	TimeTruncCivil = ast.FunctionSym{"fn:time:trunc_civil", 3}
 
 	// Duration functions
 

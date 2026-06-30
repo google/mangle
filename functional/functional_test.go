@@ -1534,11 +1534,97 @@ func TestTimeTruncInvalid(t *testing.T) {
 	nanos := int64(1705314600000000000)
 	expr := ast.ApplyFn{symbols.TimeTrunc, []ast.BaseTerm{
 		ast.Time(nanos),
-		name("/year"), // year not supported by Truncate in this way
+		name("/year"), // calendar units are only supported by fn:time:trunc_civil
 	}}
 	_, err := EvalApplyFn(expr, ast.ConstSubstMap{})
 	if err == nil {
 		t.Fatalf("EvalApplyFn(%v) expected error, got nil", expr)
+	}
+}
+
+func TestTimeTruncCivil(t *testing.T) {
+	tests := []struct {
+		name      string
+		nanos     int64
+		unit      string
+		tz        string
+		wantNanos int64
+	}{
+		{
+			// 2024-01-18 12:00:00 UTC (a Thursday) -> Monday 2024-01-15 UTC.
+			name: "week_utc", nanos: 1705579200000000000, unit: "/week", tz: "UTC",
+			wantNanos: 1705276800000000000,
+		},
+		{
+			// 2024-01-21 23:59:59 UTC (a Sunday) -> Monday 2024-01-15 UTC.
+			name: "week_sunday_night_utc", nanos: 1705881599000000000, unit: "/week", tz: "UTC",
+			wantNanos: 1705276800000000000,
+		},
+		{
+			// 2024-01-15 10:30:45 UTC -> 2024-01-01 00:00:00 UTC.
+			name: "month_utc", nanos: 1705314645000000000, unit: "/month", tz: "UTC",
+			wantNanos: 1704067200000000000,
+		},
+		{
+			// 2024-06-15 10:30:45 UTC -> 2024-01-01 00:00:00 UTC.
+			name: "year_utc", nanos: 1718447445000000000, unit: "/year", tz: "UTC",
+			wantNanos: 1704067200000000000,
+		},
+		{
+			// 2024-01-15 02:00:00 UTC is still 2024-01-14 18:00 in LA, so the
+			// civil day start is 2024-01-14 00:00 LA = 2024-01-14 08:00 UTC.
+			name: "day_la_crosses_date", nanos: 1705284000000000000, unit: "/day", tz: "America/Los_Angeles",
+			wantNanos: 1705219200000000000,
+		},
+		{
+			// DST gap: US clocks spring forward on 2024-03-10. The civil day
+			// start is 2024-03-10 00:00 LA = 2024-03-10 08:00 UTC (PST offset).
+			name: "day_la_dst", nanos: 1710086400000000000, unit: "/day", tz: "America/Los_Angeles",
+			wantNanos: 1710057600000000000,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			expr := ast.ApplyFn{symbols.TimeTruncCivil, []ast.BaseTerm{
+				ast.Time(test.nanos),
+				ast.String(test.tz),
+				name(test.unit),
+			}}
+			got, err := EvalApplyFn(expr, ast.ConstSubstMap{})
+			if err != nil {
+				t.Fatalf("EvalApplyFn(%v) failed with %v", expr, err)
+			}
+			want := ast.Time(test.wantNanos)
+			if !got.Equals(want) {
+				t.Errorf("EvalApplyFn(%v) = %v, want %v", expr, got, want)
+			}
+		})
+	}
+}
+
+func TestTimeTruncCivilInvalid(t *testing.T) {
+	nanos := int64(1705314600000000000)
+	tests := []struct {
+		name string
+		unit string
+		tz   string
+	}{
+		{"unknown_unit", "/fortnight", "UTC"},
+		{"fixed_unit_not_allowed", "/hour", "UTC"},
+		{"unknown_timezone", "/day", "Mars/Olympus_Mons"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			expr := ast.ApplyFn{symbols.TimeTruncCivil, []ast.BaseTerm{
+				ast.Time(nanos),
+				ast.String(test.tz),
+				name(test.unit),
+			}}
+			if _, err := EvalApplyFn(expr, ast.ConstSubstMap{}); err == nil {
+				t.Fatalf("EvalApplyFn(%v) expected error, got nil", expr)
+			}
+		})
 	}
 }
 

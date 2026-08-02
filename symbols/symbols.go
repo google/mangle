@@ -42,6 +42,8 @@ var (
 
 	// Lt is the less-than relation on numbers.
 	Lt = ast.PredicateSym{":lt", 2}
+	// Ne is inequality over any two evaluated constants.
+	Ne = ast.PredicateSym{":ne", 2}
 
 	// Le is the less-than-or-equal relation on numbers.
 	Le = ast.PredicateSym{":le", 2}
@@ -369,6 +371,7 @@ var (
 		Filter:      NewRelType(BoolType()),
 		// TODO: support float64
 		Lt: NewRelType(ast.NumberBound, ast.NumberBound),
+		Ne: NewRelType(ast.AnyBound, ast.AnyBound),
 		Le: NewRelType(ast.NumberBound, ast.NumberBound),
 		Gt: NewRelType(ast.NumberBound, ast.NumberBound),
 		Ge: NewRelType(ast.NumberBound, ast.NumberBound),

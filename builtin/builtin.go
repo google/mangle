@@ -36,6 +36,7 @@ var (
 		symbols.Contains:       {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Filter:         {ast.ArgModeInput},
 		symbols.Lt:             {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.Ne:             {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Le:             {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Gt:             {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Ge:             {ast.ArgModeInput, ast.ArgModeInput},
@@ -271,6 +272,11 @@ func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, []*unionfind.Union
 		}
 		return false, nil, nil
 
+	case symbols.Ne.Symbol:
+		if len(atom.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':ne': %v", atom.Args)
+		}
+		return !atom.Args[0].Equals(atom.Args[1]), []*unionfind.UnionFind{subst}, nil
 	case symbols.Lt.Symbol:
 		if len(atom.Args) != 2 {
 			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate '<': %v", atom.Args)

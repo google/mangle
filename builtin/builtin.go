@@ -471,9 +471,15 @@ func match(pattern ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.Union
 		if len(pattern.Args) != 2 {
 			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':string:starts_with': %v", pattern.Args)
 		}
-		pat, ok := pattern.Args[1].(ast.Constant)
+		// Evaluate the pattern through the substitution, as the scrutinee already is,
+		// so a prefix computed from data works and not only a program literal.
+		evaluatedPat, err := functional.EvalExpr(pattern.Args[1], subst)
+		if err != nil {
+			return false, nil, err
+		}
+		pat, ok := evaluatedPat.(ast.Constant)
 		if !ok || pat.Type != ast.StringType {
-			return false, nil, fmt.Errorf("2nd arguments must be string constant for ':string:starts_with': %v", pattern)
+			return false, nil, fmt.Errorf("2nd argument must evaluate to a string for ':string:starts_with': %v", pattern)
 		}
 		str, ok := evaluatedArg.(ast.Constant)
 		if !ok || str.Type != ast.StringType {

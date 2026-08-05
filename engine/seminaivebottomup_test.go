@@ -465,6 +465,35 @@ func TestBuiltin(t *testing.T) {
 	}
 }
 
+func TestBuiltinFloatComparisons(t *testing.T) {
+	store := factstore.NewSimpleInMemoryStore()
+	store.Add(ast.NewAtom("reading", ast.Float64(1.5)))
+	store.Add(ast.NewAtom("reading", ast.Float64(2.5)))
+	program := []ast.Clause{
+		clause("below_two(X) :- reading(X), :float:lt(X, 2.0)."),
+		clause("at_most_two(X) :- reading(X), :float:le(X, 2.0)."),
+		clause("two_le(X) :- reading(X), :float:le(2.0, X)."),
+		clause("above_two(X) :- reading(X), :float:gt(X, 2.0)."),
+		clause("at_least_two(X) :- reading(X), :float:ge(X, 2.0)."),
+	}
+	if err := analyzeAndEvalProgram(t, program, store); err != nil {
+		t.Errorf("Program evaluation failed %v program %v", err, program)
+		return
+	}
+	expected := []ast.Atom{
+		atom("below_two(1.5)"),
+		atom("at_most_two(1.5)"),
+		atom("two_le(2.5)"),
+		atom("above_two(2.5)"),
+		atom("at_least_two(2.5)"),
+	}
+	for _, fact := range expected {
+		if !store.Contains(fact) {
+			t.Errorf("expected fact %v in store %v", fact, store)
+		}
+	}
+}
+
 func TestListMapStruct(t *testing.T) {
 	store := factstore.NewSimpleInMemoryStore()
 	program := []ast.Clause{

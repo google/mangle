@@ -47,6 +47,10 @@ var (
 		symbols.DurationLe:     {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.DurationGt:     {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.DurationGe:     {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.FloatLt:        {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.FloatLe:        {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.FloatGt:        {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.FloatGe:        {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.ListMember:     {ast.ArgModeOutput, ast.ArgModeInput},
 		symbols.WithinDistance: {ast.ArgModeInput, ast.ArgModeInput, ast.ArgModeInput},
 		symbols.MatchPair:      {ast.ArgModeInput, ast.ArgModeOutput, ast.ArgModeOutput},
@@ -385,6 +389,44 @@ func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, []*unionfind.Union
 		}
 		return durations[0] >= durations[1], []*unionfind.UnionFind{subst}, nil
 
+	// Float64 comparisons
+	case symbols.FloatLt.Symbol:
+		if len(atom.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':float:lt': %v", atom.Args)
+		}
+		floats, err := getFloatValues(atom.Args)
+		if err != nil {
+			return false, nil, err
+		}
+		return floats[0] < floats[1], []*unionfind.UnionFind{subst}, nil
+	case symbols.FloatLe.Symbol:
+		if len(atom.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':float:le': %v", atom.Args)
+		}
+		floats, err := getFloatValues(atom.Args)
+		if err != nil {
+			return false, nil, err
+		}
+		return floats[0] <= floats[1], []*unionfind.UnionFind{subst}, nil
+	case symbols.FloatGt.Symbol:
+		if len(atom.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':float:gt': %v", atom.Args)
+		}
+		floats, err := getFloatValues(atom.Args)
+		if err != nil {
+			return false, nil, err
+		}
+		return floats[0] > floats[1], []*unionfind.UnionFind{subst}, nil
+	case symbols.FloatGe.Symbol:
+		if len(atom.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':float:ge': %v", atom.Args)
+		}
+		floats, err := getFloatValues(atom.Args)
+		if err != nil {
+			return false, nil, err
+		}
+		return floats[0] >= floats[1], []*unionfind.UnionFind{subst}, nil
+
 	case symbols.ListMember.Symbol: // :list:member(Member, List)
 		evaluatedArg, err := functional.EvalExpr(atom.Args[1], subst)
 		if err != nil {
@@ -652,6 +694,19 @@ func getFloatValue(b ast.BaseTerm) (float64, error) {
 		return 0, fmt.Errorf("value %v (%v) is not a number", c, c.Type)
 	}
 	return c.Float64Value()
+}
+
+// getFloatValues extracts float64 values from a slice of base terms.
+func getFloatValues[T ast.BaseTerm](cs []T) ([]float64, error) {
+	var floats []float64
+	for _, c := range cs {
+		f, err := getFloatValue(c)
+		if err != nil {
+			return nil, err
+		}
+		floats = append(floats, f)
+	}
+	return floats, nil
 }
 
 func getListValue(c ast.Constant) (ast.Constant, error) {

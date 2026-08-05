@@ -828,6 +828,124 @@ func TestDurationComparisonError(t *testing.T) {
 	}
 }
 
+func TestFloatLessThan(t *testing.T) {
+	f1 := ast.Float64(1.5)
+	f2 := ast.Float64(2.5)
+
+	tests := []struct {
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
+	}{
+		{f1, f2, true},  // smaller < larger
+		{f2, f1, false}, // larger < smaller
+		{f1, f1, false}, // equal
+		{ast.Float64(math.NaN()), f1, false}, // NaN < x is false
+		{f1, ast.Float64(math.NaN()), false}, // x < NaN is false
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":float:lt", test.left, test.right)
+		got, _, err := Decide(atom, &emptySubst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("FloatLt: for atom %v got %v want %v.", atom, got, test.want)
+		}
+	}
+}
+
+func TestFloatLessThanOrEqual(t *testing.T) {
+	f1 := ast.Float64(1.5)
+	f2 := ast.Float64(2.5)
+
+	tests := []struct {
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
+	}{
+		{f1, f2, true},
+		{f2, f1, false},
+		{f1, f1, true},
+		{ast.Float64(math.NaN()), f1, false}, // NaN <= x is false
+		{f1, ast.Float64(math.NaN()), false}, // x <= NaN is false
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":float:le", test.left, test.right)
+		got, _, err := Decide(atom, &emptySubst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("FloatLe: for atom %v got %v want %v.", atom, got, test.want)
+		}
+	}
+}
+
+func TestFloatGreaterThan(t *testing.T) {
+	f1 := ast.Float64(1.5)
+	f2 := ast.Float64(2.5)
+
+	tests := []struct {
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
+	}{
+		{f2, f1, true},
+		{f1, f2, false},
+		{f1, f1, false},
+		{ast.Float64(math.NaN()), f1, false}, // NaN > x is false
+		{f1, ast.Float64(math.NaN()), false}, // x > NaN is false
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":float:gt", test.left, test.right)
+		got, _, err := Decide(atom, &emptySubst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("FloatGt: for atom %v got %v want %v.", atom, got, test.want)
+		}
+	}
+}
+
+func TestFloatGreaterThanOrEqual(t *testing.T) {
+	f1 := ast.Float64(1.5)
+	f2 := ast.Float64(2.5)
+
+	tests := []struct {
+		left  ast.BaseTerm
+		right ast.BaseTerm
+		want  bool
+	}{
+		{f2, f1, true},
+		{f1, f2, false},
+		{f1, f1, true},
+		{ast.Float64(math.NaN()), f1, false}, // NaN >= x is false
+		{f1, ast.Float64(math.NaN()), false}, // x >= NaN is false
+	}
+	for _, test := range tests {
+		atom := ast.NewAtom(":float:ge", test.left, test.right)
+		got, _, err := Decide(atom, &emptySubst)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("FloatGe: for atom %v got %v want %v.", atom, got, test.want)
+		}
+	}
+}
+
+func TestFloatComparisonRejectsNumber(t *testing.T) {
+	// :float:* require /float64; a /number must not be silently coerced.
+	// Comparing float to number should error (no coercion), mirroring :duration:*
+	// which rejects /number arguments.
+	atom := ast.NewAtom(":float:lt", ast.Float64(1.5), ast.Number(2))
+	if got, _, err := Decide(atom, &emptySubst); err == nil {
+		t.Errorf("Decide(%v) = %v want error (no int->float coercion)", atom, got)
+	}
+}
+
 func TestExpand(t *testing.T) {
 	tests := []struct {
 		atom      ast.Atom

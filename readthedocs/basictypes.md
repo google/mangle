@@ -74,6 +74,19 @@ A *floating-point number datum* (float) is a 64-bit floating point number.
 -10.5
 ```
 
+**Comparisons**. The following comparison predicates are available for
+floats:
+
+*   `:float:lt`, `:float:le`, `:float:gt`, `:float:ge`: Comparison predicates
+    for `float64` values (less-than, less-than-or-equal, greater-than,
+    greater-than-or-equal respectively).
+
+    These follow IEEE 754 total-ordering semantics for non-NaN values; any
+    comparison involving `NaN` is false. Unlike `fn:float:*` arithmetic,
+    `:float:*` do **not** coerce `/number` (int64) operands — both arguments
+    must be `/float64`. Use the integer comparisons `<`, `<=`, `>`, `>=` for
+    `/number`, and `=`, `!=` for type-polymorphic (in)equality.
+
 ## Strings
 
 A *string datum* (string) is a sequence of Unicode characters in the UTF-8

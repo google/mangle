@@ -70,6 +70,15 @@ var (
 	// DurationGe is the greater-than-or-equal relation on durations.
 	DurationGe = ast.PredicateSym{":duration:ge", 2}
 
+	// FloatLt is the less-than relation on float64 values.
+	FloatLt = ast.PredicateSym{":float:lt", 2}
+	// FloatLe is the less-than-or-equal relation on float64 values.
+	FloatLe = ast.PredicateSym{":float:le", 2}
+	// FloatGt is the greater-than relation on float64 values.
+	FloatGt = ast.PredicateSym{":float:gt", 2}
+	// FloatGe is the greater-than-or-equal relation on float64 values.
+	FloatGe = ast.PredicateSym{":float:ge", 2}
+
 	// MatchPair mode(+, -, -) matches a pair to its elements.
 	MatchPair = ast.PredicateSym{":match_pair", 3}
 
@@ -367,7 +376,9 @@ var (
 		EndsWith:    NewRelType(ast.StringBound, ast.StringBound),
 		Contains:    NewRelType(ast.StringBound, ast.StringBound),
 		Filter:      NewRelType(BoolType()),
-		// TODO: support float64
+		// Numeric comparisons are split by base type: :lt/:le/:gt/:ge operate on
+		// /number (int64), :float:lt/:float:le/:float:gt/:float:ge on /float64,
+		// :time:* on /time, and :duration:* on /duration.
 		Lt: NewRelType(ast.NumberBound, ast.NumberBound),
 		Le: NewRelType(ast.NumberBound, ast.NumberBound),
 		Gt: NewRelType(ast.NumberBound, ast.NumberBound),
@@ -382,6 +393,11 @@ var (
 		DurationLe: NewRelType(ast.DurationBound, ast.DurationBound),
 		DurationGt: NewRelType(ast.DurationBound, ast.DurationBound),
 		DurationGe: NewRelType(ast.DurationBound, ast.DurationBound),
+		// Float64 comparisons
+		FloatLt: NewRelType(ast.Float64Bound, ast.Float64Bound),
+		FloatLe: NewRelType(ast.Float64Bound, ast.Float64Bound),
+		FloatGt: NewRelType(ast.Float64Bound, ast.Float64Bound),
+		FloatGe: NewRelType(ast.Float64Bound, ast.Float64Bound),
 		MatchNil:   NewRelType(NewListType(ast.Variable{"X"})),
 		MatchCons: NewRelType(
 			NewListType(ast.Variable{"X"}), ast.Variable{"X"}, NewListType(ast.Variable{"X"})),

@@ -694,6 +694,12 @@ func TestBoundsAnalyzer(t *testing.T) {
 			makeSimpleDecl(atom("bar(Y)"), symbols.NewListType(ast.NumberBound)),
 		}),
 		newBoundsTestCase(t, []ast.Clause{
+			clause("foo(X) :- bar(X), :list:member(X, [/a, /b])."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("foo(X)"), ast.NameBound),
+			makeSimpleDecl(atom("bar(X)"), ast.NameBound),
+		}),
+		newBoundsTestCase(t, []ast.Clause{
 			clause("bar(T) :-	T = fn:string:concat(\"A\", 123)."),
 		}, []ast.Decl{
 			makeSimpleDecl(atom("bar(T)"), ast.StringBound),

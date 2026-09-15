@@ -210,6 +210,32 @@ func TestNegation(t *testing.T) {
 	}
 }
 
+func TestListMemberBound(t *testing.T) {
+	store := factstore.NewSimpleInMemoryStore()
+	prog := []ast.Clause{
+		clause("seen(/a)."),
+		clause("seen(/c)."),
+		clause("approved(X) :- seen(X), :list:member(X, [/a, /b])."),
+		clause("is_member() :- :list:member(/a, [/a, /b])."),
+	}
+	if err := analyzeAndEvalProgram(t, prog, store); err != nil {
+		t.Fatalf("Program evaluation failed: %v", err)
+	}
+	expected := []ast.Atom{
+		atom("approved(/a)"),
+		atom("is_member()"),
+	}
+	for _, a := range expected {
+		if !store.Contains(a) {
+			t.Errorf("expected fact %v not found", a)
+		}
+	}
+	unexpected := atom("approved(/c)")
+	if store.Contains(unexpected) {
+		t.Errorf("unexpected fact %v found", unexpected)
+	}
+}
+
 func TestNegationOrder(t *testing.T) {
 	store := factstore.NewSimpleInMemoryStore()
 	negationProgram := []ast.Clause{

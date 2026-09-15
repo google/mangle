@@ -51,7 +51,7 @@ var (
 		symbols.FloatLe:        {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.FloatGt:        {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.FloatGe:        {ast.ArgModeInput, ast.ArgModeInput},
-		symbols.ListMember:     {ast.ArgModeOutput, ast.ArgModeInput},
+		symbols.ListMember:     {ast.ArgModeInputOutput, ast.ArgModeInput},
 		symbols.WithinDistance: {ast.ArgModeInput, ast.ArgModeInput, ast.ArgModeInput},
 		symbols.MatchPair:      {ast.ArgModeInput, ast.ArgModeOutput, ast.ArgModeOutput},
 		symbols.MatchCons:      {ast.ArgModeInput, ast.ArgModeOutput, ast.ArgModeOutput},

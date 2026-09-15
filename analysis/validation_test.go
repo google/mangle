@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
-	"path/filepath"
+	"path"
 	"strings"
 	"testing"
 
@@ -85,7 +85,7 @@ func TestCases(t *testing.T) {
 	for _, testCase := range entries {
 		t.Run(testCase.Name(), func(t *testing.T) {
 			file, err := testCases.ReadFile(
-				filepath.Join("test_cases", testCase.Name()))
+				path.Join("test_cases", testCase.Name()))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -692,6 +692,12 @@ func TestBoundsAnalyzer(t *testing.T) {
 		}, []ast.Decl{
 			makeSimpleDecl(atom("foo(X)"), ast.NumberBound),
 			makeSimpleDecl(atom("bar(Y)"), symbols.NewListType(ast.NumberBound)),
+		}),
+		newBoundsTestCase(t, []ast.Clause{
+			clause("foo(X) :- bar(X), :list:member(X, [/a, /b])."),
+		}, []ast.Decl{
+			makeSimpleDecl(atom("foo(X)"), ast.NameBound),
+			makeSimpleDecl(atom("bar(X)"), ast.NameBound),
 		}),
 		newBoundsTestCase(t, []ast.Clause{
 			clause("bar(T) :-	T = fn:string:concat(\"A\", 123)."),

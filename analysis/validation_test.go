@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
-	"path/filepath"
+	"path"
 	"strings"
 	"testing"
 
@@ -85,7 +85,7 @@ func TestCases(t *testing.T) {
 	for _, testCase := range entries {
 		t.Run(testCase.Name(), func(t *testing.T) {
 			file, err := testCases.ReadFile(
-				filepath.Join("test_cases", testCase.Name()))
+				path.Join("test_cases", testCase.Name()))
 			if err != nil {
 				t.Fatal(err)
 			}

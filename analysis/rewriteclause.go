@@ -91,29 +91,32 @@ func RewriteClause(decls map[ast.PredicateSym]*ast.Decl, clause ast.Clause) ast.
 			}
 		}
 		if !needsDelay {
-			var toRemove []int
 			premises = append(premises, p)
-		delayTerms:
+			// Place each waiting negation whose variables are now all bound,
+			// and keep the others waiting.
+			var waitingAtoms []ast.Term
+			var waitingVars []map[ast.Variable]bool
 			for i, vars := range delayVars {
+				ready := true
 				for v := range vars {
 					if boundVars.Find(v) == -1 {
-						continue delayTerms
+						ready = false
+						break
 					}
 				}
-				premises = append(premises, delayNegAtom[i])
-				toRemove = append([]int{i}, toRemove...)
-			}
-			for i := range toRemove {
-				negAtomTail := []ast.Term{}
-				varsTail := []map[ast.Variable]bool{}
-				if i+1 < len(delayNegAtom) {
-					negAtomTail = delayNegAtom[i+1:]
-					varsTail = delayVars[i+1:]
+				if ready {
+					premises = append(premises, delayNegAtom[i])
+				} else {
+					waitingAtoms = append(waitingAtoms, delayNegAtom[i])
+					waitingVars = append(waitingVars, vars)
 				}
-				delayNegAtom = append(delayNegAtom[:i], negAtomTail...)
-				delayVars = append(delayVars[:i], varsTail...)
 			}
+			delayNegAtom, delayVars = waitingAtoms, waitingVars
 		}
 	}
+	// A negation whose variables no premise binds is kept, at the end, so that
+	// checking the rule reports the unbound variable instead of the negation
+	// being dropped without a word.
+	premises = append(premises, delayNegAtom...)
 	return ast.Clause{Head: clause.Head, HeadTime: clause.HeadTime, Premises: premises, Transform: clause.Transform}
 }

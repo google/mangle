@@ -15,6 +15,8 @@
 package engine
 
 import (
+	"fmt"
+
 	"codeberg.org/TauCeti/mangle-go/ast"
 	"codeberg.org/TauCeti/mangle-go/builtin"
 	"codeberg.org/TauCeti/mangle-go/factstore"
@@ -102,6 +104,13 @@ func premiseIneq(left, right ast.BaseTerm, subst unionfind.UnionFind) ([]unionfi
 	left, right, err := functional.EvalBaseTermPair(left, right, subst)
 	if err != nil {
 		return nil, err
+	}
+	// An unbound variable could still become equal to the other side, so the
+	// inequality can't be decided yet (it would always fail).
+	for _, t := range []ast.BaseTerm{left, right} {
+		if _, ok := t.(ast.Constant); !ok {
+			return nil, fmt.Errorf("inequality %v != %v: %v is not bound", left, right, t)
+		}
 	}
 	if _, err := unionfind.UnifyTermsExtend([]ast.BaseTerm{left}, []ast.BaseTerm{right}, subst); err != nil {
 		// TODO: Check that error is indeed "cannot unify."

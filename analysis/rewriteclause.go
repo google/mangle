@@ -45,7 +45,7 @@ func RewriteClause(decls map[ast.PredicateSym]*ast.Decl, clause ast.Clause) ast.
 			variablesForArgMode(clause.Head, mode, ast.ArgModeInput|ast.ArgModeInputOutput))
 	}
 	var premises []ast.Term
-	var delayNegAtom []ast.Term
+	var delayed []ast.Term
 	var delayVars []map[ast.Variable]bool
 	for _, p := range clause.Premises {
 		needsDelay := false
@@ -76,25 +76,28 @@ func RewriteClause(decls map[ast.PredicateSym]*ast.Decl, clause ast.Clause) ast.
 			boundVars = NewVarList(m)
 
 		case ast.NegAtom:
-			varToBind := map[ast.Variable]bool{}
-			negVars := make(map[ast.Variable]bool)
-			ast.AddVars(p, negVars)
-			for v := range negVars {
-				if boundVars.Find(v) == -1 {
-					varToBind[v] = true
-				}
-			}
-			if len(varToBind) > 0 {
+			// A negation cannot bind variables; if any of its variables is not
+			// bound yet, it must wait for a premise that binds it.
+			if varToBind := unboundVarsOf(p, boundVars); len(varToBind) > 0 {
 				needsDelay = true
-				delayNegAtom = append(delayNegAtom, p)
+				delayed = append(delayed, p)
+				delayVars = append(delayVars, varToBind)
+			}
+		case ast.Ineq:
+			// An inequality cannot bind variables either, so it waits like a
+			// negation. This makes premise order irrelevant: `X != 1, e(X)` and
+			// `e(X), X != 1` evaluate the same.
+			if varToBind := unboundVarsOf(p, boundVars); len(varToBind) > 0 {
+				needsDelay = true
+				delayed = append(delayed, p)
 				delayVars = append(delayVars, varToBind)
 			}
 		}
 		if !needsDelay {
 			premises = append(premises, p)
-			// Place each waiting negation whose variables are now all bound,
+			// Place each waiting premise whose variables are now all bound,
 			// and keep the others waiting.
-			var waitingAtoms []ast.Term
+			var waitingTerms []ast.Term
 			var waitingVars []map[ast.Variable]bool
 			for i, vars := range delayVars {
 				ready := true
@@ -105,18 +108,31 @@ func RewriteClause(decls map[ast.PredicateSym]*ast.Decl, clause ast.Clause) ast.
 					}
 				}
 				if ready {
-					premises = append(premises, delayNegAtom[i])
+					premises = append(premises, delayed[i])
 				} else {
-					waitingAtoms = append(waitingAtoms, delayNegAtom[i])
+					waitingTerms = append(waitingTerms, delayed[i])
 					waitingVars = append(waitingVars, vars)
 				}
 			}
-			delayNegAtom, delayVars = waitingAtoms, waitingVars
+			delayed, delayVars = waitingTerms, waitingVars
 		}
 	}
-	// A negation whose variables no premise binds is kept, at the end, so that
-	// checking the rule reports the unbound variable instead of the negation
-	// being dropped without a word.
-	premises = append(premises, delayNegAtom...)
+	// A delayed premise whose variables no premise binds is kept, at the end,
+	// so that checking the rule reports the unbound variable instead of the
+	// premise being dropped without a word.
+	premises = append(premises, delayed...)
 	return ast.Clause{Head: clause.Head, HeadTime: clause.HeadTime, Premises: premises, Transform: clause.Transform}
+}
+
+// unboundVarsOf returns the variables of term that are not in boundVars.
+func unboundVarsOf(term ast.Term, boundVars VarList) map[ast.Variable]bool {
+	vars := make(map[ast.Variable]bool)
+	ast.AddVars(term, vars)
+	unbound := make(map[ast.Variable]bool, len(vars))
+	for v := range vars {
+		if boundVars.Find(v) == -1 {
+			unbound[v] = true
+		}
+	}
+	return unbound
 }

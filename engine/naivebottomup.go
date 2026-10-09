@@ -202,9 +202,14 @@ func (e naiveEngine) oneStepEvalPremise(premise ast.Term, subst unionfind.UnionF
 			solutions = append(solutions, newsubst)
 		}
 	case ast.Ineq:
-		if _, err := unionfind.UnifyTermsExtend([]ast.BaseTerm{p.Left}, []ast.BaseTerm{p.Right}, subst); err != nil {
-			solutions = append(solutions, subst)
+		// Route through premiseIneq, which evaluates apply expressions and
+		// refuses an unbound variable instead of silently failing it.
+		sols, err := premiseIneq(p.Left, p.Right, subst)
+		if err != nil {
+			// Like builtin errors above, treat as no solution.
+			return nil
 		}
+		return sols
 	}
 	return solutions
 }

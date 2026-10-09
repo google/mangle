@@ -114,8 +114,18 @@ func (e naiveEngine) eval() {
 		e.store.GetFacts(internalPremise, func(fact ast.Atom) error {
 			var subst ast.ConstSubstList
 			for i, baseTerm := range internalPremise.Args {
-				v, _ := baseTerm.(ast.Variable)
-				subst = subst.Extend(v, fact.Args[i].(ast.Constant))
+				if v, ok := baseTerm.(ast.Variable); ok && v.Symbol != "_" {
+					if c, ok := fact.Args[i].(ast.Constant); ok {
+						// A variable that occurs twice must match equal arguments.
+						if prev := subst.Get(v); prev != nil {
+							if !prev.Equals(c) {
+								return nil
+							}
+							continue
+						}
+						subst = subst.Extend(v, c)
+					}
+				}
 			}
 			substs = append(substs, subst)
 			return nil

@@ -232,6 +232,33 @@ FROM reachable_cte;
 ```
 :::
 
+## Order of premises
+
+A rule body is conceptually a conjunction: the order of the premises does
+not change what the rule computes. Some premises, however, cannot be decided
+until the values of their variables are known. A comparison against an
+unbound variable — for instance `Person1 < Person2` — has no answer yet.
+
+Mangle resolves this as follows:
+
+* Equalities (`=`) and inequalities (`!=`) bind and filter, and are
+  automatically postponed until their variables have values, so their
+  position in the body does not matter.
+* Negated premises are postponed in the same way.
+* Other comparison predicates (such as `<` and `:float:lt`) require their
+  input arguments to be bound by an *earlier* premise; the analysis rejects
+  a rule where this is not the case, with a hint to move the subgoal to the
+  right. This makes their evaluation predictable and lets the implementation
+  use them for efficient filtering.
+
+For example, both orderings of the following rule are accepted and compute
+the same result:
+
+```
+sibling(Person1, Person2) ⟸ parent(P, Person1), parent(P, Person2),
+    Person1 != Person2.
+```
+
 ## The Safety Condition
 
 To recap, the general form of a rule is that it can have two forms:

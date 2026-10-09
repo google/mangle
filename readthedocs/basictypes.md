@@ -137,6 +137,23 @@ A poppy blooms.
 `
 ```
 
+**Comparisons**. The following comparison predicates are available for
+strings:
+
+*   `:string:starts_with`, `:string:ends_with`, `:string:contains`: Test
+    whether one string starts with, ends with, or contains another (fixed)
+    string. A non-string argument makes the test false rather than an error.
+
+*   `:string:matches`: Tests whether a string matches an [RE2](https://github.com/google/re2/wiki/Syntax)
+    regular expression. The pattern is *not* implicitly anchored; use `^` and
+    `$` for that, e.g. `:string:matches(Name, "^[a-z-]+$")`. Patterns are
+    compiled once and cached.
+
+    A pattern that does not compile is an error, not a false — an invalid
+    pattern says the program is wrong, not the datum. A non-string subject is
+    a silent false, like the fixed-shape predicates above; a non-string
+    pattern is an error.
+
 ## Byte strings
 
 A *byte string datum* (byte string) stands for a sequence of arbitrary bytes.

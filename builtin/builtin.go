@@ -19,13 +19,38 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"strings"
+	"sync"
 
 	"codeberg.org/TauCeti/mangle-go/ast"
 	"codeberg.org/TauCeti/mangle-go/functional"
 	"codeberg.org/TauCeti/mangle-go/symbols"
 	"codeberg.org/TauCeti/mangle-go/unionfind"
 )
+
+// matchesCache holds compiled :string:matches patterns.
+//
+// A builtin is called once per candidate row, and regexp.Compile is not free: one pattern over ten
+// thousand rows compiled it ten thousand times. The distinct-pattern count is bounded by the program
+// — a pattern is a literal or a value from a small declaration set — so this does not grow with data.
+//
+// sync.Map because this is read-mostly by construction: every call after the first for a given
+// pattern is a hit. An invalid pattern is not cached, so a typo keeps reporting itself rather than
+// being answered from a cache of failures.
+var matchesCache sync.Map // string -> *regexp.Regexp
+
+func compiledPattern(pat string) (*regexp.Regexp, error) {
+	if v, ok := matchesCache.Load(pat); ok {
+		return v.(*regexp.Regexp), nil
+	}
+	re, err := regexp.Compile(pat)
+	if err != nil {
+		return nil, err
+	}
+	matchesCache.Store(pat, re)
+	return re, nil
+}
 
 var (
 	// Predicates has all built-in predicates.
@@ -34,6 +59,7 @@ var (
 		symbols.StartsWith:     {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.EndsWith:       {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Contains:       {ast.ArgModeInput, ast.ArgModeInput},
+		symbols.StringMatches:  {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Filter:         {ast.ArgModeInput},
 		symbols.Lt:             {ast.ArgModeInput, ast.ArgModeInput},
 		symbols.Le:             {ast.ArgModeInput, ast.ArgModeInput},
@@ -240,6 +266,8 @@ func Decide(atom ast.Atom, subst *unionfind.UnionFind) (bool, []*unionfind.Union
 	case symbols.EndsWith.Symbol:
 		fallthrough
 	case symbols.Contains.Symbol:
+		fallthrough
+	case symbols.StringMatches.Symbol:
 		fallthrough
 	case symbols.MatchPrefix.Symbol:
 		fallthrough
@@ -550,6 +578,38 @@ func match(pattern ast.Atom, subst *unionfind.UnionFind) (bool, *unionfind.Union
 			return false, nil, nil
 		}
 		return strings.Contains(str.Symbol, pat.Symbol), subst, nil
+
+	// :string:matches — an RE2 regular expression over a string constant.
+	//
+	// AN INVALID PATTERN IS AN ERROR, and this is the one place this predicate departs from its
+	// siblings. regexp.MatchString returns (false, err); a caller that drops the error reports
+	// "did not match", which is indistinguishable from a clean answer and means the opposite.
+	// There is no correct `false` for a pattern that does not compile — the program is wrong,
+	// not the datum.
+	//
+	// A NON-STRING SUBJECT IS A SILENT false, which is what :string:contains, :string:starts_with
+	// and :string:ends_with all do above. A predicate over heterogeneous data filtering rather
+	// than refusing is this file's convention and this follows it.
+	//
+	// PATTERNS ARE COMPILED ONCE. A builtin is called per candidate row, and the distinct-pattern
+	// count is bounded by the program rather than by the data.
+	case symbols.StringMatches.Symbol:
+		if len(pattern.Args) != 2 {
+			return false, nil, fmt.Errorf("wrong number of arguments for built-in predicate ':string:matches': %v", pattern.Args)
+		}
+		pat, ok := pattern.Args[1].(ast.Constant)
+		if !ok || pat.Type != ast.StringType {
+			return false, nil, fmt.Errorf("2nd arguments must be string constant for ':string:matches': %v", pattern)
+		}
+		re, err := compiledPattern(pat.Symbol)
+		if err != nil {
+			return false, nil, fmt.Errorf("':string:matches' pattern %q does not compile: %w", pat.Symbol, err)
+		}
+		str, ok := evaluatedArg.(ast.Constant)
+		if !ok || str.Type != ast.StringType {
+			return false, nil, nil
+		}
+		return re.MatchString(str.Symbol), subst, nil
 
 	case symbols.MatchPair.Symbol:
 		if len(pattern.Args) != 3 {

@@ -37,6 +37,17 @@ var (
 	// Contains matches string constants that contain the given string.
 	Contains = ast.PredicateSym{":string:contains", 2}
 
+	// StringMatches matches string constants against an RE2 regular expression.
+	//
+	// :string:starts_with, :string:ends_with and :string:contains each test a fixed shape. A test
+	// over a described shape — "a lower-case name with hyphens", "NNN_name.sql" — has no spelling
+	// today, and writing it as an enumeration means a list somebody keeps in step by hand.
+	//
+	// RE2 rather than backtracking: the pattern is often data, and a pattern from data must not be
+	// able to cost more than linear time in the subject. Go's regexp is RE2, so this is what the
+	// standard library already gives.
+	StringMatches = ast.PredicateSym{":string:matches", 2}
+
 	// Filter is turning a boolean function into a predicate.
 	Filter = ast.PredicateSym{":filter", 1}
 
@@ -394,11 +405,11 @@ var (
 		DurationGt: NewRelType(ast.DurationBound, ast.DurationBound),
 		DurationGe: NewRelType(ast.DurationBound, ast.DurationBound),
 		// Float64 comparisons
-		FloatLt: NewRelType(ast.Float64Bound, ast.Float64Bound),
-		FloatLe: NewRelType(ast.Float64Bound, ast.Float64Bound),
-		FloatGt: NewRelType(ast.Float64Bound, ast.Float64Bound),
-		FloatGe: NewRelType(ast.Float64Bound, ast.Float64Bound),
-		MatchNil:   NewRelType(NewListType(ast.Variable{"X"})),
+		FloatLt:  NewRelType(ast.Float64Bound, ast.Float64Bound),
+		FloatLe:  NewRelType(ast.Float64Bound, ast.Float64Bound),
+		FloatGt:  NewRelType(ast.Float64Bound, ast.Float64Bound),
+		FloatGe:  NewRelType(ast.Float64Bound, ast.Float64Bound),
+		MatchNil: NewRelType(NewListType(ast.Variable{"X"})),
 		MatchCons: NewRelType(
 			NewListType(ast.Variable{"X"}), ast.Variable{"X"}, NewListType(ast.Variable{"X"})),
 		MatchPair: NewRelType(

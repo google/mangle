@@ -70,7 +70,7 @@ func freshNameGenerator() nameGen {
 	return nameGen{0}
 }
 
-func (gen nameGen) freshPredicateName(sym ast.PredicateSym, arity int) ast.PredicateSym {
+func (gen *nameGen) freshPredicateName(sym ast.PredicateSym, arity int) ast.PredicateSym {
 	gen.n++
 	internalName := fmt.Sprintf("%s%d%s", sym.Symbol, gen.n, ast.InternalPredicateSuffix)
 	return ast.PredicateSym{internalName, arity}

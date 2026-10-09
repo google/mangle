@@ -601,14 +601,16 @@ func (e *engine) eval() error {
 					}
 				}
 			}
+			// Merge this round's new facts before the next round reads the store,
+			// so a rule can join two facts that are both new in the same round.
+			e.deltaStore = newDeltaStore
+			e.temporalDeltaStore = newTemporalDeltaStore
 			if err := e.mergeDelta(); err != nil {
 				return err
 			}
 			if e.options.totalFactLimit > 0 && e.store.EstimateFactCount() > e.options.totalFactLimit {
 				return fmt.Errorf("fact size limit reached %d > %d", e.store.EstimateFactCount(), e.options.totalFactLimit)
 			}
-			e.deltaStore = newDeltaStore
-			e.temporalDeltaStore = newTemporalDeltaStore
 			if !incrementalFactAdded {
 				break
 			}

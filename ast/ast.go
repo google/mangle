@@ -821,21 +821,29 @@ func hashBytes(s []byte) uint64 {
 
 // Computes a hash. The snd argument may be nil.
 func hashPair(fst, snd *Constant, tpe ConstantType) int64 {
-	left := fst.Hash()
-	left = left << tpe
+	left := combineHashes(uint64(tpe), fst.Hash())
 	if snd == nil {
 		return int64(left)
 	}
-	right := snd.Hash()
-	return int64(szudzikElegantPair(left, right))
+	return int64(combineHashes(left, snd.Hash()))
 }
 
-// Implements Szudzik's elegant pairing function (http://szudzik.com/ElegantPairing.pdf).
-func szudzikElegantPair(fst, snd uint64) uint64 {
-	if fst >= snd {
-		return fst*fst + fst + snd
-	}
-	return snd*snd + fst
+// mixHash scrambles all 64 bits of h, using the finalizer of splitmix64.
+func mixHash(h uint64) uint64 {
+	h ^= h >> 30
+	h *= 0xbf58476d1ce4e5b9
+	h ^= h >> 27
+	h *= 0x94d049bb133111eb
+	h ^= h >> 31
+	return h
+}
+
+// combineHashes combines two hashes so that order matters and no bits are
+// lost. A pairing function such as Szudzik's overflows 64 bits on nested
+// pairs, and shifting by the type pushes bits out, so long lists and maps
+// ended up with the same hash.
+func combineHashes(fst, snd uint64) uint64 {
+	return mixHash(mixHash(fst) ^ snd)
 }
 
 // HashConstants hashes a slice of constants.
@@ -845,7 +853,7 @@ func HashConstants(constants []Constant) uint64 {
 	}
 	h := constants[0].Hash()
 	for _, snd := range constants[1:] {
-		h = szudzikElegantPair(h, snd.Hash())
+		h = combineHashes(h, snd.Hash())
 	}
 	return h
 }

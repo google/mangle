@@ -60,24 +60,24 @@ qaz 3 2
 /g
 /t
 /r
-[/abc]
 [/abc, /def]
+[/abc]
 3
 2
 1
-4
 5
+4
 /h
 "\u{01f624}"
 /z
 /def
 /def
-[/def : 345, /abc : 123]
 {/def : 678, /abc : 456}
-10
+[/def : 345, /abc : 123]
 20
-b"\x80\x81"
+10
 /zzz
+b"\x80\x81"
 `
 	if diff := cmp.Diff(want, string(buf.Bytes())); diff != "" {
 		t.Errorf("WriteTo() unexpected difference -want +got %v", diff)

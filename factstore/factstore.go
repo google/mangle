@@ -97,10 +97,33 @@ func NewInMemoryStore[T any]() InMemoryStore[T] {
 	}
 }
 
+// indexOf returns where a sits in facts, or -1. Different facts can share a
+// hash (a name and a string with the same text, say), so the stores below keep
+// a slice of facts per hash and tell them apart by Equals.
+func indexOf(facts []ast.Atom, a ast.Atom) int {
+	for i, fact := range facts {
+		if a.Equals(fact) {
+			return i
+		}
+	}
+	return -1
+}
+
+// indexOfPtr is indexOf for a slice of pointers.
+func indexOfPtr(facts []*ast.Atom, a ast.Atom) int {
+	for i, fact := range facts {
+		if a.Equals(*fact) {
+			return i
+		}
+	}
+	return -1
+}
+
 // SimpleInMemoryStore provides a simple implementation backed by a two-level map.
 // For each predicate sym, we have a separate map, using numeric hash as key.
+// Facts whose hashes collide share a slice.
 type SimpleInMemoryStore struct {
-	InMemoryStore[map[uint64]ast.Atom]
+	InMemoryStore[map[uint64][]ast.Atom]
 }
 
 var _ FactStoreWithRemove = SimpleInMemoryStore{}
@@ -109,9 +132,11 @@ var _ FactStoreWithRemove = SimpleInMemoryStore{}
 func (s SimpleInMemoryStore) String() string {
 	var sb strings.Builder
 	for _, m := range s.shardsByPredicate {
-		for _, v := range m {
-			sb.WriteString(v.String())
-			sb.WriteRune(' ')
+		for _, facts := range m {
+			for _, v := range facts {
+				sb.WriteString(v.String())
+				sb.WriteRune(' ')
+			}
 		}
 		sb.WriteRune('\n')
 	}
@@ -130,16 +155,18 @@ func (s SimpleInMemoryStore) ListPredicates() []ast.PredicateSym {
 // NewSimpleInMemoryStore constructs a new SimpleInMemoryStore.
 func NewSimpleInMemoryStore() SimpleInMemoryStore {
 	return SimpleInMemoryStore{
-		NewInMemoryStore[map[uint64]ast.Atom](),
+		NewInMemoryStore[map[uint64][]ast.Atom](),
 	}
 }
 
 // GetFacts implementation that looks up facts from an in-memory map.
 func (s SimpleInMemoryStore) GetFacts(a ast.Atom, fn func(ast.Atom) error) error {
-	for _, fact := range s.shardsByPredicate[a.Predicate] {
-		if Matches(a.Args, fact.Args) {
-			if err := fn(fact); err != nil {
-				return err
+	for _, facts := range s.shardsByPredicate[a.Predicate] {
+		for _, fact := range facts {
+			if Matches(a.Args, fact.Args) {
+				if err := fn(fact); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -150,7 +177,9 @@ func (s SimpleInMemoryStore) GetFacts(a ast.Atom, fn func(ast.Atom) error) error
 func (s SimpleInMemoryStore) EstimateFactCount() int {
 	c := 0
 	for _, m := range s.shardsByPredicate {
-		c += len(m)
+		for _, facts := range m {
+			c += len(facts)
+		}
 	}
 	return c
 }
@@ -158,40 +187,44 @@ func (s SimpleInMemoryStore) EstimateFactCount() int {
 // Add implements the FactStore interface by adding the fact to the backing map.
 func (s SimpleInMemoryStore) Add(a ast.Atom) bool {
 	key := a.Hash()
-	if atoms, ok := s.shardsByPredicate[a.Predicate]; ok {
-		_, ok := atoms[key]
-		if !ok {
-			atoms[key] = a
-		}
-		return !ok
+	atoms, ok := s.shardsByPredicate[a.Predicate]
+	if !ok {
+		s.shardsByPredicate[a.Predicate] = map[uint64][]ast.Atom{key: {a}}
+		return true
 	}
-	s.shardsByPredicate[a.Predicate] = map[uint64]ast.Atom{key: a}
+	if indexOf(atoms[key], a) >= 0 {
+		return false
+	}
+	atoms[key] = append(atoms[key], a)
 	return true
 }
 
 // Remove removes the fact from the backing map.
 func (s SimpleInMemoryStore) Remove(a ast.Atom) bool {
 	key := a.Hash()
-	if atoms, ok := s.shardsByPredicate[a.Predicate]; ok {
-		if _, ok := atoms[key]; ok {
-			delete(atoms, key)
-			if len(atoms) == 0 {
-				delete(s.shardsByPredicate, a.Predicate)
-			}
-			return true
-		}
+	atoms, ok := s.shardsByPredicate[a.Predicate]
+	if !ok {
+		return false
 	}
-	return false
+	i := indexOf(atoms[key], a)
+	if i < 0 {
+		return false
+	}
+	if len(atoms[key]) == 1 {
+		delete(atoms, key)
+	} else {
+		atoms[key] = append(atoms[key][:i:i], atoms[key][i+1:]...)
+	}
+	if len(atoms) == 0 {
+		delete(s.shardsByPredicate, a.Predicate)
+	}
+	return true
 }
 
 // Contains returns true if this store contains this atom already.
 func (s SimpleInMemoryStore) Contains(a ast.Atom) bool {
-	key := a.Hash()
-	if atoms, ok := s.shardsByPredicate[a.Predicate]; ok {
-		_, ok := atoms[key]
-		return ok
-	}
-	return false
+	atoms, ok := s.shardsByPredicate[a.Predicate]
+	return ok && indexOf(atoms[a.Hash()], a) >= 0
 }
 
 // Merge adds all facts from other to this fact store.
@@ -385,24 +418,26 @@ func Matches(pattern []ast.BaseTerm, args []ast.BaseTerm) bool {
 
 // IndexedInMemoryStore provides a simple implementation backed by a three-level map.
 // For each predicate sym, we have a separate map, using hash of the first argument and then
-// hash of the entire atom.
+// hash of the entire atom. Facts whose hashes collide share a slice.
 type IndexedInMemoryStore struct {
-	InMemoryStore[map[uint64]map[uint64]ast.Atom]
+	InMemoryStore[map[uint64]map[uint64][]ast.Atom]
 }
 
 // NewIndexedInMemoryStore constructs a new IndexedInMemoryStore.
 func NewIndexedInMemoryStore() IndexedInMemoryStore {
 	return IndexedInMemoryStore{
-		NewInMemoryStore[map[uint64]map[uint64]ast.Atom](),
+		NewInMemoryStore[map[uint64]map[uint64][]ast.Atom](),
 	}
 }
 
 func (s IndexedInMemoryStore) getFactsOfFirstVariable(a ast.Atom, fn func(ast.Atom) error) error {
 	for _, shard := range s.shardsByPredicate[a.Predicate] {
-		for _, fact := range shard {
-			if Matches(a.Args[1:], fact.Args[1:]) {
-				if err := fn(fact); err != nil {
-					return err
+		for _, facts := range shard {
+			for _, fact := range facts {
+				if Matches(a.Args[1:], fact.Args[1:]) {
+					if err := fn(fact); err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -422,10 +457,12 @@ func (s IndexedInMemoryStore) GetFacts(a ast.Atom, fn func(ast.Atom) error) erro
 		return s.getFactsOfFirstVariable(a, fn)
 	}
 	h := a.Args[0].Hash()
-	for _, fact := range s.shardsByPredicate[a.Predicate][h] {
-		if Matches(a.Args, fact.Args) {
-			if err := fn(fact); err != nil {
-				return err
+	for _, facts := range s.shardsByPredicate[a.Predicate][h] {
+		for _, fact := range facts {
+			if Matches(a.Args, fact.Args) {
+				if err := fn(fact); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -445,21 +482,21 @@ func (s IndexedInMemoryStore) Add(a ast.Atom) bool {
 	h := a.Args[0].Hash()
 	shard, ok := s.shardsByPredicate[a.Predicate]
 	if !ok {
-		shard = map[uint64]map[uint64]ast.Atom{h: {a.Hash(): a}}
+		shard = map[uint64]map[uint64][]ast.Atom{h: {a.Hash(): {a}}}
 		s.shardsByPredicate[a.Predicate] = shard
 		return true
 	}
 	key := a.Hash()
 	atoms, ok := shard[h]
 	if !ok {
-		shard[h] = map[uint64]ast.Atom{a.Hash(): a}
+		shard[h] = map[uint64][]ast.Atom{key: {a}}
 		return true
 	}
-	if _, ok := atoms[key]; !ok {
-		atoms[key] = a
-		return true
+	if indexOf(atoms[key], a) >= 0 {
+		return false
 	}
-	return false
+	atoms[key] = append(atoms[key], a)
+	return true
 }
 
 // Remove removes the fact to the backing map.
@@ -481,11 +518,16 @@ func (s IndexedInMemoryStore) Remove(a ast.Atom) bool {
 	if !ok {
 		return false
 	}
-	if _, ok := atoms[key]; ok {
-		delete(atoms, key)
-		return true
+	i := indexOf(atoms[key], a)
+	if i < 0 {
+		return false
 	}
-	return false
+	if len(atoms[key]) == 1 {
+		delete(atoms, key)
+	} else {
+		atoms[key] = append(atoms[key][:i:i], atoms[key][i+1:]...)
+	}
+	return true
 }
 
 // Contains returns true if this store contains this atom already.
@@ -503,8 +545,7 @@ func (s IndexedInMemoryStore) Contains(a ast.Atom) bool {
 	if !ok {
 		return false
 	}
-	_, exists := atoms[a.Hash()]
-	return exists
+	return indexOf(atoms[a.Hash()], a) >= 0
 }
 
 // EstimateFactCount returns the number of facts.
@@ -512,7 +553,9 @@ func (s IndexedInMemoryStore) EstimateFactCount() int {
 	c := len(s.constants)
 	for _, s := range s.shardsByPredicate {
 		for _, m := range s {
-			c += len(m)
+			for _, facts := range m {
+				c += len(facts)
+			}
 		}
 	}
 	return c
@@ -542,24 +585,26 @@ func (s IndexedInMemoryStore) ListPredicates() []ast.PredicateSym {
 
 // MultiIndexedInMemoryStore provides a simple implementation backed by a four-level map.
 // For each predicate sym, we have a separate map, using the index and the hash of the nth argument
-// and then hash of the entire atom.
+// and then hash of the entire atom. Facts whose hashes collide share a slice.
 type MultiIndexedInMemoryStore struct {
-	InMemoryStore[map[uint16]map[uint64]map[uint64]*ast.Atom]
+	InMemoryStore[map[uint16]map[uint64]map[uint64][]*ast.Atom]
 }
 
 // NewMultiIndexedInMemoryStore constructs a new MultiIndexedInMemoryStore.
 func NewMultiIndexedInMemoryStore() MultiIndexedInMemoryStore {
 	return MultiIndexedInMemoryStore{
-		NewInMemoryStore[map[uint16]map[uint64]map[uint64]*ast.Atom](),
+		NewInMemoryStore[map[uint16]map[uint64]map[uint64][]*ast.Atom](),
 	}
 }
 
 func (s MultiIndexedInMemoryStore) getFactsOfFirstVariable(a ast.Atom, fn func(ast.Atom) error) error {
 	for _, shard := range s.shardsByPredicate[a.Predicate][0] {
-		for _, fact := range shard {
-			if Matches(a.Args[1:], fact.Args[1:]) {
-				if err := fn(*fact); err != nil {
-					return err
+		for _, facts := range shard {
+			for _, fact := range facts {
+				if Matches(a.Args[1:], fact.Args[1:]) {
+					if err := fn(*fact); err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -579,10 +624,12 @@ func (s MultiIndexedInMemoryStore) GetFacts(a ast.Atom, fn func(ast.Atom) error)
 		// Find a non variable parameter.
 		if _, ok := a.Args[i].(ast.Variable); !ok {
 			h := a.Args[i].Hash()
-			for _, fact := range s.shardsByPredicate[a.Predicate][uint16(i)][h] {
-				if Matches(a.Args, fact.Args) {
-					if err := fn(*fact); err != nil {
-						return err
+			for _, facts := range s.shardsByPredicate[a.Predicate][uint16(i)][h] {
+				for _, fact := range facts {
+					if Matches(a.Args, fact.Args) {
+						if err := fn(*fact); err != nil {
+							return err
+						}
 					}
 				}
 			}
@@ -605,11 +652,11 @@ func (s MultiIndexedInMemoryStore) Add(a ast.Atom) bool {
 	aHash := a.Hash()
 	shard, ok := s.shardsByPredicate[a.Predicate]
 	if !ok {
-		shard = make(map[uint16]map[uint64]map[uint64]*ast.Atom)
+		shard = make(map[uint16]map[uint64]map[uint64][]*ast.Atom)
 		s.shardsByPredicate[a.Predicate] = shard
 		for i := 0; i < a.Predicate.Arity; i++ {
 			iHash := a.Args[i].Hash()
-			shard[uint16(i)] = map[uint64]map[uint64]*ast.Atom{iHash: {aHash: &a}}
+			shard[uint16(i)] = map[uint64]map[uint64][]*ast.Atom{iHash: {aHash: {&a}}}
 		}
 		return true
 	}
@@ -618,16 +665,16 @@ func (s MultiIndexedInMemoryStore) Add(a ast.Atom) bool {
 		iHash := a.Args[i].Hash()
 		params, ok := shard[uint16(i)]
 		if !ok {
-			shard[uint16(i)] = map[uint64]map[uint64]*ast.Atom{iHash: {aHash: &a}}
+			shard[uint16(i)] = map[uint64]map[uint64][]*ast.Atom{iHash: {aHash: {&a}}}
 			added = true
 			continue
 		}
 		atoms, ok := params[iHash]
 		if !ok {
-			params[iHash] = map[uint64]*ast.Atom{aHash: &a}
+			params[iHash] = map[uint64][]*ast.Atom{aHash: {&a}}
 			added = true
-		} else if _, ok := atoms[aHash]; !ok {
-			atoms[aHash] = &a
+		} else if indexOfPtr(atoms[aHash], a) < 0 {
+			atoms[aHash] = append(atoms[aHash], &a)
 			added = true
 		}
 	}
@@ -659,8 +706,12 @@ func (s MultiIndexedInMemoryStore) Remove(a ast.Atom) bool {
 		if !ok {
 			return false
 		}
-		if _, ok := atoms[aHash]; ok {
-			delete(atoms, aHash)
+		if j := indexOfPtr(atoms[aHash], a); j >= 0 {
+			if len(atoms[aHash]) == 1 {
+				delete(atoms, aHash)
+			} else {
+				atoms[aHash] = append(atoms[aHash][:j:j], atoms[aHash][j+1:]...)
+			}
 			removed = true
 		}
 	}
@@ -686,8 +737,7 @@ func (s MultiIndexedInMemoryStore) Contains(a ast.Atom) bool {
 	if !ok {
 		return false
 	}
-	_, exists := atoms[a.Hash()]
-	return exists
+	return indexOfPtr(atoms[a.Hash()], a) >= 0
 }
 
 // EstimateFactCount returns the number of facts.
@@ -695,7 +745,9 @@ func (s MultiIndexedInMemoryStore) EstimateFactCount() int {
 	c := len(s.constants)
 	for _, s := range s.shardsByPredicate {
 		for _, m := range s[0] {
-			c += len(m)
+			for _, facts := range m {
+				c += len(facts)
+			}
 		}
 	}
 	return c

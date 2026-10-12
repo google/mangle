@@ -15,6 +15,7 @@
 package provenance
 
 import (
+	"slices"
 	"sort"
 
 	"codeberg.org/TauCeti/mangle-go/ast"
@@ -114,7 +115,9 @@ func (r *MemoryRecorder) add(ev *Event) {
 func (r *MemoryRecorder) Events() []*Event { return r.all }
 
 // EventsFor returns all events whose output equals the given atom.
-// Multiple entries mean alternative derivations of the same fact.
+// Multiple entries mean alternative derivations of the same fact. They come
+// in a stable order, by rule and then by what each derivation rests on, so
+// the same program always gives the same proofs.
 func (r *MemoryRecorder) EventsFor(a ast.Atom) []*Event {
 	var out []*Event
 	for _, ev := range r.byOutputHash[a.Hash()] {
@@ -122,7 +125,47 @@ func (r *MemoryRecorder) EventsFor(a ast.Atom) []*Event {
 			out = append(out, ev)
 		}
 	}
+	// Recording order follows evaluation order, which differs between runs of
+	// the same program: the store hands facts to the engine in map order.
+	type keyedEvent struct {
+		key []string
+		ev  *Event
+	}
+	keyed := make([]keyedEvent, len(out))
+	for i, ev := range out {
+		keyed[i] = keyedEvent{eventKey(ev), ev}
+	}
+	slices.SortStableFunc(keyed, func(x, y keyedEvent) int { return slices.Compare(x.key, y.key) })
+	for i, k := range keyed {
+		out[i] = k.ev
+	}
 	return out
+}
+
+// eventKey orders alternative derivations of one fact: by rule, then by what
+// the derivation rests on (its premise facts, a do-transform's input facts,
+// or a let-transform's row). Keys are compared part by part, so no text inside
+// a rule or a fact can make two different derivations look the same.
+func eventKey(ev *Event) []string {
+	key := []string{ev.Rule.String()}
+	for _, f := range ev.PremiseFacts {
+		key = append(key, f.String())
+	}
+	// A do-transform's input facts arrive in map order: sort them.
+	inputs := make([]string, len(ev.InputFacts))
+	for i, f := range ev.InputFacts {
+		inputs[i] = f.String()
+	}
+	sort.Strings(inputs)
+	key = append(key, inputs...)
+	// A let-transform's row lists its bindings in varying order: sort them by
+	// variable name.
+	vars := ev.Row.Domain()
+	sort.Slice(vars, func(i, j int) bool { return vars[i].Symbol < vars[j].Symbol })
+	for _, v := range vars {
+		key = append(key, v.Symbol, ev.Row.Get(v).String())
+	}
+	return key
 }
 
 // BuildFromRecording assembles proof trees for the given goal from a

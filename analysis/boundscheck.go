@@ -604,17 +604,17 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 		case symbols.Min.Symbol:
 			fallthrough
 		case symbols.Max.Symbol:
-			return commonBound(z.Args, varRanges, nameTrie, ast.NumberBound)
+			return listReducerBound(z, varRanges, nameTrie, ast.NumberBound)
 		case symbols.DurationSum.Symbol:
 			fallthrough
 		case symbols.DurationMin.Symbol:
 			fallthrough
 		case symbols.DurationMax.Symbol:
-			return commonBound(z.Args, varRanges, nameTrie, ast.DurationBound)
+			return listReducerBound(z, varRanges, nameTrie, ast.DurationBound)
 		case symbols.TimeMin.Symbol:
 			fallthrough
 		case symbols.TimeMax.Symbol:
-			return commonBound(z.Args, varRanges, nameTrie, ast.TimeBound)
+			return listReducerBound(z, varRanges, nameTrie, ast.TimeBound)
 		case symbols.Plus.Symbol:
 			fallthrough
 		case symbols.Minus.Symbol:
@@ -658,6 +658,12 @@ func boundOfArg(x ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTri
 }
 
 func typeOfFn(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie symbols.NameTrie) ast.BaseTerm {
+	// typeOfFn types an ordinary (per-row) function application in a
+	// transform statement. Reducer statements of a group_by transform
+	// are aggregations instead and are typed by typeOfReducerStmt; they
+	// never reach this function (rule checking rejects reducers in
+	// let-transforms, and boundOfArg types nested reducer applications
+	// over list values).
 	switch x.Function.Symbol {
 	case symbols.Plus.Symbol:
 		fallthrough
@@ -690,34 +696,6 @@ func typeOfFn(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie s
 			}
 		}
 		return ast.Float64Bound
-	case symbols.Sum.Symbol:
-		fallthrough
-	case symbols.Max.Symbol:
-		fallthrough
-	case symbols.Min.Symbol:
-		return commonBound(x.Args, varRanges, nameTrie, ast.NumberBound)
-	case symbols.DurationSum.Symbol:
-		fallthrough
-	case symbols.DurationMax.Symbol:
-		fallthrough
-	case symbols.DurationMin.Symbol:
-		return commonBound(x.Args, varRanges, nameTrie, ast.DurationBound)
-	case symbols.TimeMax.Symbol:
-		fallthrough
-	case symbols.TimeMin.Symbol:
-		return commonBound(x.Args, varRanges, nameTrie, ast.TimeBound)
-	case symbols.Count.Symbol:
-		return ast.NumberBound
-	case symbols.Collect.Symbol:
-		fallthrough
-	case symbols.CollectDistinct.Symbol:
-		if len(x.Args) == 1 {
-			if v, ok := x.Args[0].(ast.Variable); ok {
-				return ast.ApplyFn{symbols.ListType, []ast.BaseTerm{varRanges[v]}}
-			}
-		}
-		elemTpe := boundOfArg(x.Args[0], varRanges, nameTrie)
-		return ast.ApplyFn{symbols.ListType, []ast.BaseTerm{elemTpe}}
 	}
 	fnTpe, ok := builtin.GetBuiltinFunctionType(x.Function)
 	if !ok {
@@ -730,19 +708,125 @@ func typeOfFn(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie s
 	return res
 }
 
-// commonBound returns want if every arg has bound want, EmptyType otherwise.
-func commonBound(args []ast.BaseTerm, varRanges map[ast.Variable]ast.BaseTerm, nameTrie symbols.NameTrie, want ast.BaseTerm) ast.BaseTerm {
-	var common ast.BaseTerm
-	for _, arg := range args {
-		bound := boundOfArg(arg, varRanges, nameTrie)
-		if common == nil {
-			common = bound
-		} else if !common.Equals(bound) {
+// Reducer functions such as fn:sum, fn:min or fn:max are used in two
+// modes, which the runtime keeps strictly apart:
+//
+//   - as ordinary functions over a list value, evaluated per row, e.g.
+//     a premise `X = fn:max([1, 2])` (functional.EvalApplyFn requires
+//     a list argument), and
+//   - as aggregations in a group_by transform, e.g.
+//     `... |> do fn:group_by(X), let Y = fn:max(Z)` (functional.EvalReduceFn
+//     iterates the values the argument variable takes on across the
+//     rows of each group, and requires plain variable arguments).
+//
+// The bounds checker distinguishes the two modes explicitly: nested
+// reducer applications are typed in list mode by listReducerBound
+// (below, via boundOfArg), while reducer statements of a group_by
+// transform are typed in aggregation mode by typeOfReducerStmt. The
+// call site in infercontext.go decides the mode from the shape of the
+// transform, mirroring engine.EvalTransform.
+
+// listReducerBound types a reducer application over a list value, e.g.
+// fn:max([1, 2]). The single argument must be a list whose element
+// type is want (or unknown); the result has type want.
+func listReducerBound(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie symbols.NameTrie, want ast.BaseTerm) ast.BaseTerm {
+	if len(x.Args) != 1 {
+		return symbols.EmptyType
+	}
+	bound, ok := boundOfArg(x.Args[0], varRanges, nameTrie).(ast.ApplyFn)
+	if !ok || !symbols.IsListTypeExpression(bound) {
+		// The runtime requires a list argument in this position.
+		return symbols.EmptyType
+	}
+	elem := bound.Args[0]
+	if elem.Equals(want) || elem.Equals(ast.AnyBound) {
+		return want
+	}
+	return symbols.EmptyType
+}
+
+// typeOfReducerStmt types a reducer statement of a group_by transform,
+// e.g. `... |> do fn:group_by(X), let Y = fn:max(Z)`. The arguments
+// range over the values of the reduced columns, one scalar value per
+// row of each group.
+func typeOfReducerStmt(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie symbols.NameTrie) ast.BaseTerm {
+	switch x.Function.Symbol {
+	case symbols.Count.Symbol:
+		return ast.NumberBound
+	case symbols.Collect.Symbol:
+		fallthrough
+	case symbols.CollectDistinct.Symbol:
+		// The reducer evaluates its arguments once per row and collects
+		// the results into a list (of tuples, if there are several).
+		var elemTpes []ast.BaseTerm
+		for _, arg := range x.Args {
+			elemTpes = append(elemTpes, boundOfArg(arg, varRanges, nameTrie))
+		}
+		elem := elemTpes[0]
+		if len(elemTpes) > 1 {
+			elem = symbols.NewTupleType(elemTpes...)
+		}
+		return symbols.NewListType(elem)
+	case symbols.Sum.Symbol:
+		fallthrough
+	case symbols.Min.Symbol:
+		fallthrough
+	case symbols.Max.Symbol:
+		return aggregateReducerBound(x, varRanges, nameTrie, ast.NumberBound, ast.NumberBound)
+	case symbols.FloatSum.Symbol:
+		fallthrough
+	case symbols.FloatMin.Symbol:
+		fallthrough
+	case symbols.FloatMax.Symbol:
+		return aggregateReducerBound(x, varRanges, nameTrie, ast.Float64Bound, ast.Float64Bound)
+	case symbols.DurationSum.Symbol:
+		fallthrough
+	case symbols.DurationMin.Symbol:
+		fallthrough
+	case symbols.DurationMax.Symbol:
+		return aggregateReducerBound(x, varRanges, nameTrie, ast.DurationBound, ast.DurationBound)
+	case symbols.TimeMin.Symbol:
+		fallthrough
+	case symbols.TimeMax.Symbol:
+		return aggregateReducerBound(x, varRanges, nameTrie, ast.TimeBound, ast.TimeBound)
+	}
+	// Other reducers (e.g. fn:collect_to_map): check against the declared
+	// built-in signature, which relates per-row argument types to the
+	// result type. Fall back to AnyBound, as typeOfFn does.
+	fnTpe, ok := builtin.GetBuiltinFunctionType(x.Function)
+	if !ok {
+		return ast.AnyBound
+	}
+	res, err := checkFunApply(x, fnTpe, varRanges, nameTrie)
+	if err != nil {
+		return ast.AnyBound
+	}
+	return res
+}
+
+// aggregateReducerBound types a max/min/sum-style reducer statement of
+// a group_by transform. Every argument must be a variable (the runtime
+// iterates its values across the rows of the group) whose bound is
+// among the allowed bounds; the result has type res.
+func aggregateReducerBound(x ast.ApplyFn, varRanges map[ast.Variable]ast.BaseTerm, nameTrie symbols.NameTrie, res ast.BaseTerm, allowed ...ast.BaseTerm) ast.BaseTerm {
+	for _, arg := range x.Args {
+		v, ok := arg.(ast.Variable)
+		if !ok {
+			// The runtime requires plain variable arguments here
+			// (functional.EvalReduceFn type-asserts them).
+			return symbols.EmptyType
+		}
+		bound := boundOfArg(v, varRanges, nameTrie)
+		ok = false
+		for _, a := range allowed {
+			if bound.Equals(a) {
+				ok = true
+				break
+			}
+		}
+		if !ok {
 			return symbols.EmptyType
 		}
 	}
-	if common == nil || !common.Equals(want) {
-		return symbols.EmptyType
-	}
-	return common
+	return res
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"codeberg.org/TauCeti/mangle-go/ast"
+	"codeberg.org/TauCeti/mangle-go/builtin"
 	"codeberg.org/TauCeti/mangle-go/symbols"
 )
 
@@ -370,9 +371,22 @@ func (ic *inferContext) inferRelTypesFromClause() (ast.BaseTerm, error) {
 	for _, state := range levels[len(clause.Premises)] {
 		s := state.makeNext()
 		if clause.Transform != nil {
+			// Reducer statements of a group_by transform are aggregations
+			// over the rows of each group and are typed accordingly
+			// (typeOfReducerStmt); all other statements are ordinary
+			// per-row function applications (typeOfFn). This mirrors the
+			// distinction the runtime makes in engine.EvalTransform
+			// between functional.EvalReduceFn and functional.EvalApplyFn.
+			_, inGroupBy := hasGroupByTransform(*clause)
 			for _, tr := range clause.Transform.Statements {
 				if tr.Var != nil {
-					s.addOrRefine(*tr.Var, typeOfFn(tr.Fn, s.asMap(), ic.bc.nameTrie))
+					var tpe ast.BaseTerm
+					if inGroupBy && builtin.IsReducerFunction(tr.Fn.Function) {
+						tpe = typeOfReducerStmt(tr.Fn, s.asMap(), ic.bc.nameTrie)
+					} else {
+						tpe = typeOfFn(tr.Fn, s.asMap(), ic.bc.nameTrie)
+					}
+					s.addOrRefine(*tr.Var, tpe)
 				}
 			}
 		}

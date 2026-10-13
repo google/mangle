@@ -314,6 +314,23 @@ func (bc *BoundsAnalyzer) feasibleAlternatives(
 			return nil, nil, fmt.Errorf("pred %v on args %v cannot succeed var ranges %v", pred, args, varRanges)
 		}
 	}
+	if pred.Symbol == symbols.Filter.Symbol {
+		if len(args) != 1 {
+			return nil, nil, fmt.Errorf("pred %v expects one argument, got %v", pred, args)
+		}
+		fnTpe := boundOfArg(args[0], varRanges, bc.nameTrie)
+		if fnTpe.Equals(symbols.EmptyType) {
+			return nil, nil, fmt.Errorf(":filter argument %v has a type error", args[0])
+		}
+		// The argument of :filter must be able to evaluate to /true.
+		// This rules out non-boolean types (the filter could never
+		// succeed), while admitting unknown types such as /any.
+		if symbols.LowerBound(typeCtx, []ast.BaseTerm{fnTpe, symbols.BoolType()}).Equals(symbols.EmptyType) {
+			return nil, nil, fmt.Errorf(":filter argument %v has type %v, which is not boolean", args[0], fnTpe)
+		}
+		return []ast.BaseTerm{symbols.BuiltinRelations[symbols.Filter]}, []map[ast.Variable]ast.BaseTerm{typeCtx}, nil
+	}
+
 	alternatives := symbols.RelTypeAlternatives(relTypeExpr)
 
 	// Construct an "incoming" relation type from preceding.

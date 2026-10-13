@@ -164,6 +164,25 @@ func TestUnifyTypeExprWildcardBounds(t *testing.T) {
 	}
 }
 
+func TestUnifyTypeExprWildcardBindingThenConstraint(t *testing.T) {
+	// A type variable that first unifies with a wildcard (here: the
+	// /bot element type of the empty list) must remain compatible with
+	// later, concrete constraints. This is the shape produced by e.g.
+	// fn:list:contains([], 23) against the signature
+	// fn:Bool() <= fn:List(X), X.
+	subst, err := unify(t,
+		[]ast.BaseTerm{symbols.NewListType(ast.BotBound), ast.NumberBound},
+		[]ast.BaseTerm{symbols.NewListType(x), x})
+	if err != nil {
+		t.Fatalf("failed: %v", err)
+	}
+	// The variable may end up bound to the wildcard; either way the
+	// unification must succeed without conflict.
+	if got := subst[x]; !got.Equals(ast.BotBound) && !got.Equals(ast.NumberBound) && !got.Equals(x) {
+		t.Errorf("subst[%v] = %v, want %v, %v or %v", x, got, ast.BotBound, ast.NumberBound, x)
+	}
+}
+
 func TestUnifyTypeExprUnionBacktracking(t *testing.T) {
 	// A failed alternative must not leave state behind: /float64 does
 	// not unify with the first alternative (/number), and the second

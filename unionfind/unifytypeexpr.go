@@ -70,10 +70,19 @@ func (u *unionFindFun) unifyOne(x, y ast.BaseTerm) error {
 		if u.ufrel.find(y) == nil {
 			u.ufrel.parent[y] = y
 		}
-		if isWildcardBound(x) || isWildcardBound(y) {
-			// /any and /bot are compatible with every other bound.
-			// Union the two, so that variables bind to the wildcard.
-			u.ufrel.union(x, y)
+		// The /any and /bot bounds are compatible with every other
+		// bound and impose no constraint; this also holds for earlier
+		// bindings of x or y that resolve to a wildcard. An unbound
+		// variable binds to the other side, so that it does not escape
+		// into the result as an unresolved type variable.
+		xroot := u.ufrel.find(x)
+		yroot := u.ufrel.find(y)
+		if isWildcardBound(xroot) || isWildcardBound(yroot) {
+			if xv, ok := xroot.(ast.Variable); ok {
+				u.ufrel.parent[xv] = yroot
+			} else if yv, ok := yroot.(ast.Variable); ok {
+				u.ufrel.parent[yv] = xroot
+			}
 			return nil
 		}
 		return unifyTermsUpdate([]ast.BaseTerm{x}, []ast.BaseTerm{y}, u.ufrel)
@@ -112,10 +121,10 @@ func (u *unionFindFun) unifyOne(x, y ast.BaseTerm) error {
 
 // bindVarTo binds a type variable to a type constructor application.
 func (u *unionFindFun) bindVarTo(v ast.Variable, tpe ast.ApplyFn) error {
-	if bound, ok := u.subst[v]; ok && !bound.Equals(tpe) {
+	if bound, ok := u.subst[v]; ok && !bound.Equals(tpe) && !isWildcardBound(bound) {
 		return fmt.Errorf("cannot unify %v and %v", tpe, bound)
 	}
-	if existing := u.ufrel.find(v); existing != nil && !existing.Equals(tpe) {
+	if existing := u.ufrel.find(v); existing != nil && !existing.Equals(tpe) && !isWildcardBound(existing) {
 		return fmt.Errorf("cannot unify %v and %v", tpe, existing)
 	}
 	u.subst[v] = tpe

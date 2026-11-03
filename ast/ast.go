@@ -1361,45 +1361,114 @@ func FreshVariable(used map[Variable]bool) Variable {
 // with a fresh variables. The used-variables map is modified to keep track
 // of newly added variables.
 func ReplaceWildcards(used map[Variable]bool, term Term) Term {
-	numUsed := len(used)
-	replaced := term
+	return RenameVariables(term, func(v Variable) Variable {
+		if v.Symbol != "_" {
+			return v
+		}
+		return FreshVariable(used)
+	})
+}
+
+// RenameVariables returns term with every variable replaced according to
+// rename. The rename function maps a variable to the variable that takes
+// its place; returning the variable itself leaves it alone. If no variable
+// of the term is renamed, the term is returned unchanged. Interval bounds
+// of temporal terms are renamed as well.
+func RenameVariables(term Term, rename func(Variable) Variable) Term {
+	changed := false
+	renamed := renameTerm(term, func(v Variable) Variable {
+		if w := rename(v); w != v {
+			changed = true
+			return w
+		}
+		return v
+	})
+	if !changed {
+		return term
+	}
+	return renamed
+}
+
+// RenameVariablesBase is RenameVariables for a base term.
+func RenameVariablesBase(t BaseTerm, rename func(Variable) Variable) BaseTerm {
+	return renameBaseTerm(t, rename)
+}
+
+// renameTerm rebuilds term with every variable replaced according to rename.
+func renameTerm(term Term, rename func(Variable) Variable) Term {
 	switch t := term.(type) {
 	case Constant:
 		return t
 	case Variable:
-		if t.Symbol != "_" {
-			return t
-		}
-		v := FreshVariable(used)
-		return v
+		return rename(t)
 	case ApplyFn:
-		args := make([]BaseTerm, len(t.Args))
-		for i, arg := range t.Args {
-			args[i] = ReplaceWildcards(used, arg).(BaseTerm)
-		}
-		replaced = ApplyFn{t.Function, args}
+		return ApplyFn{t.Function, renameBaseTerms(t.Args, rename)}
 	case Atom:
-		args := make([]BaseTerm, len(t.Args))
-		for i, arg := range t.Args {
-			args[i] = ReplaceWildcards(used, arg).(BaseTerm)
-		}
-		replaced = Atom{t.Predicate, args}
+		return Atom{t.Predicate, renameBaseTerms(t.Args, rename)}
 	case NegAtom:
-		atom := ReplaceWildcards(used, t.Atom).(Atom)
-		replaced = NegAtom{atom}
+		return NegAtom{renameTerm(t.Atom, rename).(Atom)}
 	case Eq:
-		left := ReplaceWildcards(used, t.Left).(BaseTerm)
-		right := ReplaceWildcards(used, t.Right).(BaseTerm)
-		replaced = Eq{left, right}
+		return Eq{renameBaseTerm(t.Left, rename), renameBaseTerm(t.Right, rename)}
 	case Ineq:
-		left := ReplaceWildcards(used, t.Left).(BaseTerm)
-		right := ReplaceWildcards(used, t.Right).(BaseTerm)
-		replaced = Ineq{left, right}
+		return Ineq{renameBaseTerm(t.Left, rename), renameBaseTerm(t.Right, rename)}
+	case TemporalAtom:
+		return TemporalAtom{
+			Atom:     renameTerm(t.Atom, rename).(Atom),
+			Interval: RenameVariablesInInterval(t.Interval, rename),
+		}
+	case TemporalLiteral:
+		var operator *TemporalOperator
+		if t.Operator != nil {
+			operator = &TemporalOperator{
+				Type:     t.Operator.Type,
+				Interval: *RenameVariablesInInterval(&t.Operator.Interval, rename),
+			}
+		}
+		return TemporalLiteral{
+			Literal:  renameTerm(t.Literal, rename),
+			Operator: operator,
+			Interval: RenameVariablesInInterval(t.Interval, rename),
+		}
 	}
-	if numUsed == len(used) { // If no wildcard found
-		return term
+	return term
+}
+
+// renameBaseTerm rebuilds a base term with every variable replaced according
+// to rename.
+func renameBaseTerm(t BaseTerm, rename func(Variable) Variable) BaseTerm {
+	switch t := t.(type) {
+	case Variable:
+		return rename(t)
+	case ApplyFn:
+		return ApplyFn{t.Function, renameBaseTerms(t.Args, rename)}
 	}
-	return replaced
+	return t
+}
+
+// renameBaseTerms applies renameBaseTerm to each element of ts.
+func renameBaseTerms(ts []BaseTerm, rename func(Variable) Variable) []BaseTerm {
+	terms := make([]BaseTerm, len(ts))
+	for i, t := range ts {
+		terms[i] = renameBaseTerm(t, rename)
+	}
+	return terms
+}
+
+// RenameVariablesInInterval renames the variables of the bounds of
+// interval i, returning nil for nil.
+func RenameVariablesInInterval(i *Interval, rename func(Variable) Variable) *Interval {
+	if i == nil {
+		return nil
+	}
+	return &Interval{Start: renameBound(i.Start, rename), End: renameBound(i.End, rename)}
+}
+
+// renameBound renames the variable of a variable bound.
+func renameBound(b TemporalBound, rename func(Variable) Variable) TemporalBound {
+	if b.Type == VariableBound {
+		b.Variable = rename(b.Variable)
+	}
+	return b
 }
 
 // AddVars adds all variables from term to map, where term is either

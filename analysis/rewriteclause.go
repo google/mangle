@@ -34,6 +34,9 @@ func scrutineeIsInputArg(d *ast.Decl) bool {
 
 // RewriteClause rewrites a clause using information from declarations.
 func RewriteClause(decls map[ast.PredicateSym]*ast.Decl, clause ast.Clause) ast.Clause {
+	// Equalities between two variables are aliasing and are compiled away by
+	// renaming one variable to the other, so that binding one binds both.
+	clause = eliminateVariableEqualities(clause)
 	if len(clause.Premises) == 0 {
 		return clause
 	}

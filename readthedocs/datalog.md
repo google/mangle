@@ -259,6 +259,58 @@ sibling(Person1, Person2) ⟸ parent(P, Person1), parent(P, Person2),
     Person1 != Person2.
 ```
 
+### Letting the engine choose the order
+
+Apart from this, the engine evaluates the premises in the order written.
+The order does not change the result, but it can change the time a rule
+takes by a large factor. In the following rule, the first two premises share
+no variable, so the engine first builds every pair of `a` and `b` facts, and
+only then keeps the pairs that `link` relates:
+
+```
+r(X, Y) ⟸ a(X), b(Y), link(X, Y).
+```
+
+Written as `a(X), link(X, Y), b(Y)`, the rule computes the same facts without
+building the pairs. When evaluating from Go, the option
+`engine.WithPremiseReordering()` lets the engine choose an order that avoids
+such cross products. It keeps the written order, except that:
+
+* a positive atom that shares a variable with what is bound already goes
+  before one that does not, so that no cross product is built when it can be
+  avoided;
+* an inequality is evaluated as soon as its variables have values, and an
+  equality without a function application as soon as one side has a value.
+
+The engine does not know how many facts a relation has, so the order it
+chooses is not always faster. If `b` above has no facts, the written order
+stops at `b` at once, while the reordered one first joins every `a` with
+`link`. A constant in a premise, as in `huge(/k, Y)`, does not move it
+either: whether it selects few facts or many depends on the data.
+
+A premise that can fail at run time never moves ahead of a premise written
+before it: a comparison such as `X < 10` fails on a value that is not a
+number, and a function application can fail too. So reordering never makes an
+evaluation fail that succeeds as written, and when both succeed, they derive
+the same facts. The other way round is possible: a premise moved ahead can
+remove the row that a comparison would fail on, so that an evaluation that
+fails as written succeeds. Nor does a negation, or an atom whose variables
+are all bound, move ahead: each looks up facts for every row, and in a store
+without indexes, moving such a lookup to where there are more rows can cost
+far more than the rows it removes save. To filter early with a negation,
+write it early.
+
+Rules with temporal, external, deferred or moded predicates are evaluated as
+written, and proofs show every rule as written. Where you know better than
+the engine, declare a predicate with `descr [no_reorder()]`: every rule with
+a premise over it is evaluated as written. An aggregation that
+depends on the order of its rows, such as `fn:collect`, reads them from the
+store in an order that is not specified, with or without reordering.
+
+`Stats.PremiseOrders` lists every rule evaluated in a different order, as
+written and as evaluated, and `engine.ReorderPremises` gives the order the
+engine would choose for a single rule.
+
 ## The Safety Condition
 
 To recap, the general form of a rule is that it can have two forms:

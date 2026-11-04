@@ -46,6 +46,9 @@ const (
 	DescrMergePredicate = "merge"
 	// DescrDeferredPredicate is a descriptor for a deferred predicate.
 	DescrDeferredPredicate = "deferred"
+	// DescrNoReorder is a descriptor for a predicate that rules look up in
+	// the order written: a rule with a premise over it is never reordered.
+	DescrNoReorder = "no_reorder"
 	// DescrTemporal is a descriptor marking a predicate as temporal.
 	// Temporal predicates have facts with validity intervals.
 	DescrTemporal = "temporal"
@@ -311,6 +314,11 @@ func (d Decl) FunDeps() []FunDep {
 // DeferredPredicate returns true if this predicate has the deferred marker.
 func (d Decl) DeferredPredicate() bool {
 	return d.findDescr(DescrDeferredPredicate, nil)
+}
+
+// NoReorder returns true if this predicate has the no_reorder marker.
+func (d Decl) NoReorder() bool {
+	return d.findDescr(DescrNoReorder, nil)
 }
 
 // MergePredicate returns the information from the merge predicate descriptor.

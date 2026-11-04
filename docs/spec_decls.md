@@ -58,6 +58,9 @@ What follows is a list of builtin descriptor items:
     The merge  predicate determines which one is kept. `<pred>` must refer
     to a predicate with three argument positions that is `deferred` and 
     supports the mode `mode('+', '+', '-')`.
+*   `no_reorder()` keeps every rule with a premise over this predicate in
+    the order written, when evaluation lets the engine reorder premises
+    (`engine.WithPremiseReordering()`).
 
 The `mode` and `deferred` descriptors enable the use of predicates for
 computation that is well beyond the datalog fragment.

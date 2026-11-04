@@ -43,6 +43,12 @@ type Stats struct {
 	Strata        [][]ast.PredicateSym
 	Duration      []time.Duration
 	PredToStratum map[ast.PredicateSym]int
+	// PremiseOrders lists the rules whose premises were evaluated in a
+	// different order than written: one entry for each such rule, and one for
+	// each of its delta variants (see PremiseOrder.NewFacts), however many
+	// rounds the evaluation takes. It is empty unless the evaluation used
+	// [WithPremiseReordering].
+	PremiseOrders []PremiseOrder
 }
 
 type engine struct {
@@ -58,6 +64,9 @@ type engine struct {
 	predToDecl         map[ast.PredicateSym]*ast.Decl
 	stats              Stats
 	options            EvalOptions
+	// premiseOrders collects, across strata, the rules evaluated in a
+	// different order than written.
+	premiseOrders *[]PremiseOrder
 }
 
 // ExternalPredicateCallback is used to query external data sources.
@@ -108,6 +117,9 @@ type EvalOptions struct {
 	// recorder, if non-nil, receives a callback per derived fact so the
 	// provenance package can assemble a proof DAG during evaluation.
 	recorder DerivationRecorder
+	// reorderPremises lets the engine evaluate premises in a different order
+	// than written; see WithPremiseReordering.
+	reorderPremises bool
 }
 
 // EvalOption affects the way the evaluation is performed.
@@ -244,10 +256,12 @@ func EvalStratifiedProgramWithStats(programInfo *analysis.ProgramInfo,
 		predToDecl:         predToDecl,
 		stats:              stats,
 		options:            opts,
+		premiseOrders:      &[]PremiseOrder{},
 	}
 	if err := e.evalStrata(); err != nil {
 		return Stats{}, err
 	}
+	e.stats.PremiseOrders = *e.premiseOrders
 	if opts.addNowMarker {
 		nowAtom := ast.NewAtom("__now", ast.Time(e.evalTime.UnixNano()))
 		if opts.temporalStore != nil {
@@ -317,6 +331,7 @@ func (e *engine) evalStrata() error {
 			predToDecl:         e.predToDecl,
 			stats:              e.stats,
 			options:            e.options,
+			premiseOrders:      e.premiseOrders,
 		}
 		if err := e.eval(); err != nil {
 			return err
@@ -521,7 +536,7 @@ func (e *engine) eval() error {
 			// clauses with do-transforms assume a single subgoal as body.
 			continue
 		}
-		derivedFacts, err := e.oneStepEvalClause(clause)
+		derivedFacts, err := e.oneStepEvalClause(clause, e.premisesInOrder(clause))
 		if err != nil {
 			return err
 		}
@@ -559,6 +574,10 @@ func (e *engine) eval() error {
 		for _, pred := range deltaRulePreds {
 			deltaRules = append(deltaRules, deltaRuleMap[pred]...)
 		}
+		deltaRulePremises := make([][]ast.Term, len(deltaRules))
+		for i, deltaRule := range deltaRules {
+			deltaRulePremises[i] = e.premisesInOrder(deltaRule)
+		}
 		if err := e.mergeDelta(); err != nil {
 			return err
 		}
@@ -569,11 +588,11 @@ func (e *engine) eval() error {
 				newTemporalDeltaStore = factstore.NewTemporalStore()
 			}
 			var incrementalFactAdded bool
-			for _, deltaRule := range deltaRules {
+			for i, deltaRule := range deltaRules {
 				if !predicateAllowList(deltaRule.Head.Predicate) {
 					continue
 				}
-				derivedFacts, err := e.oneStepEvalClause(deltaRule)
+				derivedFacts, err := e.oneStepEvalClause(deltaRule, deltaRulePremises[i])
 				if err != nil {
 					return err
 				}
@@ -740,9 +759,36 @@ func normalizeRule(r ast.Clause) ast.Clause {
 	return ast.Clause{Head: r.Head, HeadTime: r.HeadTime, Premises: premises, Transform: r.Transform}
 }
 
+// premisesInOrder returns the premises of clause in the order to evaluate them.
+// Under WithPremiseReordering, a rule evaluated in a different order than written
+// is added to Stats.PremiseOrders.
+func (e *engine) premisesInOrder(clause ast.Clause) []ast.Term {
+	if !e.options.reorderPremises {
+		return clause.Premises
+	}
+	reordered, changed := ReorderPremises(clause, e.predToDecl)
+	if !changed {
+		return clause.Premises
+	}
+	newFacts := -1
+	for i, p := range clause.Premises {
+		if a, ok := p.(ast.Atom); ok && isDeltaPredicate(a.Predicate) {
+			newFacts = i
+		}
+	}
+	*e.premiseOrders = append(*e.premiseOrders, PremiseOrder{
+		Rule:      normalizeRule(clause),
+		Evaluated: normalizeRule(reordered),
+		NewFacts:  newFacts,
+	})
+	return reordered.Premises
+}
+
 // Evaluates clause (a rule), by scanning known facts for each premise and producing
-// a solution (conjunctive query, similar to a join).
-func (e *engine) oneStepEvalClause(clause ast.Clause) ([]DerivedTemporalFact, error) {
+// a solution (conjunctive query, similar to a join). The premises are evaluated in
+// the order given by premises, which are those of clause, possibly reordered; the
+// recorder is told about clause as written.
+func (e *engine) oneStepEvalClause(clause ast.Clause, premises []ast.Term) ([]DerivedTemporalFact, error) {
 	pred := clause.Head.Predicate
 	decl := e.predToDecl[pred]
 	if decl != nil && decl.DeferredPredicate() {
@@ -750,7 +796,7 @@ func (e *engine) oneStepEvalClause(clause ast.Clause) ([]DerivedTemporalFact, er
 	}
 
 	var solutions = []unionfind.UnionFind{unionfind.New()}
-	for _, term := range clause.Premises {
+	for _, term := range premises {
 		var newsolutions []unionfind.UnionFind
 		for _, s := range solutions {
 			stepsolutions, err := e.oneStepEvalPremise(term, s, clause)

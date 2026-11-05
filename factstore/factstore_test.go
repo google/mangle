@@ -51,7 +51,10 @@ func TestAddContainsRemove(t *testing.T) {
 		NewMultiIndexedInMemoryStore(),
 		NewMultiIndexedArrayInMemoryStore(),
 		NewMergedStore([]FactStore{NewSimpleInMemoryStore()}, NewSimpleInMemoryStore()),
-		NewConcurrentFactStore(NewSimpleInMemoryStore())} {
+		NewConcurrentFactStore(NewSimpleInMemoryStore()),
+		NewColumnarStore(),
+		NewMergedStore([]FactStore{NewColumnarStore()}, NewColumnarStore()),
+	} {
 		t.Run(fmt.Sprintf("%T", fs), func(t *testing.T) {
 			tests := []ast.Atom{
 				atom("baz()"),
